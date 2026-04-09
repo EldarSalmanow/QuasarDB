@@ -1,0 +1,27 @@
+{
+  "name": "QuasarDB DevContainer",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "containerEnv": {
+    "VCPKG_ROOT": "/opt/vcpkg",
+    "VCPKG_DEFAULT_TRIPLET": "x64-linux"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "xaver.clang-format"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": true,
+        "cmake.generator": "Ninja",
+        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+      }
+    }
+  },
+  "postCreateCommand": "cmake -S . -B build -G Ninja"
+}
+

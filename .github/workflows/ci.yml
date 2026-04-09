@@ -1,0 +1,47 @@
+name: C++ CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++-13 clang-tidy clang-format
+
+      - name: Set up GCC 13
+        run: |
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+      - name: Configure CMake
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Run Clang-Format (Code Formatting)
+        run: |
+          find apps libs -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+
+      - name: Run Clang-Tidy (Static Analysis)
+        run: |
+          find apps libs -name "*.cpp" | xargs clang-tidy -p build/
+
+      - name: Build Project
+        run: cmake --build build
+
+      - name: Run Unit Tests
+        working-directory: build
+        run: ctest --output-on-failure
