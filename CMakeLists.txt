@@ -41,6 +41,25 @@ message(STATUS "    BinaryDir: ${BINARY_DIR}")
 
 add_subdirectory(libs/core)
 
-add_subdirectory(apps/client)
-add_subdirectory(apps/server)
-add_subdirectory(apps/storage)
+# add_subdirectory(apps/client)
+# add_subdirectory(apps/server)
+# add_subdirectory(apps/storage)
+
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.15.0
+)
+FetchContent_MakeAvailable(googletest)
+
+if(CLANG_TIDY_EXE)
+    set_target_properties(gtest PROPERTIES CXX_CLANG_TIDY "")
+    set_target_properties(gtest_main PROPERTIES CXX_CLANG_TIDY "")
+    set_target_properties(gmock PROPERTIES CXX_CLANG_TIDY "")
+    set_target_properties(gmock_main PROPERTIES CXX_CLANG_TIDY "")
+endif()
+
+enable_testing()
+
+add_subdirectory(tests)

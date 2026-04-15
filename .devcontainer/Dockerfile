@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     gdb \
     cmake \
+    build-essential \
     clang-tidy \
     clang-format \
     git \
