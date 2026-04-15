@@ -27,12 +27,10 @@ public:
     }
 
     bool canLend() const {
-        // Проверка, можно ли отдать часть ключей соседу (для перераспределения)
         return keys.size() > MIN_KEYS;
     }
 
     bool underflow() const {
-        // Проверка, не нарушен ли минимум
         return keys.size() < MIN_KEYS;
     }
 
