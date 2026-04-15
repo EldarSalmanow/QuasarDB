@@ -389,19 +389,20 @@ private:
         std::vector<Node<KeyType, ValueType>*> allC = std::move(n1->children);
         allC.insert(allC.end(), n2->children.begin(), n2->children.end());
 
-        int size = allK.size();
-        int part = size / 3; 
+        int total = allK.size();
+        int s1 = total / 3;
+        int s2 = (total - s1 - 1) / 2;
 
-        n1->keys.assign(allK.begin(), allK.begin() + part);
-        n1->children.assign(allC.begin(), allC.begin() + part + 1);
-        KeyType sep1 = allK[part];
+        n1->keys.assign(allK.begin(), allK.begin() + s1);
+        n1->children.assign(allC.begin(), allC.begin() + s1 + 1);
+        KeyType sep1 = allK[s1];
 
-        n2->keys.assign(allK.begin() + part + 1, allK.begin() + 2 * part + 1);
-        n2->children.assign(allC.begin() + part + 1, allC.begin() + 2 * part + 2);
-        KeyType sep2 = allK[2 * part + 1];
+        n2->keys.assign(allK.begin() + s1 + 1, allK.begin() + s1 + 1 + s2);
+        n2->children.assign(allC.begin() + s1 + 1, allC.begin() + s1 + 1 + s2 + 1);
+        KeyType sep2 = allK[s1 + 1 + s2];
 
-        n3->keys.assign(allK.begin() + 2 * part + 2, allK.end());
-        n3->children.assign(allC.begin() + 2 * part + 2, allC.end());
+        n3->keys.assign(allK.begin() + s1 + 1 + s2 + 1, allK.end());
+        n3->children.assign(allC.begin() + s1 + 1 + s2 + 1, allC.end());
 
         parent->keys[leftIdx] = sep1;
         parent->insertKey(sep2, n3);
@@ -671,14 +672,14 @@ private:
         std::string indent(depth * 2, ' ');
         if (node->isLeaf()) {
             auto leaf = static_cast<LeafNode<KeyType, ValueType>*>(node);
-            os << indent << node << " Leaf: ";
+            os << indent << node << " Leaf (" << node->size() << "): ";
             for (size_t i = 0; i < leaf->size(); ++i) {
                 os << leaf->keys[i] << " ";
             }
             os << "\n";
         } else {
             auto in = static_cast<InternalNode<KeyType, ValueType>*>(node);
-            os << indent << node << " Internal: ";
+            os << indent << node << " Internal: (" << node->size() << "); ";
             for (size_t i = 0; i < in->size(); ++i) {
                 os << in->keys[i] << " ";
             }

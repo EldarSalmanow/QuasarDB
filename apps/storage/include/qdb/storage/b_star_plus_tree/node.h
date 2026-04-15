@@ -7,7 +7,7 @@ template <typename KeyType, typename ValueType>
 class Node {
     
 public:
-    static constexpr bool DEBUG = false;
+    static constexpr bool DEBUG = true;
 
     static constexpr int ORDER = 6;
     static constexpr int MAX_KEYS = ORDER - 1;
