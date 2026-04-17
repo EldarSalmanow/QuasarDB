@@ -11,6 +11,7 @@
         "github.vscode-pull-request-github",
         "llvm-vs-code-extensions.vscode-clangd",
         "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.makefile-tools",
         "xaver.clang-format"
       ],
       "settings": {

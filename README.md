@@ -7,20 +7,28 @@ Team course project of DBMS on the course "System Programming" of Moscow Aviatio
 2. Run `Dev Containers: Reopen in Container`.
 3. Wait for `postCreateCommand` to run `make build`.
 
-## Local Build (Makefile + Conan + CMake)
+## Actions
+
+### Build
 
 ```bash
-cd /home/eldar/QuasarDB
-make setup
 make build
+```
+
+### Test
+
+```bash
 make test
 ```
 
-Useful targets:
+### Check
 
 ```bash
-cd /home/eldar/QuasarDB
-make format
 make check
-make ci
+```
+
+### Format
+
+```bash
+make format
 ```
