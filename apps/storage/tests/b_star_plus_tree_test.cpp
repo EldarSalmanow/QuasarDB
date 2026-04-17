@@ -1,19 +1,19 @@
 #include <gtest/gtest.h>
-#include "../../apps/storage/include/qdb/storage/b_star_plus_tree/b_star_plus_tree.h"
-#include <iostream>
-#include <vector>
+#include <qdb/storage/b_star_plus_tree/b_star_plus_tree.h>
 #include <algorithm>
-#include <random>
+#include <iostream>
 #include <numeric>
+#include <random>
+#include <vector>
 
 bool randomTest(int iterations = 1000) {
     BStarPlusTree<int, int> tree;
     std::vector<int> addedKeys;
-    
+
     std::random_device rdevice;
     std::mt19937 gen(rdevice());
     std::uniform_int_distribution<> dis(1, 10000);
-    std::uniform_int_distribution<> opDis(0, 1); // 0 - вставка, 1 - удаление
+    std::uniform_int_distribution<> opDis(0, 1);  // 0 - вставка, 1 - удаление
 
     std::cout << "Starting random test with " << iterations << " iterations..." << std::endl;
 
@@ -29,8 +29,7 @@ bool randomTest(int iterations = 1000) {
             tree.insert(key, value);
             addedKeys.push_back(key);
             std::cout << "Step " << i << ": Inserted " << key << std::endl;
-        } 
-        else {
+        } else {
             std::uniform_int_distribution<> indexDis(0, static_cast<int>(addedKeys.size()) - 1);
             int idx = indexDis(gen);
             int key = addedKeys[idx];
@@ -50,7 +49,7 @@ bool randomTest(int iterations = 1000) {
 bool randomBigTest(int iterations = 1000) {
     BStarPlusTree<int, int> tree;
     std::vector<int> addedKeys;
-    
+
     std::random_device rdevice;
     std::mt19937 gen(rdevice());
     std::uniform_int_distribution<> dis(1, 10000);
@@ -68,8 +67,7 @@ bool randomBigTest(int iterations = 1000) {
                 tree.insert(key, value);
                 addedKeys.push_back(key);
                 std::cout << "Step " << i << ": Inserted " << key << std::endl;
-            } 
-            else {
+            } else {
                 std::uniform_int_distribution<> indexDis(0, static_cast<int>(addedKeys.size()) - 1);
                 int idx = indexDis(gen);
                 int key = addedKeys[idx];
@@ -103,7 +101,7 @@ TEST(StorageTest, BStarPlusTreeRandomBigTest) {
     EXPECT_TRUE(randomBigTest());
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
