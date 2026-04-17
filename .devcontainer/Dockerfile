@@ -4,6 +4,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 COPY scripts/setup.sh /tmp/setup.sh
 
+RUN sed -i 's/\\r$//' /tmp/setup.sh
+
 RUN bash /tmp/setup.sh --no-sudo && rm -f /tmp/setup.sh
 
 ARG USERNAME=vscode

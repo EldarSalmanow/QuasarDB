@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
-
 USE_SUDO="true"
 if [[ "${1:-}" == "--no-sudo" ]]; then
   USE_SUDO="false"
@@ -44,4 +42,3 @@ ${SUDO_CMD} rm -rf /var/lib/apt/lists/*
 
 python3 -m pip install --upgrade "${PIP_ARGS[@]}" pip
 python3 -m pip install --upgrade "${PIP_ARGS[@]}" conan
-
