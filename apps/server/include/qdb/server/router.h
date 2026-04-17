@@ -5,4 +5,4 @@
 #ifndef QUASARDB_ROUTER_H
 #define QUASARDB_ROUTER_H
 
-#endif //QUASARDB_ROUTER_H
+#endif  // QUASARDB_ROUTER_H

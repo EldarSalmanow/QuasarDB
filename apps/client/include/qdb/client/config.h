@@ -6,20 +6,20 @@
 
 namespace qdb::client {
 
-    class Config {
-    public:
-        static auto Load(const std::string &path) -> std::unique_ptr<Config>;
+class Config {
+public:
+    static auto Load(const std::string& path) -> std::unique_ptr<Config>;
 
-    public:
-        auto Host() const -> const std::string &;
+public:
+    auto Host() const -> const std::string&;
 
-        auto Port() const -> int;
+    auto Port() const -> int;
 
-        auto User() const -> const std::string &;
+    auto User() const -> const std::string&;
 
-        auto Database() const -> const std::string &;
-    };
+    auto Database() const -> const std::string&;
+};
 
-} // namespace qdb
+}  // namespace qdb::client
 
-#endif //QUASARDB_CONFIG_H
+#endif  // QUASARDB_CONFIG_H

@@ -5,18 +5,17 @@
 
 namespace qdb::client {
 
-    class Renderer {
-    public:
-        void RenderWelcome() const;
+class Renderer {
+public:
+    void RenderWelcome() const;
 
-        void RenderPrompt() const;
+    void RenderPrompt() const;
 
-        void RenderResult(const std::string &json_data) const;
+    void RenderResult(const std::string& json_data) const;
 
-        void RenderError(const std::string &message) const;
-    };
+    void RenderError(const std::string& message) const;
+};
 
-} // namespace qdb::client
+}  // namespace qdb::client
 
 #endif  // QUASARDB_RENDERER_H
-

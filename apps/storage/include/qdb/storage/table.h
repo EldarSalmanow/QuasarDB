@@ -5,4 +5,4 @@
 #ifndef QUASARDB_TABLE_H
 #define QUASARDB_TABLE_H
 
-#endif //QUASARDB_TABLE_H
+#endif  // QUASARDB_TABLE_H

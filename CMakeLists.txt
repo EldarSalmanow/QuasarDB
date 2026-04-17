@@ -4,21 +4,31 @@ project(QuasarDB LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-find_program(CLANG_TIDY_EXE NAMES clang-tidy)
-
-if(CLANG_TIDY_EXE)
-	set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY_EXE})
-
-	message(STATUS "clang-tidy enabled: ${CLANG_TIDY_EXE}")
-else()
-	message(STATUS "clang-tidy not found; continuing without it")
-endif()
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_compile_options(
-		$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wall>
-		$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wextra>
-		$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wpedantic>
+	$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wall>
+	$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wextra>
+	$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wpedantic>
+)
+
+include(CTest)
+
+find_package(nlohmann_json REQUIRED CONFIG)
+find_package(args REQUIRED CONFIG)
+
+if(BUILD_TESTING)
+	find_package(GTest REQUIRED CONFIG)
+	include(GoogleTest)
+endif()
+
+add_library(qdb-thirdparty INTERFACE)
+add_library(qdb::thirdparty ALIAS qdb-thirdparty)
+
+target_link_libraries(qdb-thirdparty
+	INTERFACE
+		nlohmann_json::nlohmann_json
+		taywee::args
 )
 
 set(PROJECT_DIR   ${CMAKE_SOURCE_DIR})
@@ -35,9 +45,6 @@ message(STATUS "    ClientDir: ${CLIENT_DIR}")
 message(STATUS "    ServerDir: ${SERVER_DIR}")
 message(STATUS "    StorageDir: ${STORAGE_DIR}")
 message(STATUS "    BinaryDir: ${BINARY_DIR}")
-
-# TODO: add dependencies searching
-#message(STATUS "Check dependencies...")
 
 add_subdirectory(libs/core)
 

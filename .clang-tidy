@@ -1,16 +1,12 @@
 Checks: >
   -*,
   bugprone-*,
-  cppcoreguidelines-*,
-  google-*,
   modernize-*,
   performance-*,
   readability-*,
-  -cppcoreguidelines-owning-memory,
-  -cppcoreguidelines-avoid-magic-numbers,
+  -modernize-use-trailing-return-type,
   -readability-magic-numbers,
-  -google-build-using-namespace,
-  -modernize-use-trailing-return-type
+  -performance-avoid-endl
 
 WarningsAsErrors: '*'
-FormatStyle: file
+HeaderFilterRegex: '^(apps|libs)/.*'

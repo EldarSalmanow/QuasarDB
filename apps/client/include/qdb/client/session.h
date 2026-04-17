@@ -3,10 +3,8 @@
 
 namespace qdb::client {
 
-    class Session {
+class Session {};
 
-    };
+}  // namespace qdb::client
 
-} // namespace qdb::client
-
-#endif //QUASARDB_SESSION_H
+#endif  // QUASARDB_SESSION_H

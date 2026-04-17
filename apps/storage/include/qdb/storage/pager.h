@@ -5,4 +5,4 @@
 #ifndef QUASARDB_PAGER_H
 #define QUASARDB_PAGER_H
 
-#endif //QUASARDB_PAGER_H
+#endif  // QUASARDB_PAGER_H

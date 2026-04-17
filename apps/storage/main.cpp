@@ -1,3 +1,8 @@
-//
-// Created by eldar on 06.04.2026.
-//
+#include <iostream>
+
+int main(int argc, char** argv) {
+    (void)argc, (void)argv;
+    std::cout << "QuasarDB Storage" << std::endl;
+
+    return 0;
+}

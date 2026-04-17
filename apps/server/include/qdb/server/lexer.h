@@ -5,4 +5,4 @@
 #ifndef QUASARDB_LEXER_H
 #define QUASARDB_LEXER_H
 
-#endif //QUASARDB_LEXER_H
+#endif  // QUASARDB_LEXER_H

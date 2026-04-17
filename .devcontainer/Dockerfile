@@ -2,27 +2,17 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    gcc \
-    g++ \
-    gdb \
-    cmake \
-    clang-tidy \
-    clang-format \
-    git \
-    curl \
-    zip \
-    unzip \
-    tar \
-    ninja-build \
-    && rm -rf /var/lib/apt/lists/*
+COPY scripts/setup.sh /tmp/setup.sh
 
-RUN git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg \
-    && /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+RUN bash /tmp/setup.sh --no-sudo && rm -f /tmp/setup.sh
 
-ENV VCPKG_ROOT=/opt/vcpkg
-ENV PATH="${VCPKG_ROOT}:${PATH}"
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
+
+USER $USERNAME
 
 WORKDIR /workspaces/QuasarDB
-

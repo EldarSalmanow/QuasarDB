@@ -1,19 +1,26 @@
 #include <qdb/client/application.h>
 
+#include <iostream>
+
 /*
  * TODO: add signal handlers
  */
 
-int main(int argc, char **argv) {
-    auto config = qdb::client::Config::Load("<path>");
+int main(int argc, char** argv) {
+    (void)argc, (void)argv;
 
-    if (!config) {
-        return 1;
-    }
+    std::cout << "QuasarDB Client" << std::endl;
 
-    const auto application = qdb::client::Application::New(std::move(config));
-
-    const auto result = application->Run();
-
-    return result;
+    return 0;
+    // auto config = qdb::client::Config::Load("<path>");
+    //
+    // if (!config) {
+    //     return 1;
+    // }
+    //
+    // const auto application = qdb::client::Application::New(config);
+    //
+    // const auto result = application->Run();
+    //
+    // return result;
 }

@@ -6,17 +6,17 @@
 
 namespace qdb::client {
 
-    class Connection {
-    public:
-        auto Connect(const std::string &host, int port) -> bool;
+class Connection {
+public:
+    auto Connect(const std::string& host, int port) -> bool;
 
-        auto Disconnect() -> void;
+    auto Disconnect() -> void;
 
-        auto IsConnected() const -> bool;
+    auto IsConnected() const -> bool;
 
-        auto Send(const Request &request) -> Response;
-    };
+    auto Send(const Request& request) -> Response;
+};
 
-} // namespace qdb::client
+}  // namespace qdb::client
 
 #endif  // QUASARDB_CONNECTION_H

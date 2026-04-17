@@ -5,37 +5,37 @@
 
 namespace qdb::client {
 
-    class IReader {
-    public:
-        virtual ~IReader();
+class IReader {
+public:
+    virtual ~IReader();
 
-    public:
-        virtual bool Open() = 0;
-        virtual void Close() = 0;
-        virtual std::string ReadLine() = 0;
-        virtual bool HasNext() const = 0;
-    };
+public:
+    virtual bool Open() = 0;
+    virtual void Close() = 0;
+    virtual std::string ReadLine() = 0;
+    virtual bool HasNext() const = 0;
+};
 
-    // for REPL
-    class ConsoleReader : public IReader {
-    public:
-        bool Open() override;
-        void Close() override;
-        std::string ReadLine() override;
-        bool HasNext() const override;
-    };
+// for REPL
+class ConsoleReader : public IReader {
+public:
+    bool Open() override;
+    void Close() override;
+    std::string ReadLine() override;
+    bool HasNext() const override;
+};
 
-    class FileReader : public IReader {
-    public:
-        explicit FileReader(const std::string& file_path);
+class FileReader : public IReader {
+public:
+    explicit FileReader(const std::string& file_path);
 
-    public:
-        bool Open() override;
-        void Close() override;
-        std::string ReadLine() override;
-        bool HasNext() const override;
-    };
+public:
+    bool Open() override;
+    void Close() override;
+    std::string ReadLine() override;
+    bool HasNext() const override;
+};
 
-} // namespace qdb::client
+}  // namespace qdb::client
 
 #endif  // QUASARDB_STREAM_H

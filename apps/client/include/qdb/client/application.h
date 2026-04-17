@@ -7,15 +7,14 @@
 
 namespace qdb::client {
 
-    class Application {
-    public:
-        static auto New(const std::unique_ptr<Config> &config) -> std::unique_ptr<Application>;
+class Application {
+public:
+    static auto New(const std::unique_ptr<Config>& config) -> std::unique_ptr<Application>;
 
-    public:
-        auto Run() -> int;
-    };
+public:
+    auto Run() -> int;
+};
 
-} // namespace qdb::client
+}  // namespace qdb::client
 
-#endif //QUASARDB_APPLICATION_H
-
+#endif  // QUASARDB_APPLICATION_H

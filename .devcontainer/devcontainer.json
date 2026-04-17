@@ -4,10 +4,6 @@
     "dockerfile": "Dockerfile",
     "context": ".."
   },
-  "containerEnv": {
-    "VCPKG_ROOT": "/opt/vcpkg",
-    "VCPKG_DEFAULT_TRIPLET": "x64-linux"
-  },
   "customizations": {
     "vscode": {
       "extensions": [
@@ -16,12 +12,30 @@
         "xaver.clang-format"
       ],
       "settings": {
-        "cmake.configureOnOpen": true,
+        "cmake.configureOnOpen": false,
         "cmake.generator": "Ninja",
-        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+        "cmake.buildDirectory": "${workspaceFolder}/build/Debug",
+        "cmake.sourceDirectory": "${workspaceFolder}",
+        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+        "C_Cpp.formatting": "clangFormat",
+        "C_Cpp.clang_format_path": "/usr/bin/clang-format",
+        "[cpp]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "xaver.clang-format"
+        },
+        "[c]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "xaver.clang-format"
+        }
       }
     }
   },
-  "postCreateCommand": "cmake -S . -B build -G Ninja"
+  "postCreateCommand": "bash -lc 'make build'",
+  "remoteUser": "vscode",
+  "runArgs": [
+    "--cap-add=SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined"
+  ]
 }
 

@@ -3,11 +3,10 @@
 
 namespace qdb::client {
 
-    class Request {
-    public:
+class Request {
+public:
+};
 
-    };
+}  // namespace qdb::client
 
-} // namespace qdb::client
-
-#endif //QUASARDB_REQUEST_H
+#endif  // QUASARDB_REQUEST_H

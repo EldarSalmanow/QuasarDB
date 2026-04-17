@@ -3,11 +3,10 @@
 
 namespace qdb::client {
 
-    class Response {
-    public:
+class Response {
+public:
+};
 
-    };
+}  // namespace qdb::client
 
-} // namespace qdb::client
-
-#endif //QUASARDB_RESPONSE_H
+#endif  // QUASARDB_RESPONSE_H
