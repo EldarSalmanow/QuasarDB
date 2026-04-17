@@ -7,8 +7,10 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-vscode.cpptools",
-        "ms-vscode.cmake-tools",
+        "cs128.cs128-clang-tidy",
+        "github.vscode-pull-request-github",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cpptools-extension-pack",
         "xaver.clang-format"
       ],
       "settings": {
