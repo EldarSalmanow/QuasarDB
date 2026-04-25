@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <qdb/storage/agregator.h>
 #include <qdb/storage/application.h>
+#include <qdb/storage/node.h>
 #include <qdb/storage/b_star_plus_tree.h>
 #include <qdb/storage/connection.h>
 #include <qdb/storage/database.h>

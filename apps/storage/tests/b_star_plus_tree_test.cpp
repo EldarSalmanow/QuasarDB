@@ -1,13 +1,36 @@
 #include <gtest/gtest.h>
-#include <qdb/storage/b_star_plus_tree/b_star_plus_tree.h>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <numeric>
 #include <random>
 #include <vector>
+#include <string_view>
+#include <filesystem>
+#include "qdb/storage/b_star_plus_tree.h"
 
-bool randomTest(int iterations = 1000) {
-    BStarPlusTree<int, int> tree;
+namespace fs = std::filesystem;
+
+class BStarPlusTreeTest : public ::testing::Test {
+public:
+    static constexpr std::string_view test_tree_name = "test_b_star_plus_tree";
+
+protected:
+    void SetUp() override {
+        if (fs::exists(test_tree_name)) {
+            fs::remove(test_tree_name);
+        }
+    }
+
+    void TearDown() override {
+        if (fs::exists(test_tree_name)) {
+            fs::remove(test_tree_name);
+        }
+    }
+};
+
+bool randomTest(const std::string& filename, int iterations = 10000) {
+    BStarPlusTree<int, int> tree(filename);
     std::vector<int> addedKeys;
 
     std::random_device rdevice;
@@ -26,58 +49,67 @@ bool randomTest(int iterations = 1000) {
                 key = dis(gen);
             }
             int value = key * 10;
+            std::cout << "Step " << i << ": Inserting " << key << std::endl;
             tree.insert(key, value);
             addedKeys.push_back(key);
-            std::cout << "Step " << i << ": Inserted " << key << std::endl;
         } else {
             std::uniform_int_distribution<> indexDis(0, static_cast<int>(addedKeys.size()) - 1);
             int idx = indexDis(gen);
             int key = addedKeys[idx];
+            std::cout << "Step " << i << ": Removing " << key << std::endl;
             tree.remove(key);
             addedKeys.erase(addedKeys.begin() + idx);
-            std::cout << "Step " << i << ": Removed " << key << std::endl;
         }
-        tree.print();
+        // tree.print();
         if (!tree.check_integrity()) {
             std::cout << "Integrity check failed at iteration " << i << std::endl;
+            tree.print();
             return false;
         }
     }
     return true;
 }
 
-bool randomBigTest(int iterations = 1000) {
-    BStarPlusTree<int, int> tree;
+bool randomBigTest(const std::string& filename, int iterations = 10000) {
+    BStarPlusTree<int, int> tree(filename);
     std::vector<int> addedKeys;
 
     std::random_device rdevice;
     std::mt19937 gen(rdevice());
-    std::uniform_int_distribution<> dis(1, 10000);
+    std::uniform_int_distribution<> dis(1, 100000);
 
     std::cout << "Starting random test with " << iterations << " iterations..." << std::endl;
 
     for (int operation : {0, 1}) {
         for (int i = 0; i < iterations; ++i) {
+            std::stringstream buffer;
+            std::streambuf* oldCoutBuffer = std::cout.rdbuf(buffer.rdbuf());
+            tree.print();
+            std::cout.rdbuf(oldCoutBuffer);
+
             if (operation == 0) {
                 int key = dis(gen);
                 while (std::find(addedKeys.begin(), addedKeys.end(), key) != addedKeys.end()) {
                     key = dis(gen);
                 }
                 int value = key * 10;
+                std::cout << "Step " << i << ": Inserting " << key << std::endl;
                 tree.insert(key, value);
                 addedKeys.push_back(key);
-                std::cout << "Step " << i << ": Inserted " << key << std::endl;
             } else {
                 std::uniform_int_distribution<> indexDis(0, static_cast<int>(addedKeys.size()) - 1);
                 int idx = indexDis(gen);
                 int key = addedKeys[idx];
+                std::cout << "Step " << i << ": Removing " << key << std::endl;
                 tree.remove(key);
                 addedKeys.erase(addedKeys.begin() + idx);
-                std::cout << "Step " << i << ": Removed " << key << std::endl;
             }
-            tree.print();
+            
             if (!tree.check_integrity()) {
                 std::cout << "Integrity check failed at iteration " << i << std::endl;
+                std::cout << buffer.str();
+                std::cout << "-------------------------" << std::endl;
+                tree.print();
                 return false;
             }
         }
@@ -85,20 +117,12 @@ bool randomBigTest(int iterations = 1000) {
     return true;
 }
 
-TEST(StorageTest, BStarPlusTreeRandomTest) {
-    EXPECT_TRUE(randomTest());
-    EXPECT_TRUE(randomTest());
-    EXPECT_TRUE(randomTest());
-    EXPECT_TRUE(randomTest());
-    EXPECT_TRUE(randomTest());
+TEST_F(BStarPlusTreeTest, BStarPlusTreeRandomTest1) {
+    EXPECT_TRUE(randomTest(std::string(BStarPlusTreeTest::test_tree_name)));
 }
 
-TEST(StorageTest, BStarPlusTreeRandomBigTest) {
-    EXPECT_TRUE(randomBigTest());
-    EXPECT_TRUE(randomBigTest());
-    EXPECT_TRUE(randomBigTest());
-    EXPECT_TRUE(randomBigTest());
-    EXPECT_TRUE(randomBigTest());
+TEST_F(BStarPlusTreeTest, BStarPlusTreeRandomBigTest1) {
+    EXPECT_TRUE(randomBigTest(std::string(BStarPlusTreeTest::test_tree_name)));
 }
 
 int main(int argc, char** argv) {
