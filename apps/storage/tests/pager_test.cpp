@@ -5,9 +5,7 @@
 namespace fs = std::filesystem;
 
 class PagerTest : public ::testing::Test {
-
 protected:
-
     const std::string test_db = "test_database.db";
     const size_t PAGE_SIZE = 4096;
 
@@ -22,7 +20,6 @@ protected:
             fs::remove(test_db);
         }
     }
-
 };
 
 TEST_F(PagerTest, InitializesEmptyFile) {
@@ -49,10 +46,10 @@ TEST_F(PagerTest, WritesAndReadsData) {
     pager.append_new_page();
 
     std::vector<uint8_t> data_to_write(PAGE_SIZE, 0xAB);
-    pager.write_page(0, data_to_write);
+    pager.write_page(0, data_to_write.data());
 
-    std::vector<uint8_t> data_to_read;
-    pager.read_page(0, data_to_read);
+    std::vector<uint8_t> data_to_read(PAGE_SIZE);
+    pager.read_page(0, data_to_read.data());
 
     EXPECT_EQ(data_to_read.size(), PAGE_SIZE);
     EXPECT_EQ(data_to_read, data_to_write);
@@ -63,27 +60,19 @@ TEST_F(PagerTest, PersistsDataAfterReopening) {
         Pager pager(test_db, PAGE_SIZE);
         pager.append_new_page();
         std::vector<uint8_t> data(PAGE_SIZE, 0xCD);
-        pager.write_page(0, data);
+        pager.write_page(0, data.data());
     }
 
     Pager pager_reopened(test_db, PAGE_SIZE);
-    std::vector<uint8_t> read_data;
-    pager_reopened.read_page(0, read_data);
+    std::vector<uint8_t> read_data(PAGE_SIZE);
+    pager_reopened.read_page(0, read_data.data());
 
     EXPECT_EQ(pager_reopened.get_total_pages(), 1);
     EXPECT_EQ(read_data[0], 0xCD);
 }
 
-TEST_F(PagerTest, ThrowsExceptionOnInvalidWriteSize) {
-    Pager pager(test_db, PAGE_SIZE);
-    pager.append_new_page();
-
-    std::vector<uint8_t> invalid_data(PAGE_SIZE - 1, 0x00);
-    EXPECT_THROW(pager.write_page(0, invalid_data), std::runtime_error);
-}
-
 TEST_F(PagerTest, ThrowsExceptionOnReadingNonExistentPage) {
     Pager pager(test_db, PAGE_SIZE);
     std::vector<uint8_t> data;
-    EXPECT_THROW(pager.read_page(99, data), std::runtime_error);
+    EXPECT_THROW(pager.read_page(99, data.data()), std::runtime_error);
 }
