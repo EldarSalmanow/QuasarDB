@@ -12,16 +12,21 @@
 #include <iostream>
 #include "pager.h"
 
+template<typename T, typename K>
+concept HasSearchCmp = requires(const T& a, const K& b) {
+    { a.SearchCmp(b) } -> std::convertible_to<int>;
+};
+
 template<typename T>
 concept BTreeKey = requires(const T a, const T b) {
     { a < b } -> std::convertible_to<bool>;
+    { a == b } -> std::convertible_to<bool>;
     requires std::is_trivially_copyable_v<T>; 
     requires sizeof(T) > 0;
 };
 
 template<typename T>
 concept BTreeValue = requires(const T a, const T b) {
-    { a < b } -> std::convertible_to<bool>;
     requires std::is_trivially_copyable_v<T>; 
     requires sizeof(T) > 0;
 };
@@ -229,13 +234,6 @@ public:
     bool empty() const {
         return size() == 0;
     }
-
-    node_size_t next_leaf_id() const {
-        if (!is_leaf()) {
-            throw std::runtime_error("It is not leaf.");
-        }
-        return page_data.leaf_data.next_leaf;
-    }
     
     node_size_t get_next_id() {
         if (!is_leaf()) {
@@ -301,7 +299,11 @@ public:
             throw std::runtime_error("It is not internal.");
         }
         const K_t* key_ptr = page_data.internal_data.keys;
-        return std::upper_bound(key_ptr, key_ptr + size(), key) - key_ptr;
+        auto child_idx = std::distance(key_ptr, std::lower_bound(key_ptr, key_ptr + size(), key));
+        if (child_idx < size() && key_ptr[child_idx] == key) {
+            return child_idx + 1;
+        }
+        return child_idx;
     }
 
 private:
@@ -515,6 +517,39 @@ public:
         save_to_disk();
     }
 
+    int find_key_idx_by_exact_cmp(K_t key) const {
+        const K_t* key_ptr = is_leaf() ? page_data.leaf_data.keys : page_data.internal_data.keys;
+        auto* it = std::lower_bound(key_ptr, key_ptr + size(), key);
+        int index = std::distance(key_ptr, it);
+        if (index >= size() || *it != key) {
+            return -1;
+        }
+        return index;
+    }
+
+    int find_key_idx_by_approx_comp(K_t key) const {
+        if constexpr (HasSearchCmp<K_t, K_t>) {
+            const K_t* key_ptr = is_leaf() ? page_data.leaf_data.keys : page_data.internal_data.keys;
+            auto* it = std::lower_bound(key_ptr, key_ptr + size(), key,
+                                        [](const K_t& a, const K_t& b) { return a.SearchCmp(b); });
+            int index = std::distance(key_ptr, it);
+            if (index >= size() || (*it).SearchCmp(key) != 0) {
+                return -1;
+            }
+            return index;
+        } else {
+            return find_key_idx_by_exact_cmp(key);
+        }
+    }
+
+    int find_key_idx_to_insert(K_t key) const {
+        const K_t* key_ptr = is_leaf() ? page_data.leaf_data.keys : page_data.internal_data.keys;
+        auto* it = std::lower_bound(key_ptr, key_ptr + size(), key);
+        int index = std::distance(key_ptr, it);
+        assert(is_leaf() ? index < PHYS_SIZE_LEAF : index < PHYS_KEYS_INTERNAL);
+        return index;
+    }
+
     bool insert_in_internal(K_t key, node_size_t right_child_id) {
         if (DEBUG) {
             std::cout
@@ -524,97 +559,67 @@ public:
         if (is_leaf()) {
             throw std::runtime_error("It is not internal.");
         }
+        int index = find_key_idx_to_insert(key);
         K_t* key_ptr = page_data.internal_data.keys;
-        node_size_t* children_ptr = page_data.internal_data.children;
-        auto* it = std::lower_bound(key_ptr, key_ptr + size(), key);
-        int index = std::distance(key_ptr, it);
-        assert(index < PHYS_KEYS_INTERNAL);
         std::move_backward(
             key_ptr + index,
             key_ptr + size(),
             key_ptr + size() + 1
         );
+        key_ptr[index] = key;
+        node_size_t* children_ptr = page_data.internal_data.children;
         std::move_backward(
             children_ptr + index + 1,
             children_ptr + children_size(),
             children_ptr + children_size() + 1
         );
-        key_ptr[index] = key;
         children_ptr[index + 1] = right_child_id;
         increment_size();
         save_to_disk();
         return overflow();
     }
 
-    bool insert_in_leaf(K_t key, V_t value) {
+    void insert_in_leaf(K_t key, V_t value) {
         if (DEBUG) {
             std::cout << "Node[" << id() << "]::insert_in_leaf(key=" << key << ", value=" << value << ")" << std::endl;
         }
         if (!is_leaf()) {
             throw std::runtime_error("It is not leaf.");
         }
+        int index = find_key_idx_to_insert(key);
         K_t* key_ptr = page_data.leaf_data.keys;
-        V_t* values_ptr = page_data.leaf_data.values;
-        auto* it = std::lower_bound(key_ptr, key_ptr + size(), key);
-        int index = std::distance(key_ptr, it);
-        if (index < size() && *it == key) {
-            return false;
-        }
         std::move_backward(
             key_ptr + index, 
             key_ptr + size(), 
             key_ptr + size() + 1
         );
+        key_ptr[index] = key;
+        V_t* values_ptr = page_data.leaf_data.values;
         std::move_backward(
             values_ptr + index, 
             values_ptr + size(), 
             values_ptr + size() + 1
         );
-        key_ptr[index] = key;
         values_ptr[index] = value;
         increment_size();
         save_to_disk();
-        return true;
-    }
-
-    bool remove_from_leaf(K_t key) {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::remove_from_leaf(key=" << key << ")" << std::endl;
-        }
-        if (!is_leaf()) {
-            throw std::runtime_error("It is not leaf.");
-        }
-        K_t* key_ptr = page_data.leaf_data.keys;
-        V_t* values_ptr = page_data.leaf_data.values;
-        auto* it = std::lower_bound(key_ptr, key_ptr + size(), key);
-        int index = std::distance(key_ptr, it);
-        if (it == key_ptr + size() || *it != key) {
-            return false;
-        }
-        std::move(
-            key_ptr + index + 1, 
-            key_ptr + size(), 
-            key_ptr + index
-        );
-        std::move(
-            values_ptr + index + 1, 
-            values_ptr + size(), 
-            values_ptr + index
-        );
-        decrement_size();
-        save_to_disk();
-        return true;
     }
 
     void remove_from_internal(int key_idx) {
         if (DEBUG) { std::cout << "Node[" << id() << "]::remove_from_internal(key_idx=" << key_idx << ")" << std::endl; }
+        if (is_leaf()) {
+            throw std::runtime_error("It is not internal.");
+        }
+        if (key_idx >= size()) {
+            throw std::out_of_range("Key index out of range: index=" + std::to_string(key_idx) + ", size=" + std::to_string(size()) + ".");
+        }
         K_t* key_ptr = page_data.internal_data.keys;
-        node_size_t* children_ptr = page_data.internal_data.children;
         std::move(
             key_ptr + key_idx + 1,
             key_ptr + size(),
             key_ptr + key_idx
         );
+        node_size_t* children_ptr = page_data.internal_data.children;
         std::move(children_ptr + key_idx + 2,
             children_ptr + children_size(),
             children_ptr + key_idx + 1
@@ -623,20 +628,75 @@ public:
         save_to_disk();
     }
 
-    std::optional<V_t> search(K_t key) const {
+    bool remove_from_leaf(K_t key) {
         if (DEBUG) {
-            std::cout << "Node[" << id() << "]::search(key=" << key << ")" << std::endl;
+            std::cout << "Node[" << id() << "]::remove_from_leaf: key=" << key << std::endl;
         }
         if (!is_leaf()) {
             throw std::runtime_error("It is not leaf.");
         }
-        K_t* key_ptr = page_data.leaf_data.keys;
-        auto* it = std::lower_bound(key_ptr, key_ptr + size(), key);
-        if (it == key_ptr + size() || *it != key) {
-            return std::nullopt;
+        int index = find_key_idx_by_exact_cmp(key);
+        if (index == -1) {
+            return false;
         }
-        node_size_t idx = std::distance(key_ptr, it);
-        return page_data.leaf_data.values[idx];
+        remove_from_leaf_by_idx(index);
+        return true;
+    }
+
+    void remove_from_leaf_by_idx(int idx) {
+        if (DEBUG) {
+            std::cout << "Node[" << id() << "]::remove_from_leaf_by_idx: idx=" << idx << std::endl;
+        }
+        if (!is_leaf()) {
+            throw std::runtime_error("It is not leaf.");
+        }
+        if (idx >= size()) {
+            throw std::out_of_range("Index out of range: index=" + std::to_string(idx) + ", size=" + std::to_string(size()) + ".");
+        }
+        K_t* key_ptr = page_data.leaf_data.keys;
+        std::move(
+            key_ptr + idx + 1, 
+            key_ptr + size(), 
+            key_ptr + idx
+        );
+        V_t* values_ptr = page_data.leaf_data.values;
+        std::move(
+            values_ptr + idx + 1, 
+            values_ptr + size(), 
+            values_ptr + idx
+        );
+        decrement_size();
+        save_to_disk();
+    }
+
+    bool update_value(K_t key, V_t value) {
+        if (DEBUG) {
+            std::cout << "Node[" << id() << "]::update_value: key=" << key << ", value=" << value << std::endl;
+        }
+        if (!is_leaf()) {
+            throw std::runtime_error("It is not leaf.");
+        }
+        auto index = find_key_idx_by_exact_cmp(key);
+        if (index == -1) {
+            return false;
+        }
+        update_value_by_idx(index, value);
+        return true;
+    }
+
+    void update_value_by_idx(int idx, V_t value) {
+        if (DEBUG) {
+            std::cout << "Node[" << id() << "]::update_value_by_idx(idx=" << idx << ")" << std::endl;
+        }
+        if (!is_leaf()) {
+            throw std::runtime_error("It is not leaf.");
+        }
+        if (idx >= size()) {
+            throw std::out_of_range("Index out of range: index=" + std::to_string(idx) + ", size=" + std::to_string(size()) + ".");
+        }
+        V_t* values_ptr = page_data.leaf_data.values;
+        values_ptr[idx] = value;
+        save_to_disk();
     }
 };
 

@@ -10,7 +10,6 @@
 #include <filesystem>
 
 class Pager final {
-
     size_t page_size;
     std::string file_path;
     std::fstream db_file;
@@ -18,7 +17,26 @@ class Pager final {
     std::vector<uint8_t> white_page;
 
 public:
+    Pager(Pager&& other) noexcept 
+        : page_size(other.page_size),
+          file_path(std::move(other.file_path)),
+          db_file(std::move(other.db_file)),
+          white_page(std::move(other.white_page)) 
+    {}
 
+    Pager& operator=(Pager&& other) noexcept {
+        if (this != &other) {
+            page_size = other.page_size;
+            file_path = std::move(other.file_path);
+            db_file = std::move(other.db_file);
+            white_page = std::move(other.white_page);
+        }
+        return *this;
+    }
+
+    Pager(const Pager&) = delete;
+    Pager& operator=(const Pager&) = delete;
+    
     ~Pager() noexcept {
         if (db_file.is_open()) {
             db_file.close();

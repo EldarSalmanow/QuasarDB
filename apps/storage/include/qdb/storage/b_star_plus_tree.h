@@ -23,6 +23,10 @@
 
 template<BTreeKey K_t, BTreeValue V_t>
 class BStarPlusTree final {
+public:
+    using key_type = K_t;
+
+private:
     using NodeType = Node<K_t, V_t>::NodeType;
     using node_size_t = Node<K_t, V_t>::node_size_t;
 
@@ -52,9 +56,67 @@ private:
         MetadataPage() : metadata_struct() {}
     };
 
-    std::string path;
+    std::string _path;
     Pager pager;
     union MetadataPage metadata;
+
+    class Iterator final {
+        std::unique_ptr<Node<K_t, V_t>> _current_node;
+        node_size_t _current_idx = -1;
+        Pager* _pager = nullptr;
+        node_size_t _node_id = -1;
+    
+    public:
+        Iterator(std::unique_ptr<Node<K_t, V_t>> node, node_size_t idx, Pager* pager)
+            : _current_node(std::move(node)), _current_idx(idx), _pager(pager) {
+            if (_current_node) {
+                _node_id = _current_node->id();
+            }
+        }
+        
+        Iterator() = default;
+        
+        Iterator(const Iterator& other) = delete;
+        Iterator& operator=(const Iterator& other) = delete;
+        
+        bool operator==(const Iterator& other) const noexcept {
+            return _node_id == other._node_id && _current_idx == other._current_idx;
+        }
+
+        bool operator!=(const Iterator& other) const noexcept {
+            return !(*this == other);
+        }
+
+        K_t key() const {
+            return _current_node->get_key(_current_idx);
+        }
+
+        V_t value() const {
+            return _current_node->get_value(_current_idx);
+        }
+
+        Iterator& operator++() & noexcept {
+            ++_current_idx;
+            if (_current_idx == _current_node->size()) {
+                auto next_id = _current_node->get_next_id();
+                if (next_id != -1) {
+                    _current_node = std::make_unique<Node<K_t, V_t>>(next_id, _pager);
+                    _current_idx = 0;
+                    _node_id = _current_node->id();
+                } else {
+                    _current_node = nullptr;
+                    _current_idx = -1;
+                    _pager = nullptr;
+                    _node_id = -1;
+                }
+            }
+            return *this;
+        }
+    };
+
+    Iterator end() const {
+        return Iterator();
+    }
 
 private:
     void read_metadata() {
@@ -73,7 +135,7 @@ private:
 
 public:
     BStarPlusTree(const std::string& path)
-        : path(path), pager(path, Node<K_t, V_t>::PAGE_SIZE)
+        : _path(path), pager(path, Node<K_t, V_t>::PAGE_SIZE)
     {
         if (DEBUG) { std::cout << "BStarPlusTree::BStarPlusTree: path=" << path << std::endl; }
         if (!pager.page_exists(METADATA_PAGE_ID)) {
@@ -91,11 +153,15 @@ public:
 
     BStarPlusTree(const BStarPlusTree&) = delete;
     BStarPlusTree& operator=(const BStarPlusTree&) = delete;
-    BStarPlusTree(BStarPlusTree&&) noexcept = delete;
-    BStarPlusTree& operator=(BStarPlusTree&&) noexcept = delete;
 
+    BStarPlusTree(BStarPlusTree&&) noexcept = default;
+    BStarPlusTree& operator=(BStarPlusTree&&) noexcept = default;
     ~BStarPlusTree() noexcept = default;
 
+    auto path() const {
+        return _path;
+    }
+    
     node_size_t root_id() {
         return metadata.metadata_struct.root_id;
     }
@@ -114,16 +180,34 @@ public:
         write_metadata();
     }
 
-    std::optional<V_t> search(K_t key) {
+    std::vector<V_t> search(K_t key) {
         if (DEBUG) {
             std::cout << "BStarPlusTree::search: key=" << key << std::endl;
         }
-        std::stack<std::pair<node_size_t, int>> parentStack;
-        auto leaf = findLeaf(key, parentStack);
+        std::vector<V_t> result;
+        std::stack<std::pair<node_size_t, int>> stub;
+        auto leaf = findLeaf(key, stub);
         if (!leaf) {
-            return std::nullopt;
+            return result;
         }
-        return leaf->search(key);
+        auto idx = leaf->find_key_idx_by_approx_comp(key);
+        if (idx == -1) {
+            return result;
+        }
+        for (auto it = Iterator(std::move(leaf), idx, &pager); it != end(); ++it) {
+            bool is_match = false;
+            if constexpr (HasSearchCmp<K_t, K_t>) {
+                is_match = (it.key().SearchCmp(key) == 0);
+            } else {
+                is_match = (it.key() == key);
+            }
+            if (is_match) {
+                result.emplace_back(it.value());
+            } else {
+                break;
+            }
+        }
+        return result;
     }
 
     void insert(K_t key, V_t value) {
@@ -141,10 +225,7 @@ public:
         std::stack<std::pair<node_size_t, int>> parentStack;
         auto leaf = findLeaf(key, parentStack);
         assert(leaf);
-        bool key_not_existed = leaf->insert_in_leaf(key, value);
-        if (!key_not_existed) {
-            throw std::runtime_error("Dublicated key inserting.");
-        }
+        leaf->insert_in_leaf(key, value);
         if (leaf->overflow()) {
             handleLeafOverflow(*leaf, parentStack);
         }
@@ -166,7 +247,6 @@ public:
         if (leaf->id() == root_id()) {
             if (leaf->empty()) {
                 leaf->mark_deleted();
-                leaf->save_to_disk();
                 set_root_id(-1);
                 set_first_leaf_id(-1);
             }
@@ -176,6 +256,19 @@ public:
             handleLeafUnderflow(*leaf, parentStack);
         }
         return true;
+    }
+
+    bool update(K_t key, V_t value) {
+        if (DEBUG) {
+            std::cout << "BStarPlusTree::update: key=" << key << ", value=" << value << std::endl;
+        }
+        std::vector<V_t> result;
+        std::stack<std::pair<node_size_t, int>> stub;
+        auto leaf = findLeaf(key, stub);
+        if (!leaf) {
+            throw std::runtime_error("Key not found in b*+-tree.");
+        }
+        return leaf->update_value(key, value);
     }
 
     std::vector<std::pair<K_t, V_t>> rangeSearch(const K_t& low, const K_t& high) {
