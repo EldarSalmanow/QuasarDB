@@ -183,6 +183,22 @@ public:
         }
         assert(false && "Unexpected type.");
     }
+
+    bool StrictEq(const Value& other) const {
+        if (is_null() && other.is_null()) {
+            return true;
+        }
+        if (get_type() != other.get_type()) {
+            return false;
+        }
+        if (is_int()) {
+            return as_int() == other.as_int();
+        }
+        if (is_string()) {
+            return as_string() == other.as_string();
+        }
+        assert(false && "Unexpected type."); 
+    }
     
     SqlBool operator==(const Value& other) const {
         if (is_null() || other.is_null()) {

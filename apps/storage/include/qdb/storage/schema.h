@@ -7,6 +7,7 @@
 #include "column.h"
 
 class Schema final {
+    static constexpr bool DEBUG = false;
     static constexpr std::string_view HEADER = "SCHEMA";
 
     std::vector<Column> _columns;
@@ -14,11 +15,12 @@ class Schema final {
     uint32_t _bitmap_size;  // bytes
 
 public:
-    Schema();
+    Schema() = default;
 
     Schema(const std::vector<Column>& columns, uint32_t record_id_count = 0)
         : _columns(std::move(columns)), _record_id_count(record_id_count)
     {
+        if (DEBUG) { std::cout << "Schema::Schema(columns, record_id)" << std::endl; }
         std::unordered_set<std::string> column_names;
         _bitmap_size = 0;
         for (const auto& column : _columns) {
@@ -31,6 +33,8 @@ public:
         }
         _bitmap_size = (_bitmap_size + 7) / 8;
     }
+
+    bool operator==(const Schema& other) const = default;
 
     auto size() const {
         return _columns.size();
@@ -45,10 +49,12 @@ public:
     }
 
     void increment_record_id_count() {
+        if (DEBUG) { std::cout << "Schema::increment_record_id_count" << std::endl; }
         ++_record_id_count;
     }
 
     bool to_binary(std::ostream& os) {
+        if (DEBUG) { std::cout << "Schema::to_binary" << std::endl; }
         os.write(HEADER.data(), HEADER.size());
         os.write(reinterpret_cast<char*>(&_record_id_count), sizeof(_record_id_count));
         uint32_t columns_len = _columns.size();
@@ -62,6 +68,7 @@ public:
     }
 
     static std::optional<Schema> from_binary(std::istream& is) {
+        if (DEBUG) { std::cout << "Schema::from_binary" << std::endl; }
         std::string header;
         header.resize(HEADER.size());
         if (!is.read(reinterpret_cast<char*>(header.data()), HEADER.size()) || header != HEADER) {
@@ -106,6 +113,7 @@ public:
     }
 
     uint32_t get_bitmap_idx(uint32_t column_idx) const {  // TODO: add save result
+        if (DEBUG) { std::cout << "Schema::get_bitmap_idx" << std::endl; }
         if (column_idx >= _columns.size()) {
             throw std::out_of_range("Column idx " + std::to_string(column_idx) + " is out of range [0, " + std::to_string(_columns.size()) + ").");
         }

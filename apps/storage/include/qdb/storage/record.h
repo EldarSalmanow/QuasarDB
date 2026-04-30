@@ -40,6 +40,22 @@ public:
     Record(uint32_t id, std::vector<Value> values, RecordAddress addr)
         : _id(id), _fields(std::move(values)), _addr(addr), _has_addr(true) {};
 
+    bool operator==(const Record& other) const {
+        if (size() != other.size()) {
+            return false;
+        }
+        for (uint32_t i = 0; i < size(); ++i) {
+            if (!_fields[i].StrictEq(other._fields[i])) {
+                return false;
+            }
+        }
+        return _id == other._id && _has_addr == other._has_addr && (!_has_addr || (address() == other.address()));
+    }
+
+    uint32_t size() const {
+        return _fields.size();
+    }
+
     Value& operator[](int idx) {
         return _fields[idx];
     }
@@ -56,7 +72,7 @@ public:
         return _has_addr;
     }
 
-    auto address() const {
+    RecordAddress address() const {
         if (!has_addr()) {
             throw std::runtime_error("Record has not address.");
         }
@@ -65,6 +81,7 @@ public:
 
     void set_address(RecordAddress addr) {
         _addr = addr;
+        _has_addr = true;
     }
 
     uint32_t serialized_values_size(const Schema& schema) const {

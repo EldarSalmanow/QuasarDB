@@ -142,9 +142,7 @@ public:
             if (DEBUG) { std::cout << "!pager.page_exists(METADATA_PAGE_ID)" << std::endl; }
             uint32_t metadata_page_id = pager.append_new_page();
             assert(metadata_page_id == METADATA_PAGE_ID);
-            set_root_id(-1);
-            set_first_leaf_id(-1);
-            write_metadata();
+            set_null_root();
         } else {
             if (DEBUG) { std::cout << "pager.page_exists(METADATA_PAGE_ID)" << std::endl; }
             read_metadata();
@@ -156,28 +154,50 @@ public:
 
     BStarPlusTree(BStarPlusTree&&) noexcept = default;
     BStarPlusTree& operator=(BStarPlusTree&&) noexcept = default;
-    ~BStarPlusTree() noexcept = default;
+    
+    ~BStarPlusTree() noexcept {
+        close();
+    };
+
+    void close() noexcept {
+        pager.close();
+    }
 
     auto path() const {
         return _path;
     }
     
-    node_size_t root_id() {
+    bool empty() const {
+        return root_id() == -1;
+    }
+
+    std::unique_ptr<Node<K_t, V_t>> create_root() {
+        auto root = std::make_unique<Node<K_t, V_t>>(NodeType::LEAF, &pager);
+        set_root_and_first_leaf_id(root->id(), root->id());
+        return root;
+    }
+
+    void set_null_root() {
+        set_root_and_first_leaf_id(-1, -1);
+    }
+
+    node_size_t root_id() const {
         return metadata.metadata_struct.root_id;
     }
 
-    void set_root_id(node_size_t id) {
-        metadata.metadata_struct.root_id = id;
+    void set_root_and_first_leaf_id(node_size_t new_root_id, node_size_t new_first_leaf_id) {
+        metadata.metadata_struct.root_id = new_root_id;
+        metadata.metadata_struct.first_leaf_id = new_first_leaf_id;
+        write_metadata();
+    }
+
+    void set_root_id(node_size_t new_root_id) {
+        metadata.metadata_struct.root_id = new_root_id;
         write_metadata();
     }
 
     node_size_t first_leaf_id() {
         return metadata.metadata_struct.first_leaf_id;
-    }
-
-    void set_first_leaf_id(node_size_t id) {
-        metadata.metadata_struct.first_leaf_id = id;
-        write_metadata();
     }
 
     std::vector<V_t> search(K_t key) {
@@ -214,13 +234,8 @@ public:
         if (DEBUG) {
             std::cout << "BStarPlusTree::insert: key=" << key << ", value=" << value << std::endl;
         }
-        if (root_id() == -1) {
-            auto root = std::make_unique<Node<K_t, V_t>>(NodeType::LEAF, &pager);
-            root->insert_in_leaf(key, value);
-            set_first_leaf_id(root->id());
-            set_root_id(root->id());
-            write_metadata();
-            return;
+        if (empty()) {
+            create_root();
         }
         std::stack<std::pair<node_size_t, int>> parentStack;
         auto leaf = findLeaf(key, parentStack);
@@ -247,8 +262,7 @@ public:
         if (leaf->id() == root_id()) {
             if (leaf->empty()) {
                 leaf->mark_deleted();
-                set_root_id(-1);
-                set_first_leaf_id(-1);
+                set_null_root();
             }
             return true;
         }
@@ -301,14 +315,15 @@ private:
             std::cout << "BTree::clear" << std::endl;
         }
         pager.truncate(1);
-        set_root_id(-1);
-        set_first_leaf_id(-1);
-        write_metadata();
+        set_null_root();
     }
 
     std::unique_ptr<Node<K_t, V_t>> findLeaf(K_t key, std::stack<std::pair<node_size_t, int>>& parentStack) {
         if (DEBUG) {
             std::cout << "BTree::findLeaf: key=" << key << std::endl;
+        }
+        if (empty()) {
+            return nullptr;
         }
         auto cur = std::make_unique<Node<K_t, V_t>>(root_id(), &pager);
         while (!cur->is_leaf()) {

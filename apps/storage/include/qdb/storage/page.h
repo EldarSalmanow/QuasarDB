@@ -9,6 +9,8 @@
 #include "schema.h"
 
 class TablePage final {
+    static constexpr bool DEBUG = false;
+
 public:    
     static constexpr uint32_t PAGE_SIZE = 4096;
 
@@ -58,6 +60,7 @@ public:
           )
     {
         // read exists page or create in-memory
+        if (DEBUG) { std::cout << "TablePage::TablePage(read)" << std::endl; }
         if (pager) {
             pager->read_page(id, _data->raw);
             if (_data->header.page_id != id) {
@@ -70,9 +73,12 @@ public:
 
     static TablePage create(Pager* pager) {
         // create page in file
-        uint32_t page_id = pager->append_new_page(); 
-        TablePage page(page_id, pager);
-        return page;
+        if (DEBUG) { std::cout << "TablePage::TablePage(create)" << std::endl; }
+        uint32_t page_id = pager->append_new_page();
+        std::unique_ptr<DataPage> data = std::make_unique<DataPage>();
+        data->header.page_id = page_id;
+        pager->write_page(page_id, data->raw);
+        return TablePage(page_id, pager);
     }
 
     uint8_t* raw() {
@@ -81,6 +87,12 @@ public:
 
     uint32_t id() const {
         return _data->header.page_id;
+    }
+
+    void save_to_disk() {
+        if (_pager) {
+            _pager->write_page(id(), raw());
+        }
     }
 
     Slot* get_slots() const { 
@@ -119,6 +131,7 @@ public:
     }
 
     int32_t insert_record(int32_t record_id, const uint8_t* data, uint32_t size) {
+        if (DEBUG) { std::cout << "TablePage::insert_record" << std::endl; }
         uint32_t needed_size = sizeof(Slot) + size;
         if (get_full_free_space_size() < needed_size) {
             return -1;
@@ -143,17 +156,19 @@ public:
             ++_data->header.slot_count;
         }
         
-        if (_pager) {
-            _pager->write_page(id(), raw());
-        }
+        save_to_disk();
         return slot_idx;
     }
 
-    Record read_record(uint32_t slot_idx, const Schema& schema) const {
+    std::optional<Record> read_record(uint32_t slot_idx, const Schema& schema) const {
+        if (DEBUG) { std::cout << "TablePage::read_record" << std::endl; }
         if (slot_idx >= slot_count()) {
-            throw std::out_of_range("Slot idx out of range: slot_idx=" + std::to_string(slot_idx) + ", slot_count=" + std::to_string(slot_count()) + ".");
+            return std::nullopt;
         }
         auto slots = get_slots();
+        if (slots[slot_idx].deleted) {
+            return std::nullopt;
+        }
         auto record = Record::from_binary(_data->raw + slots[slot_idx].record_offset,
                                           slots[slot_idx].record_size,
                                           slots[slot_idx].record_id,
@@ -162,6 +177,7 @@ public:
     }
 
     void delete_record(uint32_t slot_idx) {
+        if (DEBUG) { std::cout << "TablePage::delete_record" << std::endl; }
         if (slot_idx >= slot_count()) {
             throw std::out_of_range("Slot idx out of range: slot_idx=" + std::to_string(slot_idx) + ", slot_count=" + std::to_string(slot_count()) + ".");
         }
@@ -175,9 +191,12 @@ public:
             _data->header.total_free_bytes += sizeof(Slot);
         }
         _data->header.total_free_bytes += slots[slot_idx].record_size;
+        save_to_disk();
     }
 
     void compact() {
+        // Note: this method does not save data to disk.
+        if (DEBUG) { std::cout << "TablePage::compact" << std::endl; }
         TablePage temp(0, nullptr);
         uint32_t slots_end = sizeof(PageHeader) + (slot_count() * sizeof(Slot));
         std::memcpy(temp.raw(), raw(), slots_end);

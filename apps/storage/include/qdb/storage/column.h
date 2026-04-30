@@ -4,6 +4,8 @@
 #include <string>
 
 class Column final {
+    static constexpr bool DEBUG = false;
+
 public:
     enum class ColumnType : uint8_t {
         INT,
@@ -20,14 +22,19 @@ private:
     uint8_t _flags;
 
 public:
-    Column(std::string name, ColumnType type, uint8_t flags)
-        : _name(std::move(name)), _type(type), _flags(flags) {
-        if (REQUIRE_NOTNULL_FOR_INDEXED && ((_flags & INDEXED_FLAG) && !(_flags & NOT_NULL_FLAG))) {
-            throw std::invalid_argument("Indexed field must be not null.");
+    Column(std::string name, ColumnType type, uint8_t flags = 0)
+        : _name(std::move(name)), _type(type), _flags(flags) 
+    {
+        if (DEBUG) { std::cout << "Column::Column" << std::endl; }
+        if (REQUIRE_NOTNULL_FOR_INDEXED && (_flags & INDEXED_FLAG)) {
+            _flags |= NOT_NULL_FLAG;
         }
     }
 
+    bool operator==(const Column& other) const = default;
+
     bool to_binary(std::ostream& os) const {
+        if (DEBUG) { std::cout << "Column::to_binary" << std::endl; }
         uint32_t name_len = _name.size();
         os.write(reinterpret_cast<const char*>(&name_len), sizeof(name_len));
         os.write(_name.c_str(), name_len);
@@ -37,6 +44,7 @@ public:
     }
 
     static std::optional<Column> from_binary(std::istream& is) {
+        if (DEBUG) { std::cout << "Column::from_binary" << std::endl; }
         uint32_t name_len;
         if (!is.read(reinterpret_cast<char*>(&name_len), sizeof(name_len)) || name_len > 1024 * 1024) {
             return std::nullopt;

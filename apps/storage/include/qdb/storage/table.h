@@ -12,6 +12,7 @@
 #include <fstream>
 #include <filesystem>
 #include <inttypes.h>
+#include <iostream>
 #include "schema.h"
 #include "record.h"
 #include "pager.h"
@@ -21,6 +22,7 @@
 namespace fs = std::filesystem;
 
 class Table final {
+    static constexpr bool DEBUG = false;
     static constexpr std::string_view HEADER = "TABLE";
     static constexpr uint32_t PAGE_SIZE = 4096;  //
     static constexpr uint32_t METADATA_PAGE_ID = 0;
@@ -99,6 +101,7 @@ public:
           _pager(root / (name + std::string(DATA_EXT)), PAGE_SIZE)
     {
         // read table
+        if (DEBUG) { std::cout << "Table::Table(read)" << std::endl; }
         auto metadata = std::make_unique<union MetadataPage>();
         _pager.read_page(METADATA_PAGE_ID, metadata->raw);
         auto header = std::string_view(metadata->metadata.header);
@@ -121,11 +124,12 @@ public:
 
     Table(std::string name, fs::path root, Schema schema)
         : _name(std::move(name)), _root(std::move(root)),
-          _pager(root / (name + std::string(DATA_EXT)), PAGE_SIZE), _schema(std::move(schema))
+          _pager(_root / (_name + std::string(DATA_EXT)), PAGE_SIZE), _schema(std::move(schema))
     {
         // create table
+        if (DEBUG) { std::cout << "Table::Table(create)" << std::endl; }
         if (_pager.get_total_pages() > 0) {
-            throw std::runtime_error("Table with name " + name + " already exists.");
+            throw std::runtime_error("Table with name " + _name + " already exists.");
         }
         auto page_id = _pager.append_new_page();
         assert(page_id == METADATA_PAGE_ID);
@@ -149,8 +153,16 @@ public:
         }
     }
 
+    Table(Table&&) noexcept = default;
+    Table& operator=(Table&&) noexcept = default;
+
+    ~Table() noexcept {
+        close();
+    }
+
 private:
     void save_schema() {
+        if (DEBUG) { std::cout << "Table::save_schema" << std::endl; }
         fs::path temp_path = _root / (_name + std::string(SCHEMA_TMP_EXT));
         std::ofstream ofs(temp_path, std::ios::binary);
         if (!ofs) {
@@ -170,6 +182,8 @@ private:
 
 public:
     void drop() {
+        if (DEBUG) { std::cout << "Table::drop" << std::endl; }
+        close();
         for (const auto& [column_name, index] : _indexes) {
             auto column_index_path = std::visit([](auto& tree) { return tree.path(); }, index);
             _indexes.erase(column_name);
@@ -180,7 +194,15 @@ public:
         // _schema.clear()  ?
     }
 
+    void close() noexcept {
+        _pager.close();
+        for (auto& [column_name, index] : _indexes) {
+            std::visit([](auto& tree) { return tree.close(); }, index);
+        }
+    }
+
     Record insert_record(std::vector<Value> values, const std::vector<std::string>& column_names = {}) {
+        if (DEBUG) { std::cout << "Table::insert_record" << std::endl; }
         uint32_t record_id = _schema.record_id_count();
         Record record = make_record(record_id, std::move(values), column_names);
         validate_record(record);
@@ -193,6 +215,7 @@ public:
 
     std::vector<Record> insert_multiple(std::vector<std::vector<Value>> rows,
                                         const std::vector<std::string>& column_names = {}) {
+        if (DEBUG) { std::cout << "Table::insert_multiple" << std::endl; }
         std::vector<Record> result;
         for (auto& values : rows) {
             result.emplace_back(insert_record(std::move(values), column_names));
@@ -202,14 +225,23 @@ public:
 
     // std::vector<Record> find_records();
 
-    Record read_record(RecordAddress record_address, void* mem_ptr = nullptr) {
+    std::optional<Record> read_record(RecordAddress record_address, void* mem_ptr = nullptr) {
+        if (DEBUG) { std::cout << "Table::read_record" << std::endl; }
+        if (!_pager.page_exists(record_address.page_idx)) {
+            return std::nullopt;
+        }
         auto table_page = TablePage(record_address.page_idx, &_pager, mem_ptr);
         auto record = table_page.read_record(record_address.slot_idx, _schema);
-        record.set_address(record_address);
+        if (record == std::nullopt) {
+            return std::nullopt;
+        }
+        record->set_address(record_address);
         return record;
     }
     
-    void update_record(Record& record) {
+    RecordAddress update_record(Record& record) {
+        // Note: this method update record.address in-place
+        if (DEBUG) { std::cout << "Table::update_record" << std::endl; }
         validate_record(record);
         auto old_record_addr = record.address();
         delete_record(record);
@@ -217,9 +249,11 @@ public:
         if (old_record_addr != new_record_addr) {
             update_indexes_after_update(record);
         }
+        return new_record_addr;
     }
-
+    
     std::vector<std::pair<int, std::string>> update_multiple(std::vector<Record>& records) {
+        if (DEBUG) { std::cout << "Table::update_multiple" << std::endl; }
         std::vector<std::pair<int, std::string>> error_list;
         for (uint32_t i = 0; i < records.size(); ++i) {
             try {
@@ -232,21 +266,24 @@ public:
         }
         return error_list; 
     }
-
+    
     void delete_record(const Record& record) {
+        if (DEBUG) { std::cout << "Table::delete_record" << std::endl; }
         auto table_page = TablePage(record.address().page_idx, &_pager);
         table_page.delete_record(record.address().slot_idx);
         update_indexes_after_delete(record);
     }
-
+    
     void delete_multiple(const std::vector<Record>& records) {
+        if (DEBUG) { std::cout << "Table::delete_multiple" << std::endl; }
         for (const auto& record : records) {
             delete_record(record);
         }
     }
-
+    
 private:
     Record make_record(uint32_t record_id, std::vector<Value> values, const std::vector<std::string>& column_names) {
+        if (DEBUG) { std::cout << "Table::make_record" << std::endl; }
         if (column_names.empty()) {
             // INSERT INTO table VALUES (val1, val2, ...)
             if (values.size() != _schema.size()) {
@@ -254,20 +291,21 @@ private:
                     std::to_string(_schema.size()) + 
                     ", got " + std::to_string(values.size()));
                 }
-            return Record(record_id, std::move(values));
+                return Record(record_id, std::move(values));
+            }
+            // INSERT INTO table (col1, col2) VALUES (val1, val2)
+            if (values.size() != column_names.size()) {
+                throw std::runtime_error("Values size and columns size mismatch: " + std::to_string(values.size()) + " != " + std::to_string(column_names.size()) + ".");
+            }
+            Record record(record_id, _schema.size());
+            update_some_columns(record, values, column_names);
+            return record;
         }
-        // INSERT INTO table (col1, col2) VALUES (val1, val2)
-        if (values.size() != column_names.size()) {
-            throw std::runtime_error("Values size and columns size mismatch: " + std::to_string(values.size()) + " != " + std::to_string(column_names.size()) + ".");
-        }
-        Record record(record_id, _schema.size());
-        update_some_columns(record, values, column_names);
-        return record;
-    }
 
     void update_some_columns(Record& record,
                              std::vector<Value> values,
                              const std::vector<std::string>& column_names) const {
+        if (DEBUG) { std::cout << "Table::update_some_columns" << std::endl; }
         for (size_t i = 0; i < column_names.size(); ++i) {
             auto col_index = _schema.get_column_idx(column_names[i]);
             if (col_index == -1) {
@@ -278,6 +316,7 @@ private:
     }
 
     void validate_record(const Record& record) {
+        if (DEBUG) { std::cout << "Table::validate_record" << std::endl; }
         for (size_t i = 0; i < _schema.size(); ++i) {
             const auto& column = _schema[i];
             const auto& value = record[i];
@@ -316,7 +355,7 @@ private:
                         }
                         auto page_buf = std::make_unique<uint8_t[]>(PAGE_SIZE);
                         for (auto addr : results) {
-                            auto prob_record = read_record(addr, page_buf.get());
+                            auto prob_record = *read_record(addr, page_buf.get());
                             if (prob_record[i].as_string() == value.as_string() &&
                                     (!record.has_addr() || addr != record.address())) {
                                 return true;
@@ -334,6 +373,7 @@ private:
     }
 
     RecordAddress write_record_to_disk(Record& record, uint32_t prefer_page_id = 0) {
+        if (DEBUG) { std::cout << "Table::write_record_to_disk" << std::endl; }
         // Note: set new record_address to record
         auto serialized_record = record.serialized(_schema);
         uint32_t serialized_size = serialized_record.size();
@@ -345,6 +385,7 @@ private:
     }
 
     TablePage find_enough_free_page(uint32_t free_space, uint32_t prefer_page_id = 0) {
+        if (DEBUG) { std::cout << "Table::find_enough_free_page" << std::endl; }
         if (free_space > TablePage::MAX_RECORD_SIZE) {
             throw std::runtime_error("free_space > TablePage::MAX_RECORD_SIZE.");
         }
@@ -363,11 +404,11 @@ private:
                 return TablePage(table_page.id(), &_pager);
             }
         }
-        auto page_id = _pager.append_new_page();
-        return TablePage(page_id, &_pager);
+        return TablePage::create(&_pager);;
     }
 
     void update_indexes_after_insert(const Record& record) {
+        if (DEBUG) { std::cout << "Table::update_indexes_after_insert" << std::endl; }
         for (size_t i = 0; i < _schema.size(); ++i) {
             const auto& column = _schema[i];
             if (column.indexed()) {
@@ -389,6 +430,7 @@ private:
     }
 
     void update_indexes_after_delete(const Record& record) {
+        if (DEBUG) { std::cout << "Table::update_indexes_after_delete" << std::endl; }
         for (size_t i = 0; i < _schema.size(); ++i) {
             const auto& column = _schema[i];
             if (column.indexed()) {
@@ -410,6 +452,7 @@ private:
     }
 
     void update_indexes_after_update(const Record& record) {
+        if (DEBUG) { std::cout << "Table::update_indexes_after_update" << std::endl; }
         for (size_t i = 0; i < _schema.size(); ++i) {
             const auto& column = _schema[i];
             if (column.indexed()) {
@@ -433,6 +476,10 @@ private:
 public:
     std::string name() const {
         return _name;
+    }
+
+    auto schema() const {
+        return _schema;
     }
 };
 

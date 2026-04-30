@@ -38,9 +38,7 @@ public:
     Pager& operator=(const Pager&) = delete;
     
     ~Pager() noexcept {
-        if (db_file.is_open()) {
-            db_file.close();
-        }
+        close();
     }
 
     Pager(const std::string& path, size_t page_size)
@@ -58,6 +56,12 @@ public:
             throw std::runtime_error("Pager cannot open file " + path + ".");
         }
         white_page.assign(page_size, 0);
+    }
+
+    void close() noexcept {
+        if (db_file.is_open()) {
+            db_file.close();
+        }
     }
 
     uint32_t get_total_pages() {
