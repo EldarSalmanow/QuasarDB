@@ -54,12 +54,25 @@ This grammar uses Extended Backus–Naur Form (EBNF):
 ## 4. Database Statements
 
 ```ebnf
-<db_stmt>   ::= <create_db> | <drop_db> | <use_db>
+<db_stmt>   ::= <create_db> | <drop_db> | <use_db> | <revert_stmt>
 
 <create_db> ::= "CREATE" "DATABASE" <identifier>
 <drop_db>   ::= "DROP"   "DATABASE" <identifier>
 <use_db>    ::= "USE"               <identifier>
+
+<revert_stmt> ::= "REVERT" <table_ref> <timestamp>
+
+<timestamp>   ::= <year> "." <month> "." <day> "-" <hour> ":" <minute> ":" <second> "." <millisecond>
+<year>        ::= <digit> <digit> <digit> <digit>
+<month>       ::= <digit> <digit>
+<day>         ::= <digit> <digit>
+<hour>        ::= <digit> <digit>
+<minute>      ::= <digit> <digit>
+<second>      ::= <digit> <digit>
+<millisecond> ::= <digit> <digit> <digit>
 ```
+
+> **REVERT:** Restores the specified table to its state at the given timestamp. The implementation must use temporal persistence mechanisms (e.g., write-ahead logging, delta storage) rather than full snapshot copying of database files.
 
 ---
 
@@ -220,4 +233,10 @@ SELECT *
 FROM shop.products
 WHERE (price >= 1 AND price <= 50)
    OR id == 99;
+
+-- Revert table to a specific timestamp
+REVERT products 2026.05.02-14:30:45.123;
+
+-- Revert with qualified table name
+REVERT shop.products 2026.04.28-09:15:00.000;
 ```
