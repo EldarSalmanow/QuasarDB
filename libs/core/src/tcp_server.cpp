@@ -1,16 +1,14 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
+#include <qdb/core/socket.h>
 #include <qdb/core/tcp_server.h>
 
 namespace qdb::core {
 
 class TcpServer::TcpServerImpl {
 public:
-    TcpServerImpl(const std::string& host, std::uint32_t port)
-        : host_(host), port_(port), socket_(-1), running_(false) {}
+    TcpServerImpl(const std::string& host, std::uint32_t port) : host_(host), port_(port), running_(false) {}
 
 public:
     ~TcpServerImpl() { Stop(); }
@@ -21,48 +19,33 @@ public:
             return false;
         }
 
-        socket_ = ::socket(AF_INET, SOCK_STREAM, 0);
+        Socket socket(::socket(AF_INET, SOCK_STREAM, 0));
 
-        if (socket_ < 0) {
+        if (!socket.IsValid()) {
             return false;
         }
 
         int opt = 1;
-        if (::setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-            ::close(socket_);
-
-            socket_ = -1;
-
+        if (::setsockopt(socket.Get(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
             return false;
         }
 
-        sockaddr_in address;
+        sockaddr_in address{};
         address.sin_family = AF_INET;
         address.sin_port = htons(port_);
         if (inet_pton(AF_INET, host_.c_str(), &address.sin_addr) <= 0) {
-            ::close(socket_);
-
-            socket_ = -1;
-
             return false;
         }
 
-        if (::bind(socket_, reinterpret_cast<struct sockaddr*>(&address), sizeof(address)) < 0) {
-            ::close(socket_);
-
-            socket_ = -1;
-
+        if (::bind(socket.Get(), reinterpret_cast<struct sockaddr*>(&address), sizeof(address)) < 0) {
             return false;
         }
 
-        if (::listen(socket_, 10) < 0) {
-            ::close(socket_);
-
-            socket_ = -1;
-
+        if (::listen(socket.Get(), 10) < 0) {
             return false;
         }
 
+        socket_ = std::move(socket);
         running_ = true;
 
         return true;
@@ -75,11 +58,7 @@ public:
 
         running_ = false;
 
-        if (socket_ >= 0) {
-            ::close(socket_);
-
-            socket_ = -1;
-        }
+        socket_.Reset();
     }
 
     auto Accept() -> std::unique_ptr<TcpClient> {
@@ -90,7 +69,7 @@ public:
         sockaddr_in client_address;
         socklen_t client_len = sizeof(client_address);
 
-        int client_socket = ::accept(socket_, reinterpret_cast<struct sockaddr*>(&client_address), &client_len);
+        int client_socket = ::accept(socket_.Get(), reinterpret_cast<struct sockaddr*>(&client_address), &client_len);
 
         if (client_socket < 0) {
             return nullptr;
@@ -114,7 +93,7 @@ private:
     std::string host_;
     std::uint32_t port_;
 
-    int socket_;
+    Socket socket_;
     bool running_;
 };
 

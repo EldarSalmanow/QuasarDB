@@ -1,49 +1,16 @@
 #include <arpa/inet.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
+#include <qdb/core/socket.h>
 #include <qdb/core/tcp_client.h>
 
 #include <cstdint>
-
-auto SendAll(int socket, const std::uint8_t* data, std::size_t size) -> bool {
-    std::size_t total_sent = 0;
-
-    while (total_sent < size) {
-        ssize_t bytes_sent = ::send(socket, data + total_sent, size - total_sent, 0);
-
-        if (bytes_sent <= 0) {
-            return false;
-        }
-
-        total_sent += static_cast<std::size_t>(bytes_sent);
-    }
-
-    return true;
-}
-
-auto RecvAll(int socket, std::uint8_t* data, std::size_t size) -> bool {
-    std::size_t total_received = 0;
-
-    while (total_received < size) {
-        ssize_t bytes_received = ::recv(socket, data + total_received, size - total_received, 0);
-
-        if (bytes_received <= 0) {
-            return false;
-        }
-
-        total_received += static_cast<std::size_t>(bytes_received);
-    }
-
-    return true;
-}
+#include <limits>
 
 namespace qdb::core {
 
 class TcpClient::TcpClientImpl {
 public:
-    TcpClientImpl(const std::string& host, std::uint32_t port) : host_(host), port_(port), socket_(-1) {}
+    TcpClientImpl(const std::string& host, std::uint32_t port) : host_(host), port_(port) {}
 
     TcpClientImpl(int socket, const std::string& host, std::uint32_t port)
         : host_(host), port_(port), socket_(socket) {}
@@ -57,43 +24,10 @@ public:
             return false;
         }
 
-        socket_ = ::socket(AF_INET, SOCK_STREAM, 0);
-
-        if (socket_ < 0) {
-            return false;
-        }
-
-        sockaddr_in address;
-        address.sin_family = AF_INET;
-        address.sin_port = htons(port_);
-        if (inet_pton(AF_INET, host_.c_str(), &address.sin_addr) <= 0) {
-            ::close(socket_);
-
-            socket_ = -1;
-
-            return false;
-        }
-
-        if (::connect(socket_, reinterpret_cast<struct sockaddr*>(&address), sizeof(address)) < 0) {
-            ::close(socket_);
-
-            socket_ = -1;
-
-            return false;
-        }
-
-        return true;
+        return socket_.Connect(host_, port_);
     }
 
-    auto Disconnect() -> void {
-        if (!IsConnected()) {
-            return;
-        }
-
-        ::close(socket_);
-
-        socket_ = -1;
-    }
+    auto Disconnect() -> void { socket_.Disconnect(); }
 
     auto Send(const nlohmann::json& request) -> bool {
         if (!IsConnected()) {
@@ -108,7 +42,7 @@ public:
 
         std::uint32_t payload_size = htonl(static_cast<std::uint32_t>(request_str.size()));
 
-        if (!SendAll(socket_, reinterpret_cast<const std::uint8_t*>(&payload_size), sizeof(payload_size))) {
+        if (!socket_.Send(reinterpret_cast<const std::uint8_t*>(&payload_size), sizeof(payload_size))) {
             return false;
         }
 
@@ -116,7 +50,7 @@ public:
             return true;
         }
 
-        return SendAll(socket_, reinterpret_cast<const std::uint8_t*>(request_str.data()), request_str.size());
+        return socket_.Send(reinterpret_cast<const std::uint8_t*>(request_str.data()), request_str.size());
     }
 
     auto Receive() -> std::optional<nlohmann::json> {
@@ -126,7 +60,7 @@ public:
 
         std::uint32_t payload_size = 0;
 
-        if (!RecvAll(socket_, reinterpret_cast<std::uint8_t*>(&payload_size), sizeof(payload_size))) {
+        if (!socket_.Recv(reinterpret_cast<std::uint8_t*>(&payload_size), sizeof(payload_size))) {
             return std::nullopt;
         }
 
@@ -138,7 +72,7 @@ public:
 
         std::string buffer(payload_size_host, '\0');
 
-        if (!RecvAll(socket_, reinterpret_cast<std::uint8_t*>(buffer.data()), buffer.size())) {
+        if (!socket_.Recv(reinterpret_cast<std::uint8_t*>(buffer.data()), buffer.size())) {
             return std::nullopt;
         }
 
@@ -149,7 +83,7 @@ public:
         }
     }
 
-    auto IsConnected() const -> bool { return socket_ >= 0; }
+    auto IsConnected() const -> bool { return socket_.IsValid(); }
 
 public:
     auto Host() const -> const std::string& { return host_; }
@@ -160,7 +94,7 @@ private:
     std::string host_;
     std::uint32_t port_;
 
-    int socket_;
+    Socket socket_;
 };
 
 TcpClient::TcpClient(const std::string& host, std::uint32_t port)
