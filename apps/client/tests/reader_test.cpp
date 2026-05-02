@@ -4,7 +4,6 @@
 
 #include <cstdio>
 #include <fstream>
-#include <sstream>
 #include <string>
 
 namespace qdb::client::test {
