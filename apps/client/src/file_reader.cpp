@@ -58,7 +58,33 @@ std::optional<std::string> FileReader::ReadCommand() {
 }
 
 bool FileReader::HasMore() const {
-    return is_open_ && file_stream_.is_open() && !file_stream_.eof();
+    if (!is_open_ || !file_stream_.is_open()) {
+        return false;
+    }
+
+    auto& stream = const_cast<std::ifstream&>(file_stream_);
+    const std::streampos current_pos = stream.tellg();
+    const std::ios::iostate current_state = stream.rdstate();
+
+    stream.clear();
+
+    std::string line;
+    bool has_more = false;
+    while (std::getline(stream, line)) {
+        const size_t start = line.find_first_not_of(" \t\r\n");
+        if (start != std::string::npos) {
+            has_more = true;
+            break;
+        }
+    }
+
+    stream.clear();
+    if (current_pos != std::streampos(-1)) {
+        stream.seekg(current_pos);
+    }
+    stream.setstate(current_state);
+
+    return has_more;
 }
 
 }
