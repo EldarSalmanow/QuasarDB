@@ -1,7 +1,6 @@
 #include <qdb/client/reader.h>
 
 #include <iostream>
-#include <sstream>
 
 namespace qdb::client {
 
