@@ -7,24 +7,24 @@
 
 #include <algorithm>
 #include <cassert>
+#include <concepts>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <span>
 #include <stack>
 #include <string>
-#include <vector>
-#include <span>
-#include <concepts>
 #include <string_view>
-#include <cstdint>
-#include <cstring>
+#include <vector>
 #include "node.h"
 #include "pager.h"
 
-template<BTreeKey K_t, BTreeValue V_t>
+template <BTreeKey K_t, BTreeValue V_t>
 class BStarPlusTree final {
-    using NodeType = Node<K_t, V_t>::NodeType;
-    using node_size_t = Node<K_t, V_t>::node_size_t;
+    using NodeType = typename Node<K_t, V_t>::NodeType;
+    using node_size_t = typename Node<K_t, V_t>::node_size_t;
 
 private:
     static constexpr bool DEBUG = Node<K_t, V_t>::DEBUG;
@@ -58,33 +58,43 @@ private:
 
 private:
     void read_metadata() {
-        if (DEBUG) { std::cout << "BStarPlusTree::read_metadata" << std::endl; }
+        if (DEBUG) {
+            std::cout << "BStarPlusTree::read_metadata" << std::endl;
+        }
         pager.read_page(METADATA_PAGE_ID, reinterpret_cast<uint8_t*>(metadata.raw));
         auto header = std::string_view(metadata.metadata_struct.header);
         if (header != HEADER) {
-            throw std::runtime_error("Headers don't match. Read: " + std::string(header) + ". Expected: " + std::string(HEADER) + ".");
+            throw std::runtime_error(
+                "Headers don't match. Read: " + std::string(header) + ". Expected: " + std::string(HEADER) + "."
+            );
         }
     }
 
     void write_metadata() {
-        if (DEBUG) { std::cout << "BStarPlusTree::write_metadata" << std::endl; }
+        if (DEBUG) {
+            std::cout << "BStarPlusTree::write_metadata" << std::endl;
+        }
         pager.write_page(METADATA_PAGE_ID, reinterpret_cast<uint8_t*>(metadata.raw));
     }
 
 public:
-    BStarPlusTree(const std::string& path)
-        : path(path), pager(path, Node<K_t, V_t>::PAGE_SIZE)
-    {
-        if (DEBUG) { std::cout << "BStarPlusTree::BStarPlusTree: path=" << path << std::endl; }
+    BStarPlusTree(const std::string& path) : path(path), pager(path, Node<K_t, V_t>::PAGE_SIZE) {
+        if (DEBUG) {
+            std::cout << "BStarPlusTree::BStarPlusTree: path=" << path << std::endl;
+        }
         if (!pager.page_exists(METADATA_PAGE_ID)) {
-            if (DEBUG) { std::cout << "!pager.page_exists(METADATA_PAGE_ID)" << std::endl; }
+            if (DEBUG) {
+                std::cout << "!pager.page_exists(METADATA_PAGE_ID)" << std::endl;
+            }
             uint32_t metadata_page_id = pager.append_new_page();
             assert(metadata_page_id == METADATA_PAGE_ID);
             set_root_id(-1);
             set_first_leaf_id(-1);
             write_metadata();
         } else {
-            if (DEBUG) { std::cout << "pager.page_exists(METADATA_PAGE_ID)" << std::endl; }
+            if (DEBUG) {
+                std::cout << "pager.page_exists(METADATA_PAGE_ID)" << std::endl;
+            }
             read_metadata();
         }
     }
@@ -96,18 +106,14 @@ public:
 
     ~BStarPlusTree() noexcept = default;
 
-    node_size_t root_id() {
-        return metadata.metadata_struct.root_id;
-    }
+    node_size_t root_id() { return metadata.metadata_struct.root_id; }
 
     void set_root_id(node_size_t id) {
         metadata.metadata_struct.root_id = id;
         write_metadata();
     }
 
-    node_size_t first_leaf_id() {
-        return metadata.metadata_struct.first_leaf_id;
-    }
+    node_size_t first_leaf_id() { return metadata.metadata_struct.first_leaf_id; }
 
     void set_first_leaf_id(node_size_t id) {
         metadata.metadata_struct.first_leaf_id = id;
@@ -198,9 +204,7 @@ public:
         return result;
     }
 
-    void print(std::ostream& os = std::cout) {
-        printNode(os, root_id(), 0);
-    }
+    void print(std::ostream& os = std::cout) { printNode(os, root_id(), 0); }
 
 private:
     void clear() {
@@ -277,29 +281,41 @@ private:
         node.set_next(right_leaf->id());
     }
 
-    void redistributeLeaves2to2(Node<K_t, V_t>& left, Node<K_t, V_t>& right, Node<K_t, V_t>& parent, node_size_t left_idx) {
+    void redistributeLeaves2to2(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& right,
+        Node<K_t, V_t>& parent,
+        node_size_t left_idx
+    ) {
         if (DEBUG) {
             std::cout
-                << "BTree::redistributeLeaves2to2(left=" << left.id() << ", right=" << right.id() << ", parent=" << parent.id()
-                << ", left_idx=" << left_idx << ")" << std::endl;
+                << "BTree::redistributeLeaves2to2(left=" << left.id() << ", right=" << right.id()
+                << ", parent=" << parent.id() << ", left_idx=" << left_idx << ")" << std::endl;
         }
 
         auto total = left.size() + right.size();
         auto s1 = total / 2;
 
         if (left.size() != s1) {
-            auto new_mid_key = left.size() > s1 ?
-                left.send_to_right_leaf(right, left.size() - s1) :
-                left.take_from_right_leaf(right, s1 - left.size());
+            auto new_mid_key =
+                left.size() > s1
+                    ? left.send_to_right_leaf(right, left.size() - s1)
+                    : left.take_from_right_leaf(right, s1 - left.size());
             parent.set_key(new_mid_key, left_idx);
         }
     }
 
-    void redistributeLeaves3to3(Node<K_t, V_t>& left, Node<K_t, V_t>& middle, Node<K_t, V_t>& right, Node<K_t, V_t>& parent, node_size_t left_idx) {
+    void redistributeLeaves3to3(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& middle,
+        Node<K_t, V_t>& right,
+        Node<K_t, V_t>& parent,
+        node_size_t left_idx
+    ) {
         if (DEBUG) {
             std::cout
-                << "BTree::redistributeLeaves3to3(left=" << left.id() << ", middle=" << middle.id() << ", right=" << right.id()
-                << ", parent=" << parent.id() << ", left_idx=" << left_idx << ")" << std::endl;
+                << "BTree::redistributeLeaves3to3(left=" << left.id() << ", middle=" << middle.id() << ", right="
+                << right.id() << ", parent=" << parent.id() << ", left_idx=" << left_idx << ")" << std::endl;
         }
 
         auto total = left.size() + middle.size() + right.size();
@@ -325,24 +341,31 @@ private:
         parent.set_key(mid2, left_idx + 1);
     }
 
-    void splitLeaves2to3(Node<K_t, V_t>& left, Node<K_t, V_t>& right, std::stack<std::pair<node_size_t, int>>& parentStack, node_size_t left_idx) {
+    void splitLeaves2to3(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& right,
+        std::stack<std::pair<node_size_t, int>>& parentStack,
+        node_size_t left_idx
+    ) {
         if (DEBUG) {
-            std::cout << "BTree::splitLeaves2to3(left=" << left.id() << ", right=" << right.id() << ", left_idx=" << left_idx << ")" << std::endl;
+            std::cout
+                << "BTree::splitLeaves2to3(left=" << left.id() << ", right=" << right.id() << ", left_idx=" << left_idx
+                << ")" << std::endl;
         }
 
         auto n3 = std::make_unique<Node<K_t, V_t>>(NodeType::LEAF, &pager);
-        
+
         auto total = left.size() + right.size();
         auto s1 = total / 3;
         auto s2 = (total - s1) / 2;
         auto s3 = total - s1 - s2;
-        
+
         auto mid_2 = right.send_to_right_leaf(*n3, s3);
         auto mid_1 = left.send_to_right_leaf(right, s2 - right.size());
-        
+
         n3->set_next(right.get_next_id());
         right.set_next(n3->id());
-        
+
         auto [parent_id, idx_in_parent] = parentStack.top();
         auto parent = std::make_unique<Node<K_t, V_t>>(parent_id, &pager);
         parent->set_key(mid_1, left_idx);
@@ -391,31 +414,43 @@ private:
         throw std::runtime_error("Some wrong.");
     }
 
-    void redistributeInternal2to2(Node<K_t, V_t>& left, Node<K_t, V_t>& right, Node<K_t, V_t>& parent, node_size_t left_idx) {
+    void redistributeInternal2to2(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& right,
+        Node<K_t, V_t>& parent,
+        node_size_t left_idx
+    ) {
         if (DEBUG) {
             std::cout
-                << "BTree::redistributeInternal2to2(left=" << left.id() << ", right=" << right.id() << ", parent=" << parent.id()
-                << ", left_idx=" << left_idx << ")" << std::endl;
+                << "BTree::redistributeInternal2to2(left=" << left.id() << ", right=" << right.id()
+                << ", parent=" << parent.id() << ", left_idx=" << left_idx << ")" << std::endl;
         }
-        
+
         auto total = left.size() + right.size();
         auto s1 = total / 2;
 
         auto old_mid_key = parent.get_key(left_idx);
 
         if (left.size() != s1) {
-            auto new_mid_key = left.size() > s1 ?
-                left.send_to_right_internal(right, left.size() - s1, old_mid_key) :
-                left.take_from_right_internal(right, s1 - left.size(), old_mid_key);
+            auto new_mid_key =
+                left.size() > s1
+                    ? left.send_to_right_internal(right, left.size() - s1, old_mid_key)
+                    : left.take_from_right_internal(right, s1 - left.size(), old_mid_key);
             parent.set_key(new_mid_key, left_idx);
         }
     }
 
-    void redistributeInternal3to3(Node<K_t, V_t>& left, Node<K_t, V_t>& middle, Node<K_t, V_t>& right, Node<K_t, V_t>& parent, node_size_t left_idx) {
+    void redistributeInternal3to3(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& middle,
+        Node<K_t, V_t>& right,
+        Node<K_t, V_t>& parent,
+        node_size_t left_idx
+    ) {
         if (DEBUG) {
             std::cout
-                << "BTree::redistributeInternal3to3(left=" << left.id() << ", middle=" << middle.id() << ", right=" << right.id()
-                << ", parent=" << parent.id() << ", left_idx=" << left_idx << ")" << std::endl;
+                << "BTree::redistributeInternal3to3(left=" << left.id() << ", middle=" << middle.id() << ", right="
+                << right.id() << ", parent=" << parent.id() << ", left_idx=" << left_idx << ")" << std::endl;
         }
 
         auto total = left.children_size() + middle.children_size() + right.children_size();
@@ -443,26 +478,33 @@ private:
         parent.set_key(mid_2, left_idx + 1);
     }
 
-    void splitInternal2to3(Node<K_t, V_t>& left, Node<K_t, V_t>& right, std::stack<std::pair<node_size_t, int>>& parentStack, node_size_t left_idx) {
+    void splitInternal2to3(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& right,
+        std::stack<std::pair<node_size_t, int>>& parentStack,
+        node_size_t left_idx
+    ) {
         if (DEBUG) {
-            std::cout << "BTree::splitInternal2to3(left=" << left.id() << ", right=" << right.id() << ", left_idx=" << left_idx << ")" << std::endl;
+            std::cout
+                << "BTree::splitInternal2to3(left=" << left.id() << ", right=" << right.id()
+                << ", left_idx=" << left_idx << ")" << std::endl;
         }
 
         auto total = left.children_size() + right.children_size();
         auto s1 = total / 3;
         auto s2 = (total - s1) / 2;
         auto s3 = total - s1 - s2;
-        
+
         auto [parent_id, idx_in_parent] = parentStack.top();
         auto parent = std::make_unique<Node<K_t, V_t>>(parent_id, &pager);
 
         auto old_mid_1 = parent->get_key(left_idx);
         auto old_mid_2 = parent->get_key(left_idx + 1);
-        
+
         auto n3 = std::make_unique<Node<K_t, V_t>>(NodeType::INTERNAL, &pager);
         auto mid_2 = right.send_to_right_internal(*n3, s3, old_mid_2);
         auto mid_1 = left.send_to_right_internal(right, s2 - right.children_size(), old_mid_1);
-        
+
         parent->set_key(mid_1, left_idx);
         parent->insert_in_internal(mid_2, n3->id());
 
@@ -547,24 +589,32 @@ private:
         mergeLeaves3to2(*left, leaf, *right, parentStack, idx_in_parent - 1);
     }
 
-    void mergeLeaves3to2(Node<K_t, V_t>& left, Node<K_t, V_t>& middle, Node<K_t, V_t>& right, std::stack<std::pair<node_size_t, int>>& parentStack, node_size_t left_idx) {
+    void mergeLeaves3to2(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& middle,
+        Node<K_t, V_t>& right,
+        std::stack<std::pair<node_size_t, int>>& parentStack,
+        node_size_t left_idx
+    ) {
         if (DEBUG) {
-            std::cout << "BTree::mergeLeaves3to2(left=" << left.id() << ", middle=" << middle.id() << ", right=" << right.id() << ")" << std::endl;
+            std::cout
+                << "BTree::mergeLeaves3to2(left=" << left.id() << ", middle=" << middle.id() << ", right=" << right.id()
+                << ")" << std::endl;
         }
-        
+
         auto total = left.size() + middle.size() + right.size();
         auto s1 = total / 2;
         auto s2 = total - s1;
-        
+
         auto new_mid = left.take_from_right_leaf(middle, s1 - left.size());
         middle.take_from_right_leaf(right, s2 - middle.size());
         middle.set_next(right.get_next_id());
         right.mark_deleted();
-        
+
         assert(left.size() == s1);
         assert(middle.size() == s2);
         assert(right.size() == 0);
-        
+
         auto [parent_id, idx_in_parent] = parentStack.top();
         auto parent = std::make_unique<Node<K_t, V_t>>(parent_id, &pager);
         parent->set_key(new_mid, left_idx);
@@ -576,7 +626,11 @@ private:
         }
     }
 
-    void mergeLeaves2to1(Node<K_t, V_t>& left, Node<K_t, V_t>& right, std::stack<std::pair<node_size_t, int>>& parentStack) {
+    void mergeLeaves2to1(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& right,
+        std::stack<std::pair<node_size_t, int>>& parentStack
+    ) {
         if (DEBUG) {
             std::cout << "BTree::mergeLeaves2to1(left=" << left.id() << "right=" << right.id() << ")" << std::endl;
         }
@@ -586,7 +640,7 @@ private:
 
         assert(parent->id() == root_id() && parent->children_size() == 2);
         assert(right.get_next_id() == -1);
-        
+
         left.take_from_right_leaf(right, right.size());
         left.set_next(-1);
         set_root_id(left.id());
@@ -650,16 +704,20 @@ private:
         mergeInternal3to2(*left, node, *right, parentStack, idx_in_parent - 1);
     }
 
-    void mergeInternal2to1(Node<K_t, V_t>& left, Node<K_t, V_t>& right, std::stack<std::pair<node_size_t, int>>& parentStack) {
+    void mergeInternal2to1(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& right,
+        std::stack<std::pair<node_size_t, int>>& parentStack
+    ) {
         if (DEBUG) {
             std::cout << "BTree::mergeInternal2to1(left=" << left.id() << ", right=" << right.id() << ")" << std::endl;
         }
 
         auto [parent_id, idx_in_parent] = parentStack.top();
         auto parent = std::make_unique<Node<K_t, V_t>>(parent_id, &pager);
-        
+
         assert(parent->id() == root_id() && parent->children_size() == 2);
-        
+
         auto mid_key = parent->get_key(0);
         left.take_from_right_internal(right, right.children_size(), mid_key);
         set_root_id(left.id());
@@ -667,15 +725,23 @@ private:
         right.mark_deleted();
     }
 
-    void mergeInternal3to2(Node<K_t, V_t>& left, Node<K_t, V_t>& middle, Node<K_t, V_t>& right, std::stack<std::pair<node_size_t, int>>& parentStack, node_size_t left_idx) {
+    void mergeInternal3to2(
+        Node<K_t, V_t>& left,
+        Node<K_t, V_t>& middle,
+        Node<K_t, V_t>& right,
+        std::stack<std::pair<node_size_t, int>>& parentStack,
+        node_size_t left_idx
+    ) {
         if (DEBUG) {
-            std::cout << "BTree::mergeInternal3to2(left=" << left.id() << ", middle=" << middle.id() << ", right=" << right.id() << ")" << std::endl;
+            std::cout
+                << "BTree::mergeInternal3to2(left=" << left.id() << ", middle=" << middle.id()
+                << ", right=" << right.id() << ")" << std::endl;
         }
 
         auto total = left.children_size() + middle.children_size() + right.children_size();
         auto s1 = total / 2;
         auto s2 = total - s1;
-        
+
         auto [parent_id, idx_in_parent] = parentStack.top();
         auto parent = std::make_unique<Node<K_t, V_t>>(parent_id, &pager);
 
@@ -707,13 +773,15 @@ private:
         std::string indent(depth * 2, ' ');
         auto node = std::make_unique<Node<K_t, V_t>>(node_id, &pager);
         if (node->is_leaf()) {
-            os << indent << "-" << " Leaf[" << node->id() << "](" << node->size() << "): ";
+            os << indent << "-"
+               << " Leaf[" << node->id() << "](" << node->size() << "): ";
             for (node_size_t i = 0; i < node->size(); ++i) {
                 os << node->get_key(i) << " ";
             }
             os << "\n";
         } else {
-            os << indent << "-" << " Internal[" << node->id() << "](" << node->size() << "); ";
+            os << indent << "-"
+               << " Internal[" << node->id() << "](" << node->size() << "); ";
             for (node_size_t i = 0; i < node->size(); ++i) {
                 os << node->get_key(i) << " ";
             }
@@ -752,18 +820,34 @@ private:
         }
         bool result = (node->id() == root_id() || !(node->size() < minAllowed)) && !node->overflow();
         if (!result) {
-            if (DEBUG) { std::cout << "IntegrityError: node[" << node->id() << "]. (node->id() == root_id() || !(node->size() < minAllowed)) && !node->overflow();" << std::endl; }
-            if (DEBUG) { std::cout << "root_id()==" << root_id() << ", node->size()==" << node->size() << ", minAllowed==" << minAllowed << ", node->overflow()==" << node->overflow() << std::endl; }
+            if (DEBUG) {
+                std::cout
+                    << "IntegrityError: node[" << node->id()
+                    << "]. (node->id() == root_id() || !(node->size() < minAllowed)) && !node->overflow();"
+                    << std::endl;
+            }
+            if (DEBUG) {
+                std::cout
+                    << "root_id()==" << root_id() << ", node->size()==" << node->size()
+                    << ", minAllowed==" << minAllowed << ", node->overflow()==" << node->overflow() << std::endl;
+            }
         }
         for (node_size_t i = 0; i + 1 < node->size(); ++i) {
             if (node->get_key(i) >= node->get_key(i + 1)) {
-                if (DEBUG) { std::cout << "IntegrityError: node[" << node->id() << "].get_key(" << i << ")==" << node->get_key(i) << " >= " << "node.get_key(" << i + 1 << ")==" << node->get_key(i + 1) << std::endl; }
+                if (DEBUG) {
+                    std::cout
+                        << "IntegrityError: node[" << node->id() << "].get_key(" << i << ")==" << node->get_key(i)
+                        << " >= "
+                        << "node.get_key(" << i + 1 << ")==" << node->get_key(i + 1) << std::endl;
+                }
                 result = false;
             }
         }
         if (node->is_leaf()) {
             if (node->empty()) {
-                if (DEBUG) { std::cout << "IntegrityError: node[" << node->id() << "].empty() == true" << std::endl; }
+                if (DEBUG) {
+                    std::cout << "IntegrityError: node[" << node->id() << "].empty() == true" << std::endl;
+                }
                 return {K_t(), K_t(), false};
             }
             return {node->get_key(0), node->get_key(node->size() - 1), result};
@@ -773,17 +857,26 @@ private:
         }
         K_t globalMin, globalMax;
         for (node_size_t i = 0; i < node->children_size(); ++i) {
-            auto [childMin, childMax, childValid] = check_node_integrity(node->get_child_id(i), node->id() == root_id());
+            auto
+                [childMin, childMax, childValid] = check_node_integrity(node->get_child_id(i), node->id() == root_id());
             result &= childValid;
             if (i > 0) {
                 if (node->get_key(i - 1) > childMin) {
-                    if (DEBUG) { std::cout << "IntegrityError: node[" << node->id() << "].get_key(" << i - 1 << ")==" << node->get_key(i - 1) << " > childMin==" << childMin << std::endl; }
+                    if (DEBUG) {
+                        std::cout
+                            << "IntegrityError: node[" << node->id() << "].get_key(" << i - 1
+                            << ")==" << node->get_key(i - 1) << " > childMin==" << childMin << std::endl;
+                    }
                     result = false;
                 }
             }
             if (i < node->size()) {
                 if (childMax >= node->get_key(i)) {
-                    if (DEBUG) { std::cout << "IntegrityError: node[" << node->id() << "].get_key(" << i << ")==" << node->get_key(i) << " <= childMax==" << childMax << std::endl; }
+                    if (DEBUG) {
+                        std::cout
+                            << "IntegrityError: node[" << node->id() << "].get_key(" << i << ")==" << node->get_key(i)
+                            << " <= childMax==" << childMax << std::endl;
+                    }
                     result = false;
                 }
             }

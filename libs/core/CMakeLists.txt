@@ -1,6 +1,7 @@
 set(LIBRARY_NAME qdb-core)
 set(LIBRARY_ALIAS qdb::core)
 set(CORE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(CORE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(CORE_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
 message(STATUS "QuasarDB-Core")
@@ -9,13 +10,14 @@ message(STATUS "    LibraryAlias: ${LIBRARY_ALIAS}")
 message(STATUS "    IncludeDir: ${CORE_INCLUDE_DIR}")
 message(STATUS "    TestsDir: ${CORE_TESTS_DIR}")
 
+file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS "${CORE_SOURCE_DIR}/*.cpp")
 file(GLOB_RECURSE CORE_TESTS CONFIGURE_DEPENDS "${CORE_TESTS_DIR}/*.cpp")
 
-add_library(${LIBRARY_NAME} INTERFACE)
+add_library(${LIBRARY_NAME} STATIC ${CORE_SOURCES})
 add_library(${LIBRARY_ALIAS} ALIAS ${LIBRARY_NAME})
 
-target_include_directories(${LIBRARY_NAME} INTERFACE $<BUILD_INTERFACE:${CORE_INCLUDE_DIR}>)
-target_link_libraries(${LIBRARY_NAME} INTERFACE qdb::thirdparty)
+target_include_directories(${LIBRARY_NAME} PUBLIC $<BUILD_INTERFACE:${CORE_INCLUDE_DIR}>)
+target_link_libraries(${LIBRARY_NAME} PUBLIC qdb::thirdparty)
 
 if(BUILD_TESTING AND CORE_TESTS)
 	add_executable(qdb-core-tests ${CORE_TESTS})
