@@ -10,10 +10,10 @@ namespace qdb::core {
 
 class TcpClient::TcpClientImpl {
 public:
-    TcpClientImpl(const std::string& host, std::uint32_t port) : host_(host), port_(port) {}
+    TcpClientImpl(std::string host, std::uint32_t port) : host_(std::move(host)), port_(port) {}
 
-    TcpClientImpl(int socket, const std::string& host, std::uint32_t port)
-        : host_(host), port_(port), socket_(socket) {}
+    TcpClientImpl(int socket, std::string host, std::uint32_t port)
+        : host_(std::move(host)), port_(port), socket_(socket) {}
 
 public:
     ~TcpClientImpl() { Disconnect(); }

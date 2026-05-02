@@ -1,6 +1,6 @@
+#include "../include/qdb/storage/pager.h"
 #include <gtest/gtest.h>
 #include <filesystem>
-#include "../include/qdb/storage/pager.h"
 
 namespace fs = std::filesystem;
 
@@ -30,10 +30,10 @@ TEST_F(PagerTest, InitializesEmptyFile) {
 
 TEST_F(PagerTest, AppendsPages) {
     Pager pager(test_db, PAGE_SIZE);
-    
+
     uint32_t page0 = pager.append_new_page();
     uint32_t page1 = pager.append_new_page();
-    
+
     EXPECT_EQ(page0, 0);
     EXPECT_EQ(page1, 1);
     EXPECT_EQ(pager.get_total_pages(), 2);

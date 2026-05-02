@@ -8,7 +8,7 @@ namespace qdb::core {
 
 class TcpServer::TcpServerImpl {
 public:
-    TcpServerImpl(const std::string& host, std::uint32_t port) : host_(host), port_(port), running_(false) {}
+    TcpServerImpl(std::string host, std::uint32_t port) : host_(std::move(host)), port_(port) {}
 
 public:
     ~TcpServerImpl() { Stop(); }
@@ -75,11 +75,11 @@ public:
             return nullptr;
         }
 
-        char client_host[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &client_address.sin_addr, client_host, INET_ADDRSTRLEN);
+        std::array<char, INET_ADDRSTRLEN> client_host;
+        inet_ntop(AF_INET, &client_address.sin_addr, client_host.data(), INET_ADDRSTRLEN);
         std::uint32_t client_port = ntohs(client_address.sin_port);
 
-        return std::make_unique<TcpClient>(client_socket, client_host, client_port);
+        return std::make_unique<TcpClient>(client_socket, client_host.data(), client_port);
     }
 
     auto IsRunning() const -> bool { return running_; }
@@ -94,7 +94,7 @@ private:
     std::uint32_t port_;
 
     Socket socket_;
-    bool running_;
+    bool running_{false};
 };
 
 TcpServer::TcpServer(const std::string& host, std::uint32_t port)

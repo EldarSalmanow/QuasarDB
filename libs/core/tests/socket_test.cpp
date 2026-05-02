@@ -32,17 +32,17 @@ TEST(Socket, DefaultIsInvalid) {
 }
 
 TEST(Socket, SendRecvOverSocketPair) {
-    int fds[2] = {-1, -1};
-    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+    std::array<int, 2> fds = {-1, -1};
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds.data()), 0);
 
     qdb::core::Socket sender(fds[0]);
     qdb::core::Socket receiver(fds[1]);
 
-    std::uint8_t payload[4] = {1, 2, 3, 4};
-    std::uint8_t buffer[4] = {0, 0, 0, 0};
+    std::array<std::uint8_t, 4> payload = {1, 2, 3, 4};
+    std::array<std::uint8_t, 4> buffer = {0, 0, 0, 0};
 
-    EXPECT_TRUE(sender.Send(payload, sizeof(payload)));
-    EXPECT_TRUE(receiver.Recv(buffer, sizeof(buffer)));
+    EXPECT_TRUE(sender.Send(payload.data(), sizeof(payload)));
+    EXPECT_TRUE(receiver.Recv(buffer.data(), sizeof(buffer)));
 
     EXPECT_EQ(buffer[0], 1);
     EXPECT_EQ(buffer[1], 2);

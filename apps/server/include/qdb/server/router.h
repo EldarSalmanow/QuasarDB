@@ -7,21 +7,21 @@
 
 namespace qdb::server {
 
-    class Router {
-    public:
-        Router() = default;
+class Router {
+public:
+    Router() = default;
 
-        ~Router() = default;
+    ~Router() = default;
 
-    public:
-        auto Process() -> std::optional<nlohmann::json>;
+public:
+    auto Process() -> std::optional<nlohmann::json>;
 
-    private:
-        std::uint64_t id_;
+private:
+    std::uint64_t id_;
 
-        std::string address_;
-    };
+    std::string address_;
+};
 
-}
+}  // namespace qdb::server
 
 #endif  // QUASARDB_ROUTER_H

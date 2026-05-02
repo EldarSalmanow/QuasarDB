@@ -6,57 +6,54 @@
 #include <memory>
 #include <string>
 
-
 namespace qdb::core {
 
-    class TcpClient {
-    private:
-        class TcpClientImpl;
+class TcpClient {
+private:
+    class TcpClientImpl;
 
-    public:
-        TcpClient(const std::string &host,
-                  std::uint32_t port);
+public:
+    TcpClient(const std::string& host, std::uint32_t port);
 
-        // Internal constructor for accepted connections
-        TcpClient(int socket, const std::string &host, std::uint32_t port);
+    // Internal constructor for accepted connections
+    TcpClient(int socket, const std::string& host, std::uint32_t port);
 
-    public:
-        TcpClient(const TcpClient &client) = delete;
+public:
+    TcpClient(const TcpClient& client) = delete;
 
-        TcpClient(TcpClient &&client) noexcept;
+    TcpClient(TcpClient&& client) noexcept;
 
-    public:
-        ~TcpClient();
+public:
+    ~TcpClient();
 
-    public:
-        static auto New(const std::string &host, 
-                        std::uint32_t port) -> std::unique_ptr<TcpClient>;
+public:
+    static auto New(const std::string& host, std::uint32_t port) -> std::unique_ptr<TcpClient>;
 
-    public:
-        auto Connect() -> bool;
+public:
+    auto Connect() -> bool;
 
-        auto Disconnect() -> void;
+    auto Disconnect() -> void;
 
-        auto Send(const nlohmann::json &request) -> bool;
+    auto Send(const nlohmann::json& request) -> bool;
 
-        auto Receive() -> std::optional<nlohmann::json>;
+    auto Receive() -> std::optional<nlohmann::json>;
 
-        auto IsConnected() const -> bool;
+    auto IsConnected() const -> bool;
 
-    public:
-        auto Host() const -> const std::string &;
+public:
+    auto Host() const -> const std::string&;
 
-        auto Port() const -> std::uint32_t;
+    auto Port() const -> std::uint32_t;
 
-    public:
-        auto operator=(const TcpClient &client) -> TcpClient & = delete;
+public:
+    auto operator=(const TcpClient& client) -> TcpClient& = delete;
 
-        auto operator=(TcpClient &&client) noexcept -> TcpClient &;
+    auto operator=(TcpClient&& client) noexcept -> TcpClient&;
 
-    private:
-        std::unique_ptr<TcpClientImpl> impl_;
-    };
-
+private:
+    std::unique_ptr<TcpClientImpl> impl_;
 };
+
+};  // namespace qdb::core
 
 #endif  // QUASARDB_TCP_CLIENT_H
