@@ -20,27 +20,22 @@ std::optional<std::string> FileReader::readCommand() {
     std::string line;
 
     while (std::getline(file_stream_, line)) {
-        // Trim whitespace from line
         size_t start = line.find_first_not_of(" \t\r\n");
         size_t end = line.find_last_not_of(" \t\r\n");
         
         if (start == std::string::npos) {
-            // Empty line, continue reading
             continue;
         }
 
         std::string trimmed = line.substr(start, end - start + 1);
 
-        // Check if line ends with semicolon
         if (!trimmed.empty() && trimmed.back() == ';') {
-            // Remove semicolon and add to command
             trimmed.pop_back();
             if (!command.empty()) {
                 command += " ";
             }
             command += trimmed;
             
-            // Trim final command
             start = command.find_first_not_of(" \t\r\n");
             end = command.find_last_not_of(" \t\r\n");
             if (start != std::string::npos) {
@@ -49,16 +44,13 @@ std::optional<std::string> FileReader::readCommand() {
             return command;
         }
 
-        // Add line to command and continue
         if (!command.empty()) {
             command += " ";
         }
         command += trimmed;
     }
 
-    // EOF reached
     if (!command.empty()) {
-        // Return accumulated command even without semicolon
         return command;
     }
     
