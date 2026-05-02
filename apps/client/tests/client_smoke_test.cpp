@@ -14,13 +14,11 @@ TEST(ClientContracts, HeadersCompile) {
     static_assert(std::is_class_v<qdb::client::Application>);
     static_assert(std::is_class_v<qdb::client::Config>);
     static_assert(std::is_class_v<qdb::client::Connection>);
-    static_assert(std::is_class_v<qdb::client::IReader>);
+    static_assert(std::is_class_v<qdb::client::IInputStream>);
     static_assert(std::is_class_v<qdb::client::ConsoleReader>);
+    static_assert(std::is_class_v<qdb::client::FileReader>);
     static_assert(std::is_class_v<qdb::client::Request>);
     static_assert(std::is_class_v<qdb::client::Response>);
-    // static_assert(std::is_class_v<qdb::client::Session>);
-    // static_assert(std::is_class_v<qdb::client::Stream>);
-    // static_assert(std::is_class_v<qdb::core::Version>);
 
     SUCCEED();
 }
