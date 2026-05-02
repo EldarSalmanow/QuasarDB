@@ -36,17 +36,20 @@ std::optional<std::string> ConsoleReader::ReadCommand() {
 
         if (!trimmed.empty() && trimmed.back() == ';') {
             trimmed.pop_back();
-            if (!command.empty()) {
-                command += " ";
+            if (!trimmed.empty()) {
+                if (!command.empty()) {
+                    command += " ";
+                }
+                command += trimmed;
             }
-            command += trimmed;
-            
+
             start = command.find_first_not_of(" \t\r\n");
             end = command.find_last_not_of(" \t\r\n");
             if (start != std::string::npos) {
                 return command.substr(start, end - start + 1);
             }
-            return command;
+            first_line = true;
+            continue;
         }
 
         if (!command.empty()) {
