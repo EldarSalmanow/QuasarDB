@@ -9,9 +9,7 @@
 
 namespace qdb::client::test {
 
-// Test FileReader with single line command
 TEST(FileReaderTest, SingleLineCommand) {
-    // Create temporary test file
     const std::string test_file = "test_single_line.sql";
     {
         std::ofstream out(test_file);
@@ -28,11 +26,9 @@ TEST(FileReaderTest, SingleLineCommand) {
     EXPECT_FALSE(command.has_value());
     EXPECT_FALSE(reader.hasMore());
 
-    // Cleanup
     std::remove(test_file.c_str());
 }
 
-// Test FileReader with multiline command
 TEST(FileReaderTest, MultilineCommand) {
     const std::string test_file = "test_multiline.sql";
     {
@@ -53,7 +49,6 @@ TEST(FileReaderTest, MultilineCommand) {
     EXPECT_FALSE(reader.HasMore());
 }
 
-// Test FileReader with command without semicolon at EOF
 TEST(FileReaderTest, CommandWithoutSemicolonAtEOF) {
     const std::string test_file = "test_no_semicolon.sql";
     {
@@ -70,7 +65,6 @@ TEST(FileReaderTest, CommandWithoutSemicolonAtEOF) {
     std::remove(test_file.c_str());
 }
 
-// Test FileReader with complex multiline query
 TEST(FileReaderTest, ComplexMultilineQuery) {
     const std::string test_file = "test_complex.sql";
     {
@@ -90,4 +84,4 @@ TEST(FileReaderTest, ComplexMultilineQuery) {
     std::remove(test_file.c_str());
 }
 
-}  // namespace qdb::client::test
+}

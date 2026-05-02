@@ -61,4 +61,4 @@ bool ConsoleReader::HasMore() const {
     return !std::cin.eof();
 }
 
-}  // namespace qdb::client
+}

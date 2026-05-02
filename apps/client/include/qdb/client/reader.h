@@ -8,12 +8,6 @@
 
 namespace qdb::client {
 
-/**
- * @brief Console reader for interactive REPL mode
- * 
- * Reads from stdin with multiline support until semicolon.
- * Displays prompts: "quasar> " for first line, "      -> " for continuation.
- */
 class ConsoleReader : public IInputStream {
 public:
     ConsoleReader() = default;
@@ -23,11 +17,6 @@ public:
     bool HasMore() const override;
 };
 
-/**
- * @brief File reader for batch mode
- * 
- * Reads SQL commands from a file with multiline support until semicolon.
- */
 class FileReader : public IInputStream {
 public:
     explicit FileReader(const std::string& file_path);
@@ -42,6 +31,6 @@ private:
     bool is_open_ = false;
 };
 
-}  // namespace qdb::client
+}
 
-#endif  // QUASARDB_CLIENT_READER_H
+#endif

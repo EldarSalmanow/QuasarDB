@@ -61,4 +61,4 @@ bool FileReader::HasMore() const {
     return is_open_ && file_stream_.is_open() && !file_stream_.eof();
 }
 
-}  // namespace qdb::client
+}
