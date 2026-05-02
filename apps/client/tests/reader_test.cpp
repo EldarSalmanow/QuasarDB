@@ -24,7 +24,7 @@ TEST(FileReaderTest, SingleLineCommand) {
     
     command = reader.ReadCommand();
     EXPECT_FALSE(command.has_value());
-    EXPECT_FALSE(reader.hasMore());
+    EXPECT_FALSE(reader.HasMore());
 
     std::remove(test_file.c_str());
 }
