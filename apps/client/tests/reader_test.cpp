@@ -42,7 +42,7 @@ TEST(FileReaderTest, MultilineCommand) {
     
     auto command = reader.ReadCommand();
     ASSERT_TRUE(command.has_value());
-    EXPECT_EQ(command.value(), "SELECT * FROM users");
+    EXPECT_EQ(command.value(), "SELECT id, name, email FROM users WHERE active = 1");
     
     command = reader.ReadCommand();
     EXPECT_FALSE(command.has_value());
