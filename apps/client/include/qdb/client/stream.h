@@ -20,13 +20,13 @@ public:
      * @brief Read a complete command (until semicolon)
      * @return Command string without trailing semicolon, or std::nullopt if no more input
      */
-    virtual std::optional<std::string> readCommand() = 0;
+    virtual std::optional<std::string> ReadCommand() = 0;
 
     /**
      * @brief Check if there is more input available
      * @return true if more input can be read, false otherwise
      */
-    virtual bool hasMore() const = 0;
+    virtual bool HasMore() const = 0;
 };
 
 }  // namespace qdb::client

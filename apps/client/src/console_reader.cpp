@@ -5,7 +5,7 @@
 
 namespace qdb::client {
 
-std::optional<std::string> ConsoleReader::readCommand() {
+std::optional<std::string> ConsoleReader::ReadCommand() {
     std::string command;
     std::string line;
     bool first_line = true;
@@ -57,7 +57,7 @@ std::optional<std::string> ConsoleReader::readCommand() {
     }
 }
 
-bool ConsoleReader::hasMore() const {
+bool ConsoleReader::HasMore() const {
     return !std::cin.eof();
 }
 

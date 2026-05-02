@@ -19,8 +19,8 @@ public:
     ConsoleReader() = default;
     ~ConsoleReader() override = default;
 
-    std::optional<std::string> readCommand() override;
-    bool hasMore() const override;
+    std::optional<std::string> ReadCommand() override;
+    bool HasMore() const override;
 };
 
 /**
@@ -33,8 +33,8 @@ public:
     explicit FileReader(const std::string& file_path);
     ~FileReader() override = default;
 
-    std::optional<std::string> readCommand() override;
-    bool hasMore() const override;
+    std::optional<std::string> ReadCommand() override;
+    bool HasMore() const override;
 
 private:
     std::string file_path_;

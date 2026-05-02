@@ -11,7 +11,7 @@ FileReader::FileReader(const std::string& file_path) : file_path_(file_path) {
     }
 }
 
-std::optional<std::string> FileReader::readCommand() {
+std::optional<std::string> FileReader::ReadCommand() {
     if (!is_open_ || !file_stream_.is_open()) {
         return std::nullopt;
     }
@@ -57,7 +57,7 @@ std::optional<std::string> FileReader::readCommand() {
     return std::nullopt;
 }
 
-bool FileReader::hasMore() const {
+bool FileReader::HasMore() const {
     return is_open_ && file_stream_.is_open() && !file_stream_.eof();
 }
 
