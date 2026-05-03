@@ -78,10 +78,11 @@ public:
 
         while (temp_pos < source_.size()) {
             char c = source_[temp_pos];
-            if (!std::isspace(c)) {
+            if (std::isspace(c)) {
+                temp_pos++;
+            } else {
                 return true;
             }
-            temp_pos++;
         }
         return false;
     }
@@ -145,12 +146,6 @@ private:
             char c = peek();
             if (std::isspace(c)) {
                 advance();
-            } else if (c == '-' && peekNext() == '-') {
-                advance();
-                advance();
-                while (!isAtEnd() && peek() != '\n') {
-                    advance();
-                }
             } else {
                 break;
             }

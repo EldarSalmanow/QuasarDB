@@ -18,13 +18,6 @@ TEST(LexerTest, WhitespaceOnly) {
     EXPECT_FALSE(lexer.hasNext());
 }
 
-TEST(LexerTest, SingleLineComment) {
-    Lexer lexer("-- This is a comment\nSELECT");
-    Token token = lexer.nextToken();
-    EXPECT_EQ(token.type, TokenType::Keyword);
-    EXPECT_EQ(token.value, "SELECT");
-}
-
 TEST(LexerTest, KeywordsCaseInsensitive) {
     Lexer lexer("SELECT select SeLeCt");
 
@@ -399,3 +392,19 @@ TEST(LexerTest, ConsecutiveOperators) {
     EXPECT_EQ(tokens[11].type, TokenType::Operator);
     EXPECT_EQ(tokens[11].value, ">=");
 }
+
+TEST(LexerTest, StarOperator) {
+    Lexer lexer("SELECT * FROM users");
+
+    auto tokens = lexer.tokenize();
+
+    EXPECT_EQ(tokens[0].type, TokenType::Keyword);
+    EXPECT_EQ(tokens[0].value, "SELECT");
+
+    EXPECT_EQ(tokens[1].type, TokenType::Operator);
+    EXPECT_EQ(tokens[1].value, "*");
+
+    EXPECT_EQ(tokens[2].type, TokenType::Keyword);
+    EXPECT_EQ(tokens[2].value, "FROM");
+}
+
