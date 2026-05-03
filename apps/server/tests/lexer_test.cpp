@@ -6,30 +6,30 @@ using namespace qdb::server;
 
 TEST(LexerTest, EmptyInput) {
     Lexer lexer("");
-    Token token = lexer.nextToken();
+    Token token = lexer.NextToken();
     EXPECT_EQ(token.type, TokenType::EndOfFile);
-    EXPECT_FALSE(lexer.hasNext());
+    EXPECT_FALSE(lexer.HasNext());
 }
 
 TEST(LexerTest, WhitespaceOnly) {
     Lexer lexer("   \n\t  \n  ");
-    Token token = lexer.nextToken();
+    Token token = lexer.NextToken();
     EXPECT_EQ(token.type, TokenType::EndOfFile);
-    EXPECT_FALSE(lexer.hasNext());
+    EXPECT_FALSE(lexer.HasNext());
 }
 
 TEST(LexerTest, KeywordsCaseInsensitive) {
     Lexer lexer("SELECT select SeLeCt");
 
-    Token token1 = lexer.nextToken();
+    Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.type, TokenType::Keyword);
     EXPECT_EQ(token1.value, "SELECT");
 
-    Token token2 = lexer.nextToken();
+    Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.type, TokenType::Keyword);
     EXPECT_EQ(token2.value, "SELECT");
 
-    Token token3 = lexer.nextToken();
+    Token token3 = lexer.NextToken();
     EXPECT_EQ(token3.type, TokenType::Keyword);
     EXPECT_EQ(token3.value, "SELECT");
 }
@@ -44,7 +44,7 @@ TEST(LexerTest, AllKeywords) {
 
     for (const auto& kw : keywords) {
         Lexer lexer(kw);
-        Token token = lexer.nextToken();
+        Token token = lexer.NextToken();
         EXPECT_EQ(token.type, TokenType::Keyword) << "Failed for keyword: " << kw;
         EXPECT_EQ(token.value, kw);
     }
@@ -53,19 +53,19 @@ TEST(LexerTest, AllKeywords) {
 TEST(LexerTest, Identifiers) {
     Lexer lexer("user_id tableName _private column123");
 
-    Token token1 = lexer.nextToken();
+    Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.type, TokenType::Identifier);
     EXPECT_EQ(token1.value, "user_id");
 
-    Token token2 = lexer.nextToken();
+    Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.type, TokenType::Identifier);
     EXPECT_EQ(token2.value, "tableName");
 
-    Token token3 = lexer.nextToken();
+    Token token3 = lexer.NextToken();
     EXPECT_EQ(token3.type, TokenType::Identifier);
     EXPECT_EQ(token3.value, "_private");
 
-    Token token4 = lexer.nextToken();
+    Token token4 = lexer.NextToken();
     EXPECT_EQ(token4.type, TokenType::Identifier);
     EXPECT_EQ(token4.value, "column123");
 }
@@ -73,37 +73,37 @@ TEST(LexerTest, Identifiers) {
 TEST(LexerTest, StringLiterals) {
     Lexer lexer(R"("hello" "world with spaces" "123")");
 
-    Token token1 = lexer.nextToken();
+    Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.type, TokenType::StringLiteral);
     EXPECT_EQ(token1.value, "hello");
 
-    Token token2 = lexer.nextToken();
+    Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.type, TokenType::StringLiteral);
     EXPECT_EQ(token2.value, "world with spaces");
 
-    Token token3 = lexer.nextToken();
+    Token token3 = lexer.NextToken();
     EXPECT_EQ(token3.type, TokenType::StringLiteral);
     EXPECT_EQ(token3.value, "123");
 }
 
 TEST(LexerTest, UnterminatedString) {
     Lexer lexer(R"("unterminated)");
-    Token token = lexer.nextToken();
+    Token token = lexer.NextToken();
     EXPECT_EQ(token.type, TokenType::Invalid);
 }
 
 TEST(LexerTest, IntegerLiterals) {
     Lexer lexer("0 123 456789");
 
-    Token token1 = lexer.nextToken();
+    Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.type, TokenType::IntegerLiteral);
     EXPECT_EQ(token1.value, "0");
 
-    Token token2 = lexer.nextToken();
+    Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.type, TokenType::IntegerLiteral);
     EXPECT_EQ(token2.value, "123");
 
-    Token token3 = lexer.nextToken();
+    Token token3 = lexer.NextToken();
     EXPECT_EQ(token3.type, TokenType::IntegerLiteral);
     EXPECT_EQ(token3.value, "456789");
 }
@@ -111,27 +111,27 @@ TEST(LexerTest, IntegerLiterals) {
 TEST(LexerTest, Operators) {
     Lexer lexer("== != < > <= >=");
 
-    Token token1 = lexer.nextToken();
+    Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.type, TokenType::Operator);
     EXPECT_EQ(token1.value, "==");
 
-    Token token2 = lexer.nextToken();
+    Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.type, TokenType::Operator);
     EXPECT_EQ(token2.value, "!=");
 
-    Token token3 = lexer.nextToken();
+    Token token3 = lexer.NextToken();
     EXPECT_EQ(token3.type, TokenType::Operator);
     EXPECT_EQ(token3.value, "<");
 
-    Token token4 = lexer.nextToken();
+    Token token4 = lexer.NextToken();
     EXPECT_EQ(token4.type, TokenType::Operator);
     EXPECT_EQ(token4.value, ">");
 
-    Token token5 = lexer.nextToken();
+    Token token5 = lexer.NextToken();
     EXPECT_EQ(token5.type, TokenType::Operator);
     EXPECT_EQ(token5.value, "<=");
 
-    Token token6 = lexer.nextToken();
+    Token token6 = lexer.NextToken();
     EXPECT_EQ(token6.type, TokenType::Operator);
     EXPECT_EQ(token6.value, ">=");
 }
@@ -139,23 +139,23 @@ TEST(LexerTest, Operators) {
 TEST(LexerTest, Punctuation) {
     Lexer lexer("( ) , ; .");
 
-    Token token1 = lexer.nextToken();
+    Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.type, TokenType::Punctuation);
     EXPECT_EQ(token1.value, "(");
 
-    Token token2 = lexer.nextToken();
+    Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.type, TokenType::Punctuation);
     EXPECT_EQ(token2.value, ")");
 
-    Token token3 = lexer.nextToken();
+    Token token3 = lexer.NextToken();
     EXPECT_EQ(token3.type, TokenType::Punctuation);
     EXPECT_EQ(token3.value, ",");
 
-    Token token4 = lexer.nextToken();
+    Token token4 = lexer.NextToken();
     EXPECT_EQ(token4.type, TokenType::Punctuation);
     EXPECT_EQ(token4.value, ";");
 
-    Token token5 = lexer.nextToken();
+    Token token5 = lexer.NextToken();
     EXPECT_EQ(token5.type, TokenType::Punctuation);
     EXPECT_EQ(token5.value, ".");
 }
@@ -163,8 +163,9 @@ TEST(LexerTest, Punctuation) {
 TEST(LexerTest, ComplexSelectStatement) {
     Lexer lexer("SELECT id, name FROM users WHERE age >= 18;");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
 
+    ASSERT_GE(tokens.size(), 12);
     ASSERT_EQ(tokens.size(), 12);
 
     EXPECT_EQ(tokens[0].type, TokenType::Keyword);
@@ -206,7 +207,9 @@ TEST(LexerTest, ComplexSelectStatement) {
 TEST(LexerTest, InsertStatement) {
     Lexer lexer(R"(INSERT INTO products (id, name) VALUE (1, "Apple");)");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
+
+    ASSERT_GE(tokens.size(), 3);
 
     EXPECT_EQ(tokens[0].type, TokenType::Keyword);
     EXPECT_EQ(tokens[0].value, "INSERT");
@@ -221,7 +224,9 @@ TEST(LexerTest, InsertStatement) {
 TEST(LexerTest, CreateTableStatement) {
     Lexer lexer("CREATE TABLE users (id INT NOT_NULL INDEXED, name STRING);");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
+
+    ASSERT_GE(tokens.size(), 8);
 
     EXPECT_EQ(tokens[0].type, TokenType::Keyword);
     EXPECT_EQ(tokens[0].value, "CREATE");
@@ -239,15 +244,15 @@ TEST(LexerTest, CreateTableStatement) {
 TEST(LexerTest, QualifiedTableReference) {
     Lexer lexer("shop.products");
 
-    Token token1 = lexer.nextToken();
+    Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.type, TokenType::Identifier);
     EXPECT_EQ(token1.value, "shop");
 
-    Token token2 = lexer.nextToken();
+    Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.type, TokenType::Punctuation);
     EXPECT_EQ(token2.value, ".");
 
-    Token token3 = lexer.nextToken();
+    Token token3 = lexer.NextToken();
     EXPECT_EQ(token3.type, TokenType::Identifier);
     EXPECT_EQ(token3.value, "products");
 }
@@ -255,7 +260,9 @@ TEST(LexerTest, QualifiedTableReference) {
 TEST(LexerTest, AggregateFunction) {
     Lexer lexer("SELECT COUNT(id), AVG(price), SUM(total) FROM orders;");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
+
+    ASSERT_GE(tokens.size(), 12);
 
     EXPECT_EQ(tokens[1].type, TokenType::Keyword);
     EXPECT_EQ(tokens[1].value, "COUNT");
@@ -270,7 +277,7 @@ TEST(LexerTest, AggregateFunction) {
 TEST(LexerTest, BetweenPredicate) {
     Lexer lexer("WHERE price BETWEEN 10 AND 100");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
 
     EXPECT_EQ(tokens[2].type, TokenType::Keyword);
     EXPECT_EQ(tokens[2].value, "BETWEEN");
@@ -282,7 +289,7 @@ TEST(LexerTest, BetweenPredicate) {
 TEST(LexerTest, LikePredicate) {
     Lexer lexer(R"(WHERE name LIKE "^A.*")");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
 
     EXPECT_EQ(tokens[2].type, TokenType::Keyword);
     EXPECT_EQ(tokens[2].value, "LIKE");
@@ -294,7 +301,7 @@ TEST(LexerTest, LikePredicate) {
 TEST(LexerTest, RevertStatement) {
     Lexer lexer("REVERT products 2026.05.02-14:30:45.123;");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
 
     EXPECT_EQ(tokens[0].type, TokenType::Keyword);
     EXPECT_EQ(tokens[0].value, "REVERT");
@@ -314,7 +321,7 @@ TEST(LexerTest, MultilineQuery) {
            OR id == 99;
     )");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
 
     EXPECT_EQ(tokens[0].type, TokenType::Keyword);
     EXPECT_EQ(tokens[0].value, "SELECT");
@@ -326,11 +333,11 @@ TEST(LexerTest, MultilineQuery) {
 TEST(LexerTest, LineAndColumnTracking) {
     Lexer lexer("SELECT\nFROM");
 
-    Token token1 = lexer.nextToken();
+    Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.line, 1);
     EXPECT_EQ(token1.column, 1);
 
-    Token token2 = lexer.nextToken();
+    Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.line, 2);
     EXPECT_EQ(token2.column, 1);
 }
@@ -338,33 +345,33 @@ TEST(LexerTest, LineAndColumnTracking) {
 TEST(LexerTest, InvalidCharacter) {
     Lexer lexer("SELECT @ FROM");
 
-    Token token1 = lexer.nextToken();
+    Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.type, TokenType::Keyword);
 
-    Token token2 = lexer.nextToken();
+    Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.type, TokenType::Invalid);
     EXPECT_EQ(token2.value, "@");
 
-    Token token3 = lexer.nextToken();
+    Token token3 = lexer.NextToken();
     EXPECT_EQ(token3.type, TokenType::Keyword);
 }
 
 TEST(LexerTest, HasNextMethod) {
     Lexer lexer("SELECT FROM");
 
-    EXPECT_TRUE(lexer.hasNext());
-    lexer.nextToken();
+    EXPECT_TRUE(lexer.HasNext());
+    lexer.NextToken();
 
-    EXPECT_TRUE(lexer.hasNext());
-    lexer.nextToken();
+    EXPECT_TRUE(lexer.HasNext());
+    lexer.NextToken();
 
-    EXPECT_FALSE(lexer.hasNext());
+    EXPECT_FALSE(lexer.HasNext());
 }
 
 TEST(LexerTest, EmptyStringLiteral) {
     Lexer lexer(R"("")");
 
-    Token token = lexer.nextToken();
+    Token token = lexer.NextToken();
     EXPECT_EQ(token.type, TokenType::StringLiteral);
     EXPECT_EQ(token.value, "");
 }
@@ -372,7 +379,7 @@ TEST(LexerTest, EmptyStringLiteral) {
 TEST(LexerTest, ConsecutiveOperators) {
     Lexer lexer("a==b!=c<d>e<=f>=g");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
 
     EXPECT_EQ(tokens[1].type, TokenType::Operator);
     EXPECT_EQ(tokens[1].value, "==");
@@ -396,7 +403,7 @@ TEST(LexerTest, ConsecutiveOperators) {
 TEST(LexerTest, StarOperator) {
     Lexer lexer("SELECT * FROM users");
 
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
 
     EXPECT_EQ(tokens[0].type, TokenType::Keyword);
     EXPECT_EQ(tokens[0].value, "SELECT");
