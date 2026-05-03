@@ -8,18 +8,18 @@ enum class SqlBool {
 };
 
 inline SqlBool operator&&(SqlBool a, SqlBool b) {
-    if (a == SqlBool::UNKNOWN || b == SqlBool::UNKNOWN)
-        return SqlBool::UNKNOWN;
     if (a == SqlBool::FALSE || b == SqlBool::FALSE)
         return SqlBool::FALSE;
+    if (a == SqlBool::UNKNOWN || b == SqlBool::UNKNOWN)
+        return SqlBool::UNKNOWN;
     return SqlBool::TRUE;
 }
 
 inline SqlBool operator||(SqlBool a, SqlBool b) {
-    if (a == SqlBool::UNKNOWN || b == SqlBool::UNKNOWN)
-        return SqlBool::UNKNOWN;
     if (a == SqlBool::TRUE || b == SqlBool::TRUE)
         return SqlBool::TRUE;
+    if (a == SqlBool::UNKNOWN || b == SqlBool::UNKNOWN)
+        return SqlBool::UNKNOWN;
     return SqlBool::FALSE;
 }
 
