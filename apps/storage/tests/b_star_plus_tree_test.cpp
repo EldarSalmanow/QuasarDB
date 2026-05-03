@@ -9,6 +9,8 @@
 #include <string_view>
 #include <vector>
 
+namespace qdb::storage::test {
+
 namespace fs = std::filesystem;
 
 class BStarPlusTreeTest : public ::testing::Test {
@@ -49,14 +51,18 @@ bool randomTest(const std::string& filename, int iterations = 10000) {
                 key = dis(gen);
             }
             int value = key * 10;
-            std::cout << "Step " << i << ": Inserting " << key << std::endl;
+            if (tree.DEBUG) {
+                std::cout << "Step " << i << ": Inserting " << key << std::endl;
+            }
             tree.insert(key, value);
             addedKeys.push_back(key);
         } else {
             std::uniform_int_distribution<> indexDis(0, static_cast<int>(addedKeys.size()) - 1);
             int idx = indexDis(gen);
             int key = addedKeys[idx];
-            std::cout << "Step " << i << ": Removing " << key << std::endl;
+            if (tree.DEBUG) {
+                std::cout << "Step " << i << ": Removing " << key << std::endl;
+            }
             tree.remove(key);
             addedKeys.erase(addedKeys.begin() + idx);
         }
@@ -93,14 +99,18 @@ bool randomBigTest(const std::string& filename, int iterations = 10000) {
                     key = dis(gen);
                 }
                 int value = key * 10;
-                std::cout << "Step " << i << ": Inserting " << key << std::endl;
+                if (tree.DEBUG) {
+                    std::cout << "Step " << i << ": Inserting " << key << std::endl;
+                }
                 tree.insert(key, value);
                 addedKeys.push_back(key);
             } else {
                 std::uniform_int_distribution<> indexDis(0, static_cast<int>(addedKeys.size()) - 1);
                 int idx = indexDis(gen);
                 int key = addedKeys[idx];
-                std::cout << "Step " << i << ": Removing " << key << std::endl;
+                if (tree.DEBUG) {
+                    std::cout << "Step " << i << ": Removing " << key << std::endl;
+                }
                 tree.remove(key);
                 addedKeys.erase(addedKeys.begin() + idx);
             }
@@ -125,7 +135,4 @@ TEST_F(BStarPlusTreeTest, BStarPlusTreeRandomBigTest1) {
     EXPECT_TRUE(randomBigTest(std::string(BStarPlusTreeTest::test_tree_name)));
 }
 
-int main(int argc, char** argv) {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
+}  // namespace qdb::storage::test
