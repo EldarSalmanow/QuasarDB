@@ -11,7 +11,6 @@
 #include "interner.h"
 #include "table.h"
 
-
 namespace qdb::storage {
 
 namespace fs = std::filesystem;

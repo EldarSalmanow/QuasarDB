@@ -11,7 +11,6 @@
 #include <string>
 #include "pager.h"
 
-
 namespace qdb::storage {
 
 template <typename T, typename K>

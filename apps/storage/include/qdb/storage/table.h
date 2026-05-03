@@ -21,7 +21,6 @@
 #include "schema.h"
 #include "string_storage.h"
 
-
 namespace qdb::storage {
 class Table final {
     static constexpr bool DEBUG = false;
