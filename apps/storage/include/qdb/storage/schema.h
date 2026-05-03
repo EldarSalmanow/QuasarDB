@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
+#include <unordered_map>
 #include "column.h"
 
 class Schema final {
@@ -11,30 +12,34 @@ class Schema final {
     static constexpr std::string_view HEADER = "SCHEMA";
 
     std::vector<Column> _columns;
-    uint32_t _record_id_count;
-    uint32_t _bitmap_size;  // bytes
+    uint32_t _record_id_count = 0;
+    uint32_t _bitmap_size = 0;  // bytes
+    std::unordered_map<uint32_t, uint32_t> column_id_to_bitmap_id;
 
 public:
     Schema() = default;
 
-    Schema(const std::vector<Column>& columns, uint32_t record_id_count = 0)
+    Schema(std::vector<Column> columns, uint32_t record_id_count = 0)
         : _columns(std::move(columns)), _record_id_count(record_id_count)
     {
         if (DEBUG) { std::cout << "Schema::Schema(columns, record_id)" << std::endl; }
         std::unordered_set<std::string> column_names;
         _bitmap_size = 0;
-        for (const auto& column : _columns) {
-            if (!column_names.insert(column.name()).second) {
+        for (size_t i = 0; i < _columns.size(); ++i) {
+            if (!column_names.insert(_columns[i].name()).second) {
                 throw std::runtime_error("Columns can not have same names.");
             }
-            if (!column.not_null()) {
+            if (!_columns[i].not_null()) {
+                column_id_to_bitmap_id[i] = _bitmap_size;
                 ++_bitmap_size;
             }
         }
         _bitmap_size = (_bitmap_size + 7) / 8;
     }
 
-    bool operator==(const Schema& other) const = default;
+    bool operator==(const Schema& other) const {
+        return _columns == other._columns && _record_id_count == other._record_id_count;
+    }
 
     auto size() const {
         return _columns.size();
@@ -112,7 +117,7 @@ public:
         return _bitmap_size;
     }
 
-    uint32_t get_bitmap_idx(uint32_t column_idx) const {  // TODO: add save result
+    uint32_t get_bitmap_idx(uint32_t column_idx) const {
         if (DEBUG) { std::cout << "Schema::get_bitmap_idx" << std::endl; }
         if (column_idx >= _columns.size()) {
             throw std::out_of_range("Column idx " + std::to_string(column_idx) + " is out of range [0, " + std::to_string(_columns.size()) + ").");
@@ -120,16 +125,7 @@ public:
         if (_columns[column_idx].not_null()) {
             throw std::runtime_error("Column with column idx " + std::to_string(column_idx) + " is not null and has not bitmap idx.");
         }
-        uint32_t bitmap_idx = 0;
-        for (size_t i = 0; i < _columns.size(); ++i) {
-            if (static_cast<uint32_t>(i) == column_idx) {
-                break;
-            }
-            if (!_columns[i].not_null()) {
-                ++bitmap_idx;
-            }
-        }
-        return bitmap_idx;
+        return column_id_to_bitmap_id.at(column_idx);
     }
 };
 
