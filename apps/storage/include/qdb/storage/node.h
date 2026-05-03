@@ -21,15 +21,15 @@ concept BTreeKey = requires(const T a, const T b) {
     {
         a < b
         } -> std::convertible_to<bool>;
+    {
+        a == b
+        } -> std::convertible_to<bool>;
     requires std::is_trivially_copyable_v<T>;
     requires sizeof(T) > 0;
 };
 
 template <typename T>
 concept BTreeValue = requires(const T a, const T b) {
-    {
-        a < b
-        } -> std::convertible_to<bool>;
     requires std::is_trivially_copyable_v<T>;
     requires sizeof(T) > 0;
 };

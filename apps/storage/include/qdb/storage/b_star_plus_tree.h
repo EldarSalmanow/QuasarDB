@@ -139,10 +139,7 @@ private:
     }
 
 public:
-    BStarPlusTree(const std::string& path)
-        : _path(path), pager(path, Node<K_t, V_t>::PAGE_SIZE)
-    {
-    BStarPlusTree(const std::string& path) : path(path), pager(path, Node<K_t, V_t>::PAGE_SIZE) {
+    BStarPlusTree(const std::string& path) : _path(path), pager(path, Node<K_t, V_t>::PAGE_SIZE) {
         if (DEBUG) {
             std::cout << "BStarPlusTree::BStarPlusTree: path=" << path << std::endl;
         }
@@ -194,7 +191,7 @@ public:
         set_root_and_first_leaf_id(-1, -1);
     }
 
-    node_size_t root_id() { return metadata.metadata_struct.root_id; }
+    node_size_t root_id() const { return metadata.metadata_struct.root_id; }
 
     void set_root_and_first_leaf_id(node_size_t new_root_id, node_size_t new_first_leaf_id) {
         metadata.metadata_struct.root_id = new_root_id;
