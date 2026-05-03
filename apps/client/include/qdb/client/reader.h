@@ -1,41 +1,36 @@
-#ifndef QUASARDB_STREAM_H
-#define QUASARDB_STREAM_H
+#ifndef QUASARDB_CLIENT_READER_H
+#define QUASARDB_CLIENT_READER_H
 
+#include <qdb/client/stream.h>
+
+#include <fstream>
 #include <string>
 
 namespace qdb::client {
 
-class IReader {
+class ConsoleReader : public IInputStream {
 public:
-    virtual ~IReader();
+    ConsoleReader() = default;
+    ~ConsoleReader() override = default;
 
-public:
-    virtual bool Open() = 0;
-    virtual void Close() = 0;
-    virtual std::string ReadLine() = 0;
-    virtual bool HasNext() const = 0;
+    std::optional<std::string> ReadCommand() override;
+    bool HasMore() const override;
 };
 
-// for REPL
-class ConsoleReader : public IReader {
-public:
-    bool Open() override;
-    void Close() override;
-    std::string ReadLine() override;
-    bool HasNext() const override;
-};
-
-class FileReader : public IReader {
+class FileReader : public IInputStream {
 public:
     explicit FileReader(const std::string& file_path);
+    ~FileReader() override = default;
 
-public:
-    bool Open() override;
-    void Close() override;
-    std::string ReadLine() override;
-    bool HasNext() const override;
+    std::optional<std::string> ReadCommand() override;
+    bool HasMore() const override;
+
+private:
+    std::string file_path_;
+    std::ifstream file_stream_;
+    bool is_open_ = false;
 };
 
-}  // namespace qdb::client
+}
 
-#endif  // QUASARDB_STREAM_H
+#endif
