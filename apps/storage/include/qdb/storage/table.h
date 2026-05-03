@@ -14,25 +14,27 @@
 #include <unordered_map>
 #include <variant>
 #include "b_star_plus_tree.h"
+#include "interner.h"
 #include "page.h"
 #include "pager.h"
 #include "record.h"
 #include "schema.h"
+#include "string_storage.h"
+
 
 namespace qdb::storage {
-
-namespace fs = std::filesystem;
-
 class Table final {
     static constexpr bool DEBUG = false;
     static constexpr std::string_view HEADER = "TABLE";
     static constexpr uint32_t PAGE_SIZE = 4096;  //
+    static constexpr uint32_t MAX_SMALL_STR_LENGTH = PAGE_SIZE / 2;
     static constexpr uint32_t METADATA_PAGE_ID = 0;
     static constexpr uint32_t DATA_PAGE_WITH = METADATA_PAGE_ID + 1;
     static constexpr std::string_view DATA_EXT = ".data";
     static constexpr std::string_view SCHEMA_EXT = ".schema";
     static constexpr std::string_view SCHEMA_TMP_EXT = ".schema.tmp";
     static constexpr std::string_view INDEX_EXT = ".idx";
+    static constexpr std::string_view STR_STORAGE_EXT = ".bin";
 
     static constexpr bool USE_NULL_BITMAP = true;
 
@@ -40,6 +42,18 @@ class Table final {
         static constexpr int PREFIX_SIZE = 8;
         char _prefix[PREFIX_SIZE];
         int32_t _record_id;
+
+        FastStr(const std::string& value, int32_t record_id) : _record_id(record_id) {
+            std::memset(_prefix, 0, PREFIX_SIZE);
+            std::memcpy(_prefix, value.data(), PREFIX_SIZE <= value.size() ? PREFIX_SIZE : value.size());
+        }
+
+        FastStr(std::string_view value, int32_t record_id) : _record_id(record_id) {
+            std::memset(_prefix, 0, PREFIX_SIZE);
+            std::memcpy(_prefix, value.data(), PREFIX_SIZE <= value.size() ? PREFIX_SIZE : value.size());
+        }
+
+        FastStr() = default;
 
         bool operator<(FastStr other) const {
             int prefix_comp = std::memcmp(_prefix, other._prefix, PREFIX_SIZE);
@@ -55,13 +69,6 @@ class Table final {
 
         int SearchCmp(FastStr other) const { return std::memcmp(_prefix, other._prefix, PREFIX_SIZE); }
 
-        FastStr(const std::string& value, int32_t record_id) : _record_id(record_id) {
-            std::memset(_prefix, 0, PREFIX_SIZE);
-            std::memcpy(_prefix, value.data(), PREFIX_SIZE <= value.size() ? PREFIX_SIZE : value.size());
-        }
-
-        FastStr() = default;
-
         friend std::ostream& operator<<(std::ostream& os, const FastStr& fast_str) {
             for (int i = 0; i < PREFIX_SIZE && fast_str._prefix[i]; ++i) {
                 os << fast_str._prefix[i];
@@ -74,6 +81,9 @@ class Table final {
     std::string _name;
     fs::path _root;
     Pager _pager;
+    StringStorage _str_storage;
+    Interner* _interner;
+    Serializer _serializer;
     Schema _schema;
     std::unordered_map<
         std::string,
@@ -94,8 +104,13 @@ class Table final {
     static_assert(sizeof(MetadataPage) == PAGE_SIZE);
 
 public:
-    Table(std::string name, fs::path root)
-        : _name(std::move(name)), _root(std::move(root)), _pager(root / (name + std::string(DATA_EXT)), PAGE_SIZE) {
+    Table(std::string name, fs::path root, Interner* interner)
+        : _name(std::move(name)),
+          _root(std::move(root)),
+          _pager(_root / (_name + std::string(DATA_EXT)), PAGE_SIZE),
+          _str_storage(_root / (_name + std::string(STR_STORAGE_EXT))),
+          _interner(interner),
+          _serializer(_interner, MAX_SMALL_STR_LENGTH) {
         // read table
         if (DEBUG) {
             std::cout << "Table::Table(read)" << std::endl;
@@ -122,16 +137,21 @@ public:
         }
     }
 
-    Table(std::string name, fs::path root, Schema schema)
+    Table(std::string name, fs::path root, Schema schema, Interner* interner)
         : _name(std::move(name)),
           _root(std::move(root)),
           _pager(_root / (_name + std::string(DATA_EXT)), PAGE_SIZE),
+          _str_storage(_root / (_name + std::string(STR_STORAGE_EXT))),
+          _interner(interner),
+          _serializer(_interner, MAX_SMALL_STR_LENGTH),
           _schema(std::move(schema)) {
         // create table
         if (DEBUG) {
             std::cout << "Table::Table(create)" << std::endl;
         }
-        if (_pager.get_total_pages() > 0) {
+        auto data_path = _root / (_name + std::string(DATA_EXT));
+        auto str_storage_path = _root / (_name + std::string(STR_STORAGE_EXT));
+        if (!fs::is_empty(data_path) || !fs::is_empty(str_storage_path)) {
             throw std::runtime_error("Table with name " + _name + " already exists.");
         }
         auto page_id = _pager.append_new_page();
@@ -196,10 +216,12 @@ public:
         }
         fs::remove(_root / (_name + std::string(DATA_EXT)));
         fs::remove(_root / (_name + std::string(SCHEMA_EXT)));
+        fs::remove(_root / (_name + std::string(STR_STORAGE_EXT)));
     }
 
     void close() noexcept {
         _pager.close();
+        _str_storage.close();
         for (auto& [column_name, index] : _indexes) {
             std::visit([](auto& tree) { return tree.close(); }, index);
         }
@@ -242,7 +264,7 @@ public:
         if (!_pager.page_exists(record_address.page_idx)) {
             return std::nullopt;
         }
-        auto table_page = TablePage(record_address.page_idx, &_pager, mem_ptr);
+        auto table_page = TablePage(record_address.page_idx, &_pager, &_str_storage, &_serializer, mem_ptr);
         auto record = table_page.read_record(record_address.slot_idx, _schema);
         if (record == std::nullopt) {
             return std::nullopt;
@@ -287,7 +309,7 @@ public:
         if (DEBUG) {
             std::cout << "Table::delete_record" << std::endl;
         }
-        auto table_page = TablePage(record.address().page_idx, &_pager);
+        auto table_page = TablePage(record.address().page_idx, &_pager, &_str_storage, &_serializer);
         table_page.delete_record(record.address().slot_idx);
         update_indexes_after_delete(record);
     }
@@ -376,15 +398,15 @@ private:
                                 }
                             }
                         } else if constexpr (std::is_same_v<KeyType, FastStr>) {
-                            auto results = tree.search(FastStr(value.as_string(), 0));
+                            auto results = tree.search(FastStr(value.as_string().intern_view, 0));
                             if (results.empty()) {
                                 return false;
                             }
                             auto page_buf = std::make_unique<uint8_t[]>(PAGE_SIZE);
                             for (auto addr : results) {
                                 auto prob_record = *read_record(addr, page_buf.get());
-                                if (prob_record[i].as_string() == value.as_string() &&
-                                    (!record.has_addr() || addr != record.address())) {
+                                if (prob_record[i].StrictEq(value) && (!record.has_addr() || addr != record.address()))
+                                {
                                     return true;
                                 }
                             }
@@ -403,11 +425,18 @@ private:
     }
 
     RecordAddress write_record_to_disk(Record& record, uint32_t prefer_page_id = 0) {
+        // Note: set new record_address to record
         if (DEBUG) {
             std::cout << "Table::write_record_to_disk" << std::endl;
         }
-        // Note: set new record_address to record
-        auto serialized_record = record.serialized(_schema);
+        for (uint32_t i = 0; i < record.size(); ++i) {
+            if (record[i].is_string() && !record[i].as_string().has_ext_addr &&
+                record[i].as_string().intern_view.size() > MAX_SMALL_STR_LENGTH)
+            {
+                _str_storage.append(record[i].as_string().intern_view);
+            }
+        }
+        auto serialized_record = record.serialized(_schema, &_serializer);
         uint32_t serialized_size = serialized_record.size();
         auto table_page = find_enough_free_page(serialized_size, prefer_page_id);
         uint32_t slot_idx = table_page.insert_record(record.id(), serialized_record.data(), serialized_size);
@@ -427,18 +456,18 @@ private:
         page_mem.resize(PAGE_SIZE);
         auto total_pages = _pager.get_total_pages();
         if (prefer_page_id > 0 && prefer_page_id < total_pages) {
-            auto table_page = TablePage(prefer_page_id, &_pager, page_mem.data());
+            auto table_page = TablePage(prefer_page_id, &_pager, &_str_storage, &_serializer, page_mem.data());
             if (table_page.is_record_fit(free_space)) {
-                return TablePage(table_page.id(), &_pager);
+                return TablePage(table_page.id(), &_pager, &_str_storage, &_serializer);
             }
         }
         for (auto i = DATA_PAGE_WITH; i < total_pages; ++i) {
-            auto table_page = TablePage(i, &_pager, page_mem.data());
+            auto table_page = TablePage(i, &_pager, &_str_storage, &_serializer, page_mem.data());
             if (table_page.is_record_fit(free_space)) {
-                return TablePage(table_page.id(), &_pager);
+                return TablePage(table_page.id(), &_pager, &_str_storage, &_serializer);
             }
         }
-        return TablePage::create(&_pager);
+        return TablePage::create(&_pager, &_str_storage, &_serializer);
     }
 
     void update_indexes_after_insert(const Record& record) {
@@ -459,7 +488,7 @@ private:
                         if constexpr (std::is_same_v<KeyType, int32_t>) {
                             tree.insert(value.as_int(), record.address());
                         } else if constexpr (std::is_same_v<KeyType, FastStr>) {
-                            tree.insert(FastStr(value.as_string(), record.id()), record.address());
+                            tree.insert(FastStr(value.as_string().intern_view, record.id()), record.address());
                         }
                     },
                     it->second
@@ -486,7 +515,7 @@ private:
                         if constexpr (std::is_same_v<KeyType, int32_t>) {
                             tree.remove(value.as_int());
                         } else if constexpr (std::is_same_v<KeyType, FastStr>) {
-                            tree.remove(FastStr(value.as_string(), record.id()));
+                            tree.remove(FastStr(value.as_string().intern_view, record.id()));
                         }
                     },
                     it->second
@@ -513,7 +542,7 @@ private:
                         if constexpr (std::is_same_v<KeyType, int32_t>) {
                             tree.update(value.as_int(), record.address());
                         } else if constexpr (std::is_same_v<KeyType, FastStr>) {
-                            tree.update(FastStr(value.as_string(), record.id()), record.address());
+                            tree.update(FastStr(value.as_string().intern_view, record.id()), record.address());
                         }
                     },
                     it->second

@@ -8,6 +8,8 @@
 #include "pager.h"
 #include "record.h"
 #include "schema.h"
+#include "serializer.h"
+#include "string_storage.h"
 
 namespace qdb::storage {
 
@@ -27,7 +29,7 @@ public:
     struct Slot {
         uint32_t record_offset;
         uint32_t record_size;
-        uint32_t record_id;  // TODO: are you sure?
+        uint32_t record_id;
         bool deleted;
     };
 
@@ -54,11 +56,15 @@ private:
 
     Pager* _pager;
     std::unique_ptr<DataPage, PageDeleter> _data;
+    StringStorage* _str_storage;
+    Serializer* _serializer;
 
 public:
-    TablePage(uint32_t id, Pager* pager, void* mem_ptr = nullptr)
+    TablePage(uint32_t id, Pager* pager, StringStorage* str_storage, Serializer* serializer, void* mem_ptr = nullptr)
         : _pager(pager),
-          _data(mem_ptr ? static_cast<DataPage*>(mem_ptr) : new DataPage(), PageDeleter{mem_ptr == nullptr}) {
+          _data(mem_ptr ? static_cast<DataPage*>(mem_ptr) : new DataPage(), PageDeleter{mem_ptr == nullptr}),
+          _str_storage(str_storage),
+          _serializer(serializer) {
         // read exists page or create in-memory
         if (DEBUG) {
             std::cout << "TablePage::TablePage(read)" << std::endl;
@@ -73,7 +79,7 @@ public:
         }
     }
 
-    static TablePage create(Pager* pager) {
+    static TablePage create(Pager* pager, StringStorage* str_storage, Serializer* serializer) {
         // create page in file
         if (DEBUG) {
             std::cout << "TablePage::TablePage(create)" << std::endl;
@@ -82,7 +88,7 @@ public:
         std::unique_ptr<DataPage> data = std::make_unique<DataPage>();
         data->header.page_id = page_id;
         pager->write_page(page_id, data->raw);
-        return TablePage(page_id, pager);
+        return TablePage(page_id, pager, str_storage, serializer);
     }
 
     uint8_t* raw() { return _data->raw; }
@@ -167,7 +173,9 @@ public:
             _data->raw + slots[slot_idx].record_offset,
             slots[slot_idx].record_size,
             slots[slot_idx].record_id,
-            schema
+            schema,
+            _str_storage,
+            _serializer
         );
         return record;
     }
@@ -200,7 +208,7 @@ public:
         if (DEBUG) {
             std::cout << "TablePage::compact" << std::endl;
         }
-        TablePage temp(0, nullptr);
+        TablePage temp(0, nullptr, _str_storage, _serializer);
         uint32_t slots_end = sizeof(PageHeader) + (slot_count() * sizeof(Slot));
         std::memcpy(temp.raw(), raw(), slots_end);
         std::memset(temp.raw() + slots_end, 0, PAGE_SIZE - slots_end);

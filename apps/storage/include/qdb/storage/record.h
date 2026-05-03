@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "schema.h"
+#include "serializer.h"
 #include "value.h"
 
 namespace qdb::storage {
@@ -72,20 +73,26 @@ public:
         _has_addr = true;
     }
 
-    uint32_t serialized_values_size(const Schema& schema) const {
+    uint32_t serialized_values_size(const Schema& schema, Serializer* serializer) const {
+        if (serializer == nullptr) {
+            throw std::runtime_error("Serializer should not be nullptr.");
+        }
         uint32_t result = schema.null_bitmap_size();
         for (const auto& value : _fields) {
             if (value.is_null()) {
                 continue;
             }
-            result += value.serialized_size();
+            result += serializer->serialized_size(value);
         }
         return result;
     }
 
-    std::vector<uint8_t> serialized(const Schema& schema) const {
+    std::vector<uint8_t> serialized(const Schema& schema, Serializer* serializer) const {
+        if (serializer == nullptr) {
+            throw std::runtime_error("Serializer should not be nullptr.");
+        }
         std::vector<uint8_t> data_v;
-        auto result_size = serialized_values_size(schema);
+        auto result_size = serialized_values_size(schema, serializer);
         data_v.reserve(result_size);
         data_v.resize(schema.null_bitmap_size());
         for (size_t i = 0; i < _fields.size(); ++i) {
@@ -94,14 +101,24 @@ public:
                 auto bitmap_idx = schema.get_bitmap_idx(static_cast<uint32_t>(i));
                 data_v[bitmap_idx / 8] |= (1 << (bitmap_idx % 8));
             } else {
-                value.append_to_buffer(data_v);
+                serializer->append_value_to_buffer(value, data_v);
             }
         }
         assert(data_v.size() == result_size);
         return data_v;
     }
 
-    static Record from_binary(uint8_t* data, uint32_t size, uint32_t record_id, const Schema& schema) {
+    static Record from_binary(
+        uint8_t* data,
+        uint32_t size,
+        uint32_t record_id,
+        const Schema& schema,
+        StringStorage* string_storage,
+        Serializer* serializer
+    ) {
+        if (serializer == nullptr) {
+            throw std::runtime_error("Serializer should not be nullptr.");
+        }
         const uint8_t* null_bitmap = data;
         data += schema.null_bitmap_size();
         std::vector<Value> values(schema.size());
@@ -114,9 +131,9 @@ public:
                 }
             }
             if (schema[i].is_int()) {
-                values[i] = Value::from_binary(data, Value::Type::INT);
+                values[i] = serializer->read_value(data, Value::Type::INT, string_storage);
             } else if (schema[i].is_string()) {
-                values[i] = Value::from_binary(data, Value::Type::STRING);
+                values[i] = serializer->read_value(data, Value::Type::STRING, string_storage);
             }
         }
         if (data - null_bitmap != size) {
