@@ -86,6 +86,7 @@ public:
     }
 
     void read_page(uint32_t page_id, uint8_t* page_data) {
+        db_file.clear();
         db_file.seekg(page_id * page_size);
         db_file.read(reinterpret_cast<char*>(page_data), page_size);
         if (static_cast<size_t>(db_file.gcount()) != page_size) {
