@@ -5,11 +5,10 @@
 #ifndef QUASARDB_DATABASE_H
 #define QUASARDB_DATABASE_H
 
+#include <table.h>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
-#include "table.h"
-
 
 namespace qdb::storage {
 
