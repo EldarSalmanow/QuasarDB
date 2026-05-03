@@ -1,5 +1,4 @@
 # QuasarDB
-
 Team course project of DBMS on the course "System Programming" of Moscow Aviation Institute (MAI).
 
 ## Dev Container
@@ -33,12 +32,3 @@ make check
 ```bash
 make format
 ```
-
-## Project Structure
-
-- `apps/client` - CLI client terminal
-- `apps/server` - Entrypoint server (routing, security, observability)
-- `apps/storage` - Storage node (data, indexes, journal)
-- `libs/core` - Shared code and network primitives
-- `docs/` - Documentation, tasks and report
-- `external/` - Dependency manifests

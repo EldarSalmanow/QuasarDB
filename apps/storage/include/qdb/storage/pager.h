@@ -5,11 +5,9 @@
 #ifndef QUASARDB_PAGER_H
 #define QUASARDB_PAGER_H
 
-#include <cassert>
-#include <filesystem>
-#include <fstream>
 #include <string>
-#include <vector>
+#include <fstream>
+#include <filesystem>
 
 class Pager final {
     size_t page_size;
@@ -43,7 +41,10 @@ public:
         close();
     }
 
-    Pager(const std::string& path, size_t page_size) : page_size(page_size), file_path(path) {
+    Pager(const std::string& path, size_t page_size)
+        : page_size(page_size),
+          file_path(path)
+    {
         db_file.open(path, std::ios::in | std::ios::out | std::ios::binary);
         if (!db_file.is_open()) {
             db_file.clear();
@@ -73,7 +74,9 @@ public:
         return static_cast<uint32_t>(file_size / page_size);
     }
 
-    bool page_exists(uint32_t page_id) { return page_id < get_total_pages(); }
+    bool page_exists(uint32_t page_id) {
+        return page_id < get_total_pages();
+    }
 
     void write_page(uint32_t page_id, const uint8_t* page_data) {
         db_file.clear();

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.14)
 project(QuasarDB LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -6,30 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
-option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
-
 add_compile_options(
 	$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wall>
 	$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wextra>
 	$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wpedantic>
 )
-
-if(ENABLE_ASAN)
-	add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-	
-	add_link_options(-fsanitize=address)
-	
-	message(STATUS "AddressSanitizer enabled")
-endif()
-
-if(ENABLE_UBSAN)
-	add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
-	
-	add_link_options(-fsanitize=undefined)
-	
-	message(STATUS "UndefinedBehaviorSanitizer enabled")
-endif()
 
 include(CTest)
 

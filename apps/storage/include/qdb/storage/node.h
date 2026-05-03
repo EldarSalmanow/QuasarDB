@@ -5,10 +5,11 @@
 
 #include <algorithm>
 #include <concepts>
+#include <iostream>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <string>
+#include <iostream>
 #include "pager.h"
 
 template<typename T, typename K>
@@ -16,21 +17,17 @@ concept HasSearchCmp = requires(const T& a, const K& b) {
     { a.SearchCmp(b) } -> std::convertible_to<int>;
 };
 
-template <typename T>
+template<typename T>
 concept BTreeKey = requires(const T a, const T b) {
-    {
-        a < b
-        } -> std::convertible_to<bool>;
-    {
-        a == b
-        } -> std::convertible_to<bool>;
-    requires std::is_trivially_copyable_v<T>;
+    { a < b } -> std::convertible_to<bool>;
+    { a == b } -> std::convertible_to<bool>;
+    requires std::is_trivially_copyable_v<T>; 
     requires sizeof(T) > 0;
 };
 
-template <typename T>
+template<typename T>
 concept BTreeValue = requires(const T a, const T b) {
-    requires std::is_trivially_copyable_v<T>;
+    requires std::is_trivially_copyable_v<T>; 
     requires sizeof(T) > 0;
 };
 
@@ -41,7 +38,7 @@ public:
 
     static constexpr bool DEBUG = false;
     static constexpr std::string_view HEADER = "BSTARPLUSTREE_NODE";
-
+    
     enum class NodeType {
         INTERNAL,
         LEAF,
@@ -66,15 +63,13 @@ public:
     static constexpr node_size_t PAGE_ID_SIZE = sizeof(node_size_t);
     static constexpr node_size_t VALUE_SIZE = sizeof(V_t);
 
-    static constexpr node_size_t
-        PHYS_KEYS_INTERNAL = (PAGE_SIZE - sizeof(NodeHeaderStruct) - PAGE_ID_SIZE) / (KEY_SIZE + PAGE_ID_SIZE);
+    static constexpr node_size_t PHYS_KEYS_INTERNAL = (PAGE_SIZE - sizeof(NodeHeaderStruct) - PAGE_ID_SIZE) / (KEY_SIZE + PAGE_ID_SIZE);
     static constexpr node_size_t MAX_KEYS_INTERNAL = PHYS_KEYS_INTERNAL - 1;
     static constexpr node_size_t CHILDREN_SIZE = PHYS_KEYS_INTERNAL + 1;
     static constexpr node_size_t MAX_CHILDREN = CHILDREN_SIZE - 1;
     static constexpr node_size_t MIN_KEYS_INTERNAL = (2 * PHYS_KEYS_INTERNAL - 1) / 3;
 
-    static constexpr node_size_t
-        PHYS_SIZE_LEAF = (PAGE_SIZE - sizeof(NodeHeaderStruct) - PAGE_ID_SIZE) / (KEY_SIZE + VALUE_SIZE);
+    static constexpr node_size_t PHYS_SIZE_LEAF = (PAGE_SIZE - sizeof(NodeHeaderStruct) - PAGE_ID_SIZE) / (KEY_SIZE + VALUE_SIZE);
     static constexpr node_size_t MAX_KEYS_LEAF = PHYS_SIZE_LEAF - 1;
     static constexpr node_size_t MAX_VALUES = MAX_KEYS_LEAF;
     static constexpr node_size_t MIN_KEYS_LEAF = (2 * PHYS_SIZE_LEAF - 1) / 3;
@@ -119,9 +114,7 @@ private:
 public:
     explicit Node(NodeType type, Pager* pager) : pager(pager) {
         // create new node
-        if (DEBUG) {
-            std::cout << "Node::Node: type=" << static_cast<int>(type) << ", pager=" << pager << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node::Node: type=" << static_cast<int>(type) << ", pager=" << pager << std::endl; }
         bool deleted_found = false;
         for (auto i = NODE_PAGES_FROM_ID; i < pager->get_total_pages(); ++i) {
             pager->read_page(i, reinterpret_cast<uint8_t*>(page_data.raw));
@@ -150,21 +143,14 @@ public:
 
     explicit Node(node_size_t page_id, Pager* pager) : pager(pager) {
         // read exists node
-        if (DEBUG) {
-            std::cout << "Node::Node: page_id=" << page_id << ", pager=" << pager << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node::Node: page_id=" << page_id << ", pager=" << pager << std::endl; }
         pager->read_page(page_id, reinterpret_cast<uint8_t*>(page_data.raw));
         auto header = std::string_view(page_data.header.header);
         if (header != HEADER) {
-            throw std::runtime_error(
-                "Headers don't match. Read: " + std::string(header) + ". Expected: " + std::string(HEADER) + "."
-            );
+            throw std::runtime_error("Headers don't match. Read: " + std::string(header) + ". Expected: " + std::string(HEADER) + ".");
         }
         if (page_id != page_data.header.node_id) {
-            throw std::runtime_error(
-                "Page_id don't match. Read: " + std::to_string(page_data.header.node_id) +
-                ". Expected: " + std::to_string(page_id) + "."
-            );
+            throw std::runtime_error("Page_id don't match. Read: " + std::to_string(page_data.header.node_id) + ". Expected: " + std::to_string(page_id) + ".");
         }
         if (page_data.header.deleted) {
             throw std::runtime_error("Read deleted Node with id " + std::to_string(page_data.header.node_id) + ".");
@@ -180,31 +166,23 @@ public:
 
 private:
     void increment_size() {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::increment_size" << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::increment_size" << std::endl; }
         ++page_data.header.keys_size;
     }
 
     void decrement_size() {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::decrement_size" << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::decrement_size" << std::endl; }
         --page_data.header.keys_size;
     }
 
     void set_size(node_size_t new_size) {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::set_size: new_size=" << new_size << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::set_size: new_size=" << new_size << std::endl; }
         page_data.header.keys_size = new_size;
     }
 
 public:
     void set_next(node_size_t next_id) {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::set_next: next_id=" << next_id << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::set_next: next_id=" << next_id << std::endl; }
         if (!is_leaf()) {
             throw std::runtime_error("It is not leaf.");
         }
@@ -213,9 +191,7 @@ public:
     }
 
     void set_key(K_t key, node_size_t idx) {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::set_key: key=" << key << ", idx=" << idx << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::set_key: key=" << key << ", idx=" << idx << std::endl; }
         if (idx >= size()) {
             throw std::out_of_range("Idx is out of range.");
         }
@@ -234,20 +210,26 @@ public:
     }
 
     void mark_deleted() {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::mark_deleted" << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::mark_deleted" << std::endl; }
         page_data.header.deleted = true;
         save_to_disk();
     }
 
-    bool operator==(const Node& other) const { return id() == other.id(); }
+    bool operator==(const Node& other) const {
+        return id() == other.id();
+    }
 
-    node_size_t id() const { return page_data.header.node_id; }
+    node_size_t id() const {
+        return page_data.header.node_id;
+    }
 
-    bool is_leaf() const { return page_data.header.is_leaf; }
+    bool is_leaf() const {
+        return page_data.header.is_leaf;
+    }
 
-    node_size_t size() const { return page_data.header.keys_size; }
+    node_size_t size() const {
+        return page_data.header.keys_size;
+    }
 
     bool empty() const {
         return size() == 0;
@@ -260,7 +242,9 @@ public:
         return page_data.leaf_data.next_leaf;
     }
 
-    node_size_t children_size() const { return size() + 1; }
+    node_size_t children_size() const {
+        return size() + 1;
+    }
 
     K_t get_key(node_size_t idx) const {
         assert(idx < size());
@@ -298,11 +282,17 @@ public:
         return page_data.header.is_leaf ? size() > MIN_KEYS_LEAF : size() > MIN_KEYS_INTERNAL;
     }
 
-    bool can_take() const { return page_data.header.is_leaf ? size() < MAX_KEYS_LEAF : size() < MAX_KEYS_INTERNAL; }
+    bool can_take() const {
+        return page_data.header.is_leaf ? size() < MAX_KEYS_LEAF : size() < MAX_KEYS_INTERNAL;
+    }
 
-    bool underflow() const { return is_leaf() ? size() < MIN_KEYS_LEAF : size() < MIN_KEYS_INTERNAL; }
+    bool underflow() const {
+        return is_leaf() ? size() < MIN_KEYS_LEAF : size() < MIN_KEYS_INTERNAL;
+    }
 
-    bool overflow() const { return is_leaf() ? size() > MAX_KEYS_LEAF : size() > MAX_KEYS_INTERNAL; }
+    bool overflow() const {
+        return is_leaf() ? size() > MAX_KEYS_LEAF : size() > MAX_KEYS_INTERNAL;
+    }
 
     node_size_t find_child_idx(K_t key) const {
         if (is_leaf()) {
@@ -318,23 +308,27 @@ public:
 
 private:
     void move_right_internal(node_size_t count) {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::move_right_internal: count=" << count << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::move_right_internal: count=" << count << std::endl; }
         if (children_size() + count > MAX_CHILDREN) {
             throw std::runtime_error("children_size() + count > MAX_CHILDREN");
         }
         K_t* key_ptr = page_data.internal_data.keys;
         node_size_t* children_ptr = page_data.internal_data.children;
-        std::move_backward(key_ptr, key_ptr + size(), key_ptr + size() + count);
-        std::move_backward(children_ptr, children_ptr + children_size(), children_ptr + children_size() + count);
+        std::move_backward(
+            key_ptr,
+            key_ptr + size(),
+            key_ptr + size() + count
+        );
+        std::move_backward(
+            children_ptr,
+            children_ptr + children_size(),
+            children_ptr + children_size() + count
+        );
         set_size(size() + count);
     }
 
     K_t move_left_internal(node_size_t count) {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::move_left_internal: count=" << count << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::move_left_internal: count=" << count << std::endl; }
         if (count == 0) {
             throw std::runtime_error("count == 0");
         }
@@ -344,19 +338,23 @@ private:
         K_t* key_ptr = page_data.internal_data.keys;
         node_size_t* children_ptr = page_data.internal_data.children;
         K_t mid_key = key_ptr[count - 1];
-        std::move(key_ptr + count, key_ptr + size(), key_ptr);
-        std::move(children_ptr + count, children_ptr + children_size(), children_ptr);
+        std::move(
+            key_ptr + count,
+            key_ptr + size(),
+            key_ptr
+        );
+        std::move(
+            children_ptr + count,
+            children_ptr + children_size(),
+            children_ptr
+        );
         set_size(size() - count);
         return mid_key;
     }
 
 public:
     K_t send_to_right_internal(Node& right, node_size_t children_count, K_t mid_key) {
-        if (DEBUG) {
-            std::cout
-                << "Node[" << id() << "]::send_to_right_internal: right=" << right.id()
-                << ", children_count=" << children_count << ", mid_key=" << mid_key << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::send_to_right_internal: right=" << right.id() << ", children_count=" << children_count << ", mid_key=" << mid_key << std::endl; }
         if (is_leaf() || right.is_leaf()) {
             throw std::runtime_error("It is not internal.");
         }
@@ -365,7 +363,11 @@ public:
         right.page_data.internal_data.keys[send_keys_count] = mid_key;
         K_t* key_ptr = page_data.internal_data.keys;
         node_size_t* children_ptr = page_data.internal_data.children;
-        std::move(key_ptr + size() - send_keys_count, key_ptr + size(), right.page_data.internal_data.keys);
+        std::move(
+            key_ptr + size() - send_keys_count,
+            key_ptr + size(),
+            right.page_data.internal_data.keys
+        );
         std::move(
             children_ptr + children_size() - children_count,
             children_ptr + children_size(),
@@ -378,11 +380,7 @@ public:
     }
 
     K_t take_from_right_internal(Node& right, node_size_t children_count, K_t mid_key) {
-        if (DEBUG) {
-            std::cout
-                << "Node[" << id() << "]::take_from_right_internal: right=" << right.id()
-                << ", children_count=" << children_count << ", mid_key=" << mid_key << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::take_from_right_internal: right=" << right.id() << ", children_count=" << children_count << ", mid_key=" << mid_key << std::endl; }
         if (is_leaf() || right.is_leaf()) {
             throw std::runtime_error("It is not internal.");
         }
@@ -413,23 +411,27 @@ public:
 
 private:
     void move_right_leaf(node_size_t count) {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::move_right_leaf: count=" << count << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::move_right_leaf: count=" << count << std::endl; }
         if (size() + count > MAX_KEYS_LEAF) {
             throw std::runtime_error("size() + count > MAX_KEYS_LEAF");
         }
         K_t* key_ptr = page_data.leaf_data.keys;
         V_t* values_ptr = page_data.leaf_data.values;
-        std::move_backward(key_ptr, key_ptr + size(), key_ptr + size() + count);
-        std::move_backward(values_ptr, values_ptr + size(), values_ptr + size() + count);
+        std::move_backward(
+            key_ptr,
+            key_ptr + size(),
+            key_ptr + size() + count
+        );
+        std::move_backward(
+            values_ptr,
+            values_ptr + size(),
+            values_ptr + size() + count
+        );
         set_size(size() + count);
     }
 
     K_t move_left_leaf(node_size_t count) {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::move_left_leaf: count=" << count << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::move_left_leaf: count=" << count << std::endl; }
         if (count > size()) {
             throw std::runtime_error("count > size()");
         }
@@ -439,26 +441,39 @@ private:
         if (count == 0) {
             return new_mid_key;
         }
-        std::move(key_ptr + count, key_ptr + size(), key_ptr);
-        std::move(values_ptr + count, values_ptr + size(), values_ptr);
+        std::move(
+            key_ptr + count,
+            key_ptr + size(),
+            key_ptr
+        );
+        std::move(
+            values_ptr + count,
+            values_ptr + size(),
+            values_ptr
+        );
         set_size(size() - count);
         return new_mid_key;
     }
 
 public:
     K_t send_to_right_leaf(Node& right, node_size_t count) {
-        if (DEBUG) {
-            std::cout
-                << "Node[" << id() << "]::send_to_right_leaf: right=" << right.id() << ", count=" << count << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::send_to_right_leaf: right=" << right.id() << ", count=" << count << std::endl; }
         if (!is_leaf() || !right.is_leaf()) {
             throw std::runtime_error("It is not leaf.");
         }
         right.move_right_leaf(count);
         K_t* key_ptr = page_data.leaf_data.keys;
         V_t* values_ptr = page_data.leaf_data.values;
-        std::move(key_ptr + size() - count, key_ptr + size(), right.page_data.leaf_data.keys);
-        std::move(values_ptr + size() - count, values_ptr + size(), right.page_data.leaf_data.values);
+        std::move(
+            key_ptr + size() - count,
+            key_ptr + size(),
+            right.page_data.leaf_data.keys
+        );
+        std::move(
+            values_ptr + size() - count,
+            values_ptr + size(),
+            right.page_data.leaf_data.values
+        );
         set_size(size() - count);
         right.save_to_disk();
         save_to_disk();
@@ -466,11 +481,7 @@ public:
     }
 
     K_t take_from_right_leaf(Node& right, node_size_t count) {
-        if (DEBUG) {
-            std::cout
-                << "Node[" << id() << "]::take_from_right_leaf: right=" << right.id() << ", count=" << count
-                << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::take_from_right_leaf: right=" << right.id() << ", count=" << count << std::endl; }
         if (!is_leaf() || !right.is_leaf()) {
             throw std::runtime_error("It is not leaf.");
         }
@@ -479,8 +490,16 @@ public:
         }
         K_t* key_ptr = page_data.leaf_data.keys;
         V_t* values_ptr = page_data.leaf_data.values;
-        std::move(right.page_data.leaf_data.keys, right.page_data.leaf_data.keys + count, key_ptr + size());
-        std::move(right.page_data.leaf_data.values, right.page_data.leaf_data.values + count, values_ptr + size());
+        std::move(
+            right.page_data.leaf_data.keys,
+            right.page_data.leaf_data.keys + count,
+            key_ptr + size()
+        );
+        std::move(
+            right.page_data.leaf_data.values,
+            right.page_data.leaf_data.values + count,
+            values_ptr + size()
+        );
         set_size(size() + count);
         K_t new_mid_key = right.move_left_leaf(count);
         right.save_to_disk();
@@ -490,9 +509,7 @@ public:
 
 public:
     void push_back_to_internal(node_size_t child_id) {
-        if (DEBUG) {
-            std::cout << "Node[" << id() << "]::push_back_to_internal: child_id=" << child_id << std::endl;
-        }
+        if (DEBUG) { std::cout << "Node[" << id() << "]::push_back_to_internal: child_id=" << child_id << std::endl; }
         if (size() != 0) {
             throw std::runtime_error("For not empty internal nodes use insert_in_internal(key, right_child_id)");
         }
@@ -536,8 +553,8 @@ public:
     bool insert_in_internal(K_t key, node_size_t right_child_id) {
         if (DEBUG) {
             std::cout
-                << "Node[" << id() << "]::insert_in_internal(key=" << key << ", right_child_id=" << right_child_id
-                << ")" << std::endl;
+                << "Node[" << id() << "]::insert_in_internal(key=" << key << ", right_child_id=" << right_child_id << ")"
+                << std::endl;
         }
         if (is_leaf()) {
             throw std::runtime_error("It is not internal.");

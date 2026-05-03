@@ -1,13 +1,13 @@
-#include "qdb/storage/b_star_plus_tree.h"
 #include <gtest/gtest.h>
 #include <algorithm>
-#include <filesystem>
 #include <iostream>
+#include <sstream>
 #include <numeric>
 #include <random>
-#include <sstream>
-#include <string_view>
 #include <vector>
+#include <string_view>
+#include <filesystem>
+#include "qdb/storage/b_star_plus_tree.h"
 
 namespace fs = std::filesystem;
 
@@ -104,7 +104,7 @@ bool randomBigTest(const std::string& filename, int iterations = 10000) {
                 tree.remove(key);
                 addedKeys.erase(addedKeys.begin() + idx);
             }
-
+            
             if (!tree.check_integrity()) {
                 std::cout << "Integrity check failed at iteration " << i << std::endl;
                 std::cout << buffer.str();
