@@ -4,6 +4,7 @@
 #include <qdb/client/reader.h>
 #include <qdb/client/renderer.h>
 #include <qdb/client/request.h>
+#include <qdb/client/response.h>
 #include <qdb/client/stream.h>
 
 #include <type_traits>
