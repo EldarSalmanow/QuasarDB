@@ -19,7 +19,7 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE ${STORAGE_INCLUDE_DIR})
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE qdb::core)
 
 if(BUILD_TESTING AND STORAGE_TESTS)
-	add_executable(qdb-storage-tests ${STORAGE_TESTS})
+	add_executable(qdb-storage-tests ${STORAGE_TESTS} ${STORAGE_SOURCES})
 
 	target_include_directories(qdb-storage-tests PRIVATE ${STORAGE_INCLUDE_DIR})
 

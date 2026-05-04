@@ -19,7 +19,7 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE ${SERVER_INCLUDE_DIR})
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE qdb::core)
 
 if(BUILD_TESTING AND SERVER_TESTS)
-	add_executable(qdb-server-tests ${SERVER_TESTS})
+	add_executable(qdb-server-tests ${SERVER_TESTS} ${SERVER_SOURCES})
 
 	target_include_directories(qdb-server-tests PRIVATE ${SERVER_INCLUDE_DIR})
 

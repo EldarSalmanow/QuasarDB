@@ -18,12 +18,12 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE ${CLIENT_INCLUDE_DIR})
 
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE qdb::core)
 
-# if(BUILD_TESTING AND CLIENT_TESTS)
-# 	add_executable(qdb-client-tests ${CLIENT_TESTS})
+if(BUILD_TESTING AND CLIENT_TESTS)
+	add_executable(qdb-client-tests ${CLIENT_TESTS} ${CLIENT_SOURCES})
 
-# 	target_include_directories(qdb-client-tests PRIVATE ${CLIENT_INCLUDE_DIR})
+	target_include_directories(qdb-client-tests PRIVATE ${CLIENT_INCLUDE_DIR})
 
-# 	target_link_libraries(qdb-client-tests PRIVATE qdb::core GTest::gtest_main)
+	target_link_libraries(qdb-client-tests PRIVATE qdb::core GTest::gtest_main)
 
-# 	gtest_discover_tests(qdb-client-tests)
-# endif()
+	gtest_discover_tests(qdb-client-tests)
+endif()

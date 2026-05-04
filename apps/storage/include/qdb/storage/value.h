@@ -1,6 +1,9 @@
 #ifndef QUASARDB_VALUE_H
 #define QUASARDB_VALUE_H
 
+#include "external_string.h"
+#include "sql_bool.h"
+
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -9,8 +12,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-#include "external_string.h"
-#include "sql_bool.h"
 
 namespace qdb::storage {
 
