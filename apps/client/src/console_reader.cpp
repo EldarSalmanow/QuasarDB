@@ -2,6 +2,19 @@
 
 #include <iostream>
 
+namespace {
+
+std::string Trim(const std::string& input) {
+    const size_t start = input.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) {
+        return "";
+    }
+    const size_t end = input.find_last_not_of(" \t\r\n");
+    return input.substr(start, end - start + 1);
+}
+
+}
+
 namespace qdb::client {
 
 std::optional<std::string> ConsoleReader::ReadCommand() {
@@ -17,24 +30,22 @@ std::optional<std::string> ConsoleReader::ReadCommand() {
         }
 
         if (!std::getline(std::cin, line)) {
-            if (!command.empty()) {
-                return command;
+            const std::string result = Trim(command);
+            if (!result.empty()) {
+                return result;
             }
             return std::nullopt;
         }
 
-        size_t start = line.find_first_not_of(" \t\r\n");
-        size_t end = line.find_last_not_of(" \t\r\n");
-        
-        if (start == std::string::npos) {
-            first_line = false;
+        std::string trimmed = Trim(line);
+        if (trimmed.empty()) {
+            first_line = command.empty();
             continue;
         }
 
-        std::string trimmed = line.substr(start, end - start + 1);
-
         if (!trimmed.empty() && trimmed.back() == ';') {
             trimmed.pop_back();
+            trimmed = Trim(trimmed);
             if (!trimmed.empty()) {
                 if (!command.empty()) {
                     command += " ";
@@ -42,11 +53,12 @@ std::optional<std::string> ConsoleReader::ReadCommand() {
                 command += trimmed;
             }
 
-            start = command.find_first_not_of(" \t\r\n");
-            end = command.find_last_not_of(" \t\r\n");
-            if (start != std::string::npos) {
-                return command.substr(start, end - start + 1);
+            const std::string result = Trim(command);
+            if (!result.empty()) {
+                return result;
             }
+
+            command.clear();
             first_line = true;
             continue;
         }
