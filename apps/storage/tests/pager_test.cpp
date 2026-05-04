@@ -2,6 +2,8 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 
+namespace qdb::storage::test {
+
 namespace fs = std::filesystem;
 
 class PagerTest : public ::testing::Test {
@@ -76,3 +78,5 @@ TEST_F(PagerTest, ThrowsExceptionOnReadingNonExistentPage) {
     std::vector<uint8_t> data;
     EXPECT_THROW(pager.read_page(99, data.data()), std::runtime_error);
 }
+
+}  // namespace qdb::storage::test

@@ -16,11 +16,11 @@ TEST(FileReaderTest, SingleLineCommand) {
     }
 
     FileReader reader(test_file);
-    
+
     auto command = reader.ReadCommand();
     ASSERT_TRUE(command.has_value());
     EXPECT_EQ(command.value(), "SELECT * FROM users");
-    
+
     command = reader.ReadCommand();
     EXPECT_FALSE(command.has_value());
     EXPECT_FALSE(reader.HasMore());
@@ -38,11 +38,11 @@ TEST(FileReaderTest, MultilineCommand) {
     }
 
     FileReader reader(test_file);
-    
+
     auto command = reader.ReadCommand();
     ASSERT_TRUE(command.has_value());
     EXPECT_EQ(command.value(), "SELECT id, name, email FROM users WHERE active = 1");
-    
+
     command = reader.ReadCommand();
     EXPECT_FALSE(command.has_value());
     EXPECT_FALSE(reader.HasMore());
@@ -56,7 +56,7 @@ TEST(FileReaderTest, CommandWithoutSemicolonAtEOF) {
     }
 
     FileReader reader(test_file);
-    
+
     auto command = reader.ReadCommand();
     ASSERT_TRUE(command.has_value());
     EXPECT_EQ(command.value(), "SELECT * FROM users");
@@ -75,7 +75,7 @@ TEST(FileReaderTest, ComplexMultilineQuery) {
     }
 
     FileReader reader(test_file);
-    
+
     auto command = reader.ReadCommand();
     ASSERT_TRUE(command.has_value());
     EXPECT_EQ(command.value(), "INSERT INTO users (id, name, email) VALUES (1, 'John Doe', 'john@example.com')");
@@ -83,4 +83,4 @@ TEST(FileReaderTest, ComplexMultilineQuery) {
     std::remove(test_file.c_str());
 }
 
-}
+}  // namespace qdb::client::test
