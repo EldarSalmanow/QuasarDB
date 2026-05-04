@@ -1,52 +1,74 @@
 #ifndef QUASARDB_DB_MANAGER_H
 #define QUASARDB_DB_MANAGER_H
 
+// #include <qdb/storage/database.h>
+#include "database.h"
+
 #include <filesystem>
 #include <string>
 #include <unordered_map>
-#include "database.h"
-
-namespace qdb::storage {
 
 namespace fs = std::filesystem;
 
+namespace qdb::storage {
+
 class DatabaseManager final {
-    fs::path _root;
-    std::unordered_map<std::string, Database> _databases;
+public:
+    DatabaseManager(std::string root) : root_(std::move(root)) {}
 
 public:
-    DatabaseManager(std::string root) : _root(std::move(root)) {}
-
     DatabaseManager(const DatabaseManager& other) = delete;
-    DatabaseManager& operator=(const DatabaseManager& other) = delete;
-    DatabaseManager(DatabaseManager&& other) noexcept = delete;
-    DatabaseManager& operator=(DatabaseManager&& other) noexcept = delete;
 
-    void create_database(const std::string& name) {
-        if (_databases.find(name) != _databases.end()) {
-            throw std::runtime_error("DB with name " + name + " already exists.");
+    DatabaseManager(DatabaseManager&& other) noexcept = delete;
+
+public:
+    void CreateDatabase(const std::string& name) {
+        if (databases_.find(name) != databases_.end()) {
+            throw std::runtime_error("[ERROR] DB with name '" + name + "' already exists!");
         }
-        fs::path db_path = fs::path(_root) / name;
+
+        fs::path db_path = fs::path(root_) / name;
+
         fs::create_directory(db_path);
-        _databases.emplace(name, Database(name, db_path.string()));
+
+        databases_.emplace(name, Database(name, db_path.string()));
     }
 
-    void drop_database(const std::string& name) {
-        auto it = _databases.find(name);
-        if (it != _databases.end()) {
+    void DropDatabase(const std::string& name) {
+        auto db_iterator = databases_.find(name);
+
+        if (db_iterator == databases_.end()) {
             return;
         }
-        fs::path db_path = fs::path(_root) / name;
+
+        fs::path db_path = fs::path(root_) / name;
+
         fs::remove_all(db_path);
-        _databases.erase(it);
+
+        databases_.erase(db_iterator);
     }
 
-    Database* use_database(const std::string& name) {
-        auto it = _databases.find(name);
-        return (it != _databases.end()) ? &it->second : nullptr;
+    Database* UseDatabase(const std::string& name) {
+        auto db_iterator = databases_.find(name);
+
+        if (db_iterator == databases_.end()) {
+            return nullptr;
+        }
+
+        return &db_iterator->second;
     }
+
+public:
+    DatabaseManager& operator=(const DatabaseManager& other) = delete;
+
+    DatabaseManager& operator=(DatabaseManager&& other) noexcept = delete;
+
+private:
+    fs::path root_;
+
+    std::unordered_map<std::string, Database> databases_;
 };
 
 }  // namespace qdb::storage
 
-#endif  // QUASARDB_DB_H
+#endif  // QUASARDB_DB_MANAGER_H
