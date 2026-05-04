@@ -5,10 +5,11 @@
 #ifndef QUASARDB_DATABASE_H
 #define QUASARDB_DATABASE_H
 
-#include <table.h>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
+#include "interner.h"
+#include "table.h"
 
 namespace qdb::storage {
 
@@ -18,12 +19,13 @@ class Database final {
     std::string _name;
     fs::path _root;
     std::unordered_map<std::string, Table> _tables;
+    Interner _interner;
 
 public:
     Database(std::string name, fs::path root) : _name(std::move(name)), _root(std::move(root)) {
         for (const auto& entry : std::filesystem::directory_iterator(_root)) {
             if (entry.is_regular_file() && entry.path().extension() == ".schema") {
-                auto table = Table(entry.path().string(), _root);
+                auto table = Table(entry.path().string(), _root, &_interner);
                 _tables.emplace(table.name(), std::move(table));
             }
         }
@@ -38,7 +40,7 @@ public:
         if (_tables.find(name) != _tables.end()) {
             throw std::runtime_error("Table with name " + name + " already exists.");
         }
-        _tables.emplace(name, Table(name, _root, schema));
+        _tables.emplace(name, Table(name, _root, schema, &_interner));
     }
 
     void drop_table(const std::string& name) {

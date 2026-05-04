@@ -8,6 +8,7 @@ namespace fs = std::filesystem;
 class TableTest : public ::testing::Test {
 protected:
     fs::path table_root;
+    Interner interner;
 
     void SetUp() override {
         const testing::TestInfo* const test_info = testing::UnitTest::GetInstance()->current_test_info();
@@ -32,12 +33,12 @@ TEST_F(TableTest, TestSavingTableToDisk) {
     auto schema = Schema(columns);
     std::string table_name = "table_name";
     {
-        auto table = Table(table_name, table_root, schema);
+        auto table = Table(table_name, table_root, schema, &interner);
         EXPECT_EQ(table.name(), table_name);
         EXPECT_EQ(table.schema(), schema);
     }
     {
-        auto table = Table(table_name, table_root);
+        auto table = Table(table_name, table_root, &interner);
         EXPECT_EQ(table.name(), table_name);
         EXPECT_EQ(table.schema(), schema);
     }
@@ -50,10 +51,10 @@ TEST_F(TableTest, TestDropTable) {
         columns.push_back(Column("int", Column::ColumnType::INT));
         columns.push_back(Column("str", Column::ColumnType::STRING));
         auto schema = Schema(columns);
-        auto table = Table(table_name, table_root, schema);
+        auto table = Table(table_name, table_root, schema, &interner);
     }
     {
-        auto table = Table(table_name, table_root);
+        auto table = Table(table_name, table_root, &interner);
         table.drop();
     }
     EXPECT_TRUE(fs::is_empty(table_root));
@@ -67,17 +68,18 @@ TEST_F(TableTest, InsertNullValidation) {
     columns.push_back(Column("str_not_null", Column::ColumnType::STRING, Column::NOT_NULL_FLAG));
     auto schema = Schema(columns);
     std::string table_name = "table_name";
-    auto table = Table(table_name, table_root, schema);
+    auto table = Table(table_name, table_root, schema, &interner);
     {
-        std::vector<Value> values_without_nulls = {Value(10), Value(20), Value("abc"), Value("def")};
+        std::vector<Value> values_without_nulls =
+            {Value(10), Value(20), interner.str_to_value("abc"), interner.str_to_value("def")};
         EXPECT_NO_THROW(table.insert_record(values_without_nulls));
     }
     {
-        std::vector<Value> values_with_correct_nulls = {Value(nullptr), Value(20), Value(nullptr), Value("def")};
+        std::vector<Value> values_with_correct_nulls = {Value(), Value(20), Value(), interner.str_to_value("def")};
         EXPECT_NO_THROW(table.insert_record(values_with_correct_nulls));
     }
     {
-        std::vector<Value> values_with_wrong_nulls = {Value(10), Value(nullptr), Value("abc"), Value(nullptr)};
+        std::vector<Value> values_with_wrong_nulls = {Value(10), Value(), interner.str_to_value("abc"), Value()};
         EXPECT_ANY_THROW(table.insert_record(values_with_wrong_nulls));
     }
 }
@@ -90,15 +92,16 @@ TEST_F(TableTest, InsertNullInIndexedValidation) {
     columns.push_back(Column("str_indexed", Column::ColumnType::STRING, Column::INDEXED_FLAG));
     auto schema = Schema(columns);
     std::string table_name = "table_name";
-    auto table = Table(table_name, table_root, schema);
+    auto table = Table(table_name, table_root, schema, &interner);
 
-    std::vector<Value> values_without_nulls = {Value(10), Value(20), Value("abc"), Value("def")};
+    std::vector<Value> values_without_nulls =
+        {Value(10), Value(20), interner.str_to_value("abc"), interner.str_to_value("def")};
     EXPECT_NO_THROW(table.insert_record(values_without_nulls));
 
-    std::vector<Value> values_with_correct_nulls = {Value(nullptr), Value(30), Value(nullptr), Value("ghi")};
+    std::vector<Value> values_with_correct_nulls = {Value(), Value(30), Value(), interner.str_to_value("ghi")};
     EXPECT_NO_THROW(table.insert_record(values_with_correct_nulls));
 
-    std::vector<Value> values_with_wrong_nulls = {Value(10), Value(nullptr), Value("jkl"), Value(nullptr)};
+    std::vector<Value> values_with_wrong_nulls = {Value(10), Value(), interner.str_to_value("jkl"), Value()};
     EXPECT_ANY_THROW(table.insert_record(values_with_wrong_nulls));
 }
 
@@ -110,21 +113,25 @@ TEST_F(TableTest, InsertUniqueConstraintByIndex) {
     columns.push_back(Column("str_indexed", Column::ColumnType::STRING, Column::INDEXED_FLAG));
     auto schema = Schema(columns);
     std::string table_name = "table_name_1";
-    auto table = Table(table_name, table_root, schema);
+    auto table = Table(table_name, table_root, schema, &interner);
 
-    std::vector<Value> some_values = {Value(10), Value(20), Value("abc"), Value("def")};
+    std::vector<Value> some_values = {Value(10), Value(20), interner.str_to_value("abc"), interner.str_to_value("def")};
     EXPECT_NO_THROW(table.insert_record(some_values));
 
-    std::vector<Value> values_without_dublicates = {Value(30), Value(40), Value("xyz"), Value("knm")};
+    std::vector<Value> values_without_dublicates =
+        {Value(30), Value(40), interner.str_to_value("xyz"), interner.str_to_value("knm")};
     EXPECT_NO_THROW(table.insert_record(values_without_dublicates));
 
-    std::vector<Value> values_with_dublicated_int_indexed_field = {Value(50), Value(20), Value("a"), Value("b")};
+    std::vector<Value> values_with_dublicated_int_indexed_field =
+        {Value(50), Value(20), interner.str_to_value("a"), interner.str_to_value("b")};
     EXPECT_ANY_THROW(table.insert_record(values_with_dublicated_int_indexed_field));
 
-    std::vector<Value> values_with_dublicated_str_indexed_field = {Value(50), Value(60), Value("a"), Value("knm")};
+    std::vector<Value> values_with_dublicated_str_indexed_field =
+        {Value(50), Value(60), interner.str_to_value("a"), interner.str_to_value("knm")};
     EXPECT_ANY_THROW(table.insert_record(values_with_dublicated_str_indexed_field));
 
-    std::vector<Value> values_with_dublicated_not_indexed_field = {Value(30), Value(60), Value("abc"), Value("b")};
+    std::vector<Value> values_with_dublicated_not_indexed_field =
+        {Value(30), Value(60), interner.str_to_value("abc"), interner.str_to_value("b")};
     EXPECT_NO_THROW(table.insert_record(values_with_dublicated_not_indexed_field));
 }
 
@@ -136,11 +143,11 @@ TEST_F(TableTest, UpdateUniqueConstraintByIndex) {
     columns.push_back(Column("str_indexed", Column::ColumnType::STRING, Column::INDEXED_FLAG));
     auto schema = Schema(columns);
     std::string table_name = "table_name_1";
-    auto table = Table(table_name, table_root, schema);
+    auto table = Table(table_name, table_root, schema, &interner);
 
-    std::vector<Value> values_1 = {Value(1), Value(2), Value("a"), Value("b")};
+    std::vector<Value> values_1 = {Value(1), Value(2), interner.str_to_value("a"), interner.str_to_value("b")};
     auto record_1 = table.insert_record(values_1);
-    std::vector<Value> values_2 = {Value(3), Value(4), Value("c"), Value("d")};
+    std::vector<Value> values_2 = {Value(3), Value(4), interner.str_to_value("c"), interner.str_to_value("d")};
     auto record_2 = table.insert_record(values_2);
     record_1[0] = Value(3);
     EXPECT_NO_THROW(table.update_record(record_1));
@@ -148,9 +155,9 @@ TEST_F(TableTest, UpdateUniqueConstraintByIndex) {
     EXPECT_ANY_THROW(table.update_record(record_1));
     record_1[1] = Value(2);
     EXPECT_NO_THROW(table.update_record(record_1));
-    record_1[3] = Value("d");
+    record_1[3] = interner.str_to_value("d");
     EXPECT_ANY_THROW(table.update_record(record_1));
-    record_1[3] = Value("b");
+    record_1[3] = interner.str_to_value("b");
     EXPECT_NO_THROW(table.update_record(record_1));
 }
 
@@ -164,14 +171,45 @@ TEST_F(TableTest, CRUD_test) {
     columns.push_back(Column("str_indexed", Column::ColumnType::STRING, Column::INDEXED_FLAG));
     auto schema = Schema(columns);
     std::string table_name = "table_name_2";
-    auto table = Table(table_name, table_root, schema);
+    auto table = Table(table_name, table_root, schema, &interner);
 
-    std::vector<Value> values_1 = {Value(10), Value(10), Value(10), Value("a"), Value("b"), Value("z")};
-    std::vector<Value> values_2 = {Value(10), Value(20), Value(20), Value(nullptr), Value("c"), Value("y")};
-    std::vector<Value> values_3 = {Value(nullptr), Value(20), Value(30), Value("a"), Value("d"), Value("x")};
-    std::vector<Value> values_4 = {Value(20), Value(20), Value(40), Value("a"), Value("d"), Value("w")};
-    std::vector<Value> values_5 = {Value(20), Value(30), Value(50), Value("b"), Value("f"), Value("v")};
-    std::vector<Value> values_6 = {Value(30), Value(30), Value(60), Value("c"), Value("f"), Value("u")};
+    std::vector<Value> values_1 = {
+        Value(10),
+        Value(10),
+        Value(10),
+        interner.str_to_value("a"),
+        interner.str_to_value("b"),
+        interner.str_to_value("z")};
+    std::vector<Value> values_2 =
+        {Value(10), Value(20), Value(20), Value(), interner.str_to_value("c"), interner.str_to_value("y")};
+    std::vector<Value> values_3 = {
+        Value(),
+        Value(20),
+        Value(30),
+        interner.str_to_value("a"),
+        interner.str_to_value("d"),
+        interner.str_to_value("x")};
+    std::vector<Value> values_4 = {
+        Value(20),
+        Value(20),
+        Value(40),
+        interner.str_to_value("a"),
+        interner.str_to_value("d"),
+        interner.str_to_value("w")};
+    std::vector<Value> values_5 = {
+        Value(20),
+        Value(30),
+        Value(50),
+        interner.str_to_value("b"),
+        interner.str_to_value("f"),
+        interner.str_to_value("v")};
+    std::vector<Value> values_6 = {
+        Value(30),
+        Value(30),
+        Value(60),
+        interner.str_to_value("c"),
+        interner.str_to_value("f"),
+        interner.str_to_value("u")};
     auto record_1 = table.insert_record(values_1);
     auto record_2 = table.insert_record(values_2);
     auto record_3 = table.insert_record(values_3);
@@ -189,9 +227,9 @@ TEST_F(TableTest, CRUD_test) {
     record_1[0] = Value(10);
     record_2[1] = Value(30);
     record_3[2] = Value(70);
-    record_4[3] = Value(nullptr);
-    record_5[4] = Value("g");
-    record_6[5] = Value("t");
+    record_4[3] = Value();
+    record_5[4] = interner.str_to_value("g");
+    record_6[5] = interner.str_to_value("t");
 
     EXPECT_NO_THROW(table.update_record(record_1));
     EXPECT_NO_THROW(table.update_record(record_2));

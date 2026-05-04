@@ -13,7 +13,6 @@
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <span>
 #include <stack>
 #include <string>
 #include <string_view>
