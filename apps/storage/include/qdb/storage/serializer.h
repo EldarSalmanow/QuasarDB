@@ -34,7 +34,7 @@ public:
             return 1 + sizeof(len) + len;
         }
         assert(false && "Unexpected type.");
-        std::unreachable();
+        __builtin_unreachable();
     }
 
     void append_value_to_buffer(const Value& value, std::vector<uint8_t>& buffer) const {
@@ -111,7 +111,7 @@ public:
             }
         }
         assert(false && "Unexpected type.");
-        std::unreachable();
+        __builtin_unreachable();
     }
 };
 
