@@ -208,10 +208,13 @@ public:
             std::cout << "Table::drop" << std::endl;
         }
         close();
+        std::vector<fs::path> index_paths;
         for (const auto& [column_name, index] : _indexes) {
-            auto column_index_path = std::visit([](auto& tree) { return tree.path(); }, index);
-            _indexes.erase(column_name);
-            fs::remove(column_index_path);
+            index_paths.push_back(std::visit([](auto& tree) { return tree.path(); }, index));
+        }
+        _indexes.clear();
+        for (const auto& p : index_paths) {
+            fs::remove(p);
         }
         fs::remove(_root / (_name + std::string(DATA_EXT)));
         fs::remove(_root / (_name + std::string(SCHEMA_EXT)));
@@ -432,7 +435,8 @@ private:
             if (record[i].is_string() && !record[i].as_string().has_ext_addr &&
                 record[i].as_string().intern_view.size() > MAX_SMALL_STR_LENGTH)
             {
-                _str_storage.append(record[i].as_string().intern_view);
+                auto ext_addr = _str_storage.append(record[i].as_string().intern_view);
+                record[i] = _interner->str_to_value(record[i].as_string().intern_view, ext_addr);
             }
         }
         auto serialized_record = record.serialized(_schema, &_serializer);

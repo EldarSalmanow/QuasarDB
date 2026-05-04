@@ -6,6 +6,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 #include "external_string.h"
@@ -55,6 +56,7 @@ public:
             return Type::STRING;
         }
         assert(false && "Unexpected type.");
+        std::unreachable();
     }
 
     std::string type_name() const {
@@ -68,6 +70,7 @@ public:
             return "STRING";
         }
         assert(false && "Unexpected type.");
+        std::unreachable();
     }
 
     int32_t as_int() const {
@@ -91,6 +94,7 @@ public:
             return std::string(as_string().intern_view);
         }
         assert(false && "Unexpected type.");
+        std::unreachable();
     }
 
     bool StrictEq(const Value& other) const {
@@ -107,6 +111,7 @@ public:
             return as_string().intern_view == other.as_string().intern_view;
         }
         assert(false && "Unexpected type.");
+        std::unreachable();
     }
 
     SqlBool operator==(const Value& other) const {
@@ -123,6 +128,7 @@ public:
             return as_string().intern_view == other.as_string().intern_view ? SqlBool::TRUE : SqlBool::FALSE;
         }
         assert(false && "Unexpected type.");
+        std::unreachable();
     }
 
     SqlBool operator<(const Value& other) const {
@@ -139,6 +145,7 @@ public:
             return as_string().intern_view < other.as_string().intern_view ? SqlBool::TRUE : SqlBool::FALSE;
         }
         assert(false && "Unexpected type.");
+        std::unreachable();
     }
 
     SqlBool operator<=(const Value& other) const { return (*this < other) || (*this == other); }

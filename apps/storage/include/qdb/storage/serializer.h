@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <string_view>
+#include <utility>
 #include "interner.h"
 #include "string_storage.h"
 #include "value.h"
@@ -25,13 +26,15 @@ public:
             return sizeof(value.as_int());
         }
         if (value.is_string()) {
-            uint32_t len = static_cast<uint32_t>(value.as_string().intern_view.size());
-            if (len > _max_small_str_size) {
+            auto interned_str = value.as_string();
+            if (interned_str.has_ext_addr) {
                 return 1 + sizeof(ExternalString);
             }
+            uint32_t len = static_cast<uint32_t>(interned_str.intern_view.size());
             return 1 + sizeof(len) + len;
         }
         assert(false && "Unexpected type.");
+        std::unreachable();
     }
 
     void append_value_to_buffer(const Value& value, std::vector<uint8_t>& buffer) const {
@@ -108,6 +111,7 @@ public:
             }
         }
         assert(false && "Unexpected type.");
+        std::unreachable();
     }
 };
 

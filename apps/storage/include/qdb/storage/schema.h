@@ -99,7 +99,7 @@ public:
             if (column) {
                 _columns.push_back(std::move(*column));
             } else {
-                throw std::nullopt;
+                return std::nullopt;
             }
         }
         try {
