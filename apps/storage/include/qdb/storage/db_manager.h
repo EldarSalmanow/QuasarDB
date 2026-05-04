@@ -8,15 +8,12 @@
 #include <string>
 #include <unordered_map>
 
-namespace fs = std::filesystem;
-
 namespace qdb::storage {
 
 class DatabaseManager final {
 public:
     DatabaseManager(std::string root) : root_(std::move(root)) {}
 
-public:
     DatabaseManager(const DatabaseManager& other) = delete;
 
     DatabaseManager(DatabaseManager&& other) noexcept = delete;
@@ -24,7 +21,8 @@ public:
 public:
     void CreateDatabase(const std::string& name) {
         if (databases_.find(name) != databases_.end()) {
-            throw std::runtime_error("[ERROR] DB with name '" + name + "' already exists!");
+            throw std::
+                runtime_error("[ERROR in qdb::storage::DatabaseManager]: DB with name '" + name + "' already exists!");
         }
 
         fs::path db_path = fs::path(root_) / name;
