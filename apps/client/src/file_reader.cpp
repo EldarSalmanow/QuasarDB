@@ -1,18 +1,5 @@
 #include <qdb/client/reader.h>
 
-namespace {
-
-std::string Trim(const std::string& input) {
-    const size_t start = input.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) {
-        return "";
-    }
-    const size_t end = input.find_last_not_of(" \t\r\n");
-    return input.substr(start, end - start + 1);
-}
-
-}
-
 namespace qdb::client {
 
 FileReader::FileReader(const std::string& file_path) : file_path_(file_path) {
@@ -31,28 +18,28 @@ std::optional<std::string> FileReader::ReadCommand() {
     std::string line;
 
     while (std::getline(file_stream_, line)) {
-        std::string trimmed = Trim(line);
-        if (trimmed.empty()) {
+        size_t start = line.find_first_not_of(" \t\r\n");
+        size_t end = line.find_last_not_of(" \t\r\n");
+
+        if (start == std::string::npos) {
             continue;
         }
 
-        if (trimmed.back() == ';') {
+        std::string trimmed = line.substr(start, end - start + 1);
+
+        if (!trimmed.empty() && trimmed.back() == ';') {
             trimmed.pop_back();
-            trimmed = Trim(trimmed);
-            if (!trimmed.empty()) {
-                if (!command.empty()) {
-                    command += " ";
-                }
-                command += trimmed;
+            if (!command.empty()) {
+                command += " ";
             }
+            command += trimmed;
 
-            const std::string result = Trim(command);
-            if (!result.empty()) {
-                return result;
+            start = command.find_first_not_of(" \t\r\n");
+            end = command.find_last_not_of(" \t\r\n");
+            if (start != std::string::npos) {
+                return command.substr(start, end - start + 1);
             }
-
-            command.clear();
-            continue;
+            return command;
         }
 
         if (!command.empty()) {
@@ -61,9 +48,8 @@ std::optional<std::string> FileReader::ReadCommand() {
         command += trimmed;
     }
 
-    const std::string result = Trim(command);
-    if (!result.empty()) {
-        return result;
+    if (!command.empty()) {
+        return command;
     }
 
     return std::nullopt;
@@ -83,8 +69,8 @@ bool FileReader::HasMore() const {
     std::string line;
     bool has_more = false;
     while (std::getline(stream, line)) {
-        const std::string trimmed = Trim(line);
-        if (!trimmed.empty() && trimmed != ";") {
+        const size_t start = line.find_first_not_of(" \t\r\n");
+        if (start != std::string::npos) {
             has_more = true;
             break;
         }
@@ -99,4 +85,4 @@ bool FileReader::HasMore() const {
     return has_more;
 }
 
-}
+}  // namespace qdb::client

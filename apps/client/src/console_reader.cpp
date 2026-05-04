@@ -2,19 +2,6 @@
 
 #include <iostream>
 
-namespace {
-
-std::string Trim(const std::string& input) {
-    const size_t start = input.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) {
-        return "";
-    }
-    const size_t end = input.find_last_not_of(" \t\r\n");
-    return input.substr(start, end - start + 1);
-}
-
-}
-
 namespace qdb::client {
 
 std::optional<std::string> ConsoleReader::ReadCommand() {
@@ -30,22 +17,24 @@ std::optional<std::string> ConsoleReader::ReadCommand() {
         }
 
         if (!std::getline(std::cin, line)) {
-            const std::string result = Trim(command);
-            if (!result.empty()) {
-                return result;
+            if (!command.empty()) {
+                return command;
             }
             return std::nullopt;
         }
 
-        std::string trimmed = Trim(line);
-        if (trimmed.empty()) {
-            first_line = command.empty();
+        size_t start = line.find_first_not_of(" \t\r\n");
+        size_t end = line.find_last_not_of(" \t\r\n");
+
+        if (start == std::string::npos) {
+            first_line = false;
             continue;
         }
 
+        std::string trimmed = line.substr(start, end - start + 1);
+
         if (!trimmed.empty() && trimmed.back() == ';') {
             trimmed.pop_back();
-            trimmed = Trim(trimmed);
             if (!trimmed.empty()) {
                 if (!command.empty()) {
                     command += " ";
@@ -53,12 +42,11 @@ std::optional<std::string> ConsoleReader::ReadCommand() {
                 command += trimmed;
             }
 
-            const std::string result = Trim(command);
-            if (!result.empty()) {
-                return result;
+            start = command.find_first_not_of(" \t\r\n");
+            end = command.find_last_not_of(" \t\r\n");
+            if (start != std::string::npos) {
+                return command.substr(start, end - start + 1);
             }
-
-            command.clear();
             first_line = true;
             continue;
         }
@@ -71,8 +59,6 @@ std::optional<std::string> ConsoleReader::ReadCommand() {
     }
 }
 
-bool ConsoleReader::HasMore() const {
-    return !std::cin.eof();
-}
+bool ConsoleReader::HasMore() const { return !std::cin.eof(); }
 
-}
+}  // namespace qdb::client
