@@ -20,7 +20,7 @@ std::optional<std::string> FileReader::ReadCommand() {
     while (std::getline(file_stream_, line)) {
         size_t start = line.find_first_not_of(" \t\r\n");
         size_t end = line.find_last_not_of(" \t\r\n");
-        
+
         if (start == std::string::npos) {
             continue;
         }
@@ -33,7 +33,7 @@ std::optional<std::string> FileReader::ReadCommand() {
                 command += " ";
             }
             command += trimmed;
-            
+
             start = command.find_first_not_of(" \t\r\n");
             end = command.find_last_not_of(" \t\r\n");
             if (start != std::string::npos) {
@@ -51,7 +51,7 @@ std::optional<std::string> FileReader::ReadCommand() {
     if (!command.empty()) {
         return command;
     }
-    
+
     return std::nullopt;
 }
 
@@ -85,4 +85,4 @@ bool FileReader::HasMore() const {
     return has_more;
 }
 
-}
+}  // namespace qdb::client

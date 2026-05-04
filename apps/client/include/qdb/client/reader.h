@@ -31,6 +31,6 @@ private:
     bool is_open_ = false;
 };
 
-}
+}  // namespace qdb::client
 
 #endif

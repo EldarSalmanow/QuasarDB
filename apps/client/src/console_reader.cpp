@@ -25,7 +25,7 @@ std::optional<std::string> ConsoleReader::ReadCommand() {
 
         size_t start = line.find_first_not_of(" \t\r\n");
         size_t end = line.find_last_not_of(" \t\r\n");
-        
+
         if (start == std::string::npos) {
             first_line = false;
             continue;
@@ -59,8 +59,6 @@ std::optional<std::string> ConsoleReader::ReadCommand() {
     }
 }
 
-bool ConsoleReader::HasMore() const {
-    return !std::cin.eof();
-}
+bool ConsoleReader::HasMore() const { return !std::cin.eof(); }
 
-}
+}  // namespace qdb::client

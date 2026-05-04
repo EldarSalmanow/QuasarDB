@@ -384,7 +384,8 @@ private:
                             for (auto addr : results) {
                                 auto prob_record = *read_record(addr, page_buf.get());
                                 if (prob_record[i].as_string() == value.as_string() &&
-                                    (!record.has_addr() || addr != record.address())) {
+                                    (!record.has_addr() || addr != record.address()))
+                                {
                                     return true;
                                 }
                             }
