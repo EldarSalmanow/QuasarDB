@@ -15,6 +15,6 @@ public:
     virtual bool HasMore() const = 0;
 };
 
-}
+}  // namespace qdb::client
 
 #endif
