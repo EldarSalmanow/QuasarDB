@@ -34,16 +34,29 @@ public:
         }
 
         const std::string& keyword = current.value;
-        if (keyword == "CREATE") return ParseCreateStatement();
-        if (keyword == "DROP") return ParseDropStatement();
-        if (keyword == "USE") return ParseUseStatement();
-        if (keyword == "REVERT") return ParseRevertStatement();
-        if (keyword == "INSERT") return ParseInsertStatement();
-        if (keyword == "UPDATE") return ParseUpdateStatement();
-        if (keyword == "DELETE") return ParseDeleteStatement();
-        if (keyword == "SELECT") return ParseSelectStatement();
+        std::unique_ptr<Statement> stmt;
 
-        throw ParseError("Unknown statement: " + keyword);
+        if (keyword == "CREATE") stmt = ParseCreateStatement();
+        else if (keyword == "DROP") stmt = ParseDropStatement();
+        else if (keyword == "USE") stmt = ParseUseStatement();
+        else if (keyword == "REVERT") stmt = ParseRevertStatement();
+        else if (keyword == "INSERT") stmt = ParseInsertStatement();
+        else if (keyword == "UPDATE") stmt = ParseUpdateStatement();
+        else if (keyword == "DELETE") stmt = ParseDeleteStatement();
+        else if (keyword == "SELECT") stmt = ParseSelectStatement();
+        else throw ParseError("Unknown statement: " + keyword);
+
+        // Consume optional semicolon
+        if (Match(TokenType::Punctuation, ";")) {
+            Advance();
+        }
+
+        // Check for trailing garbage tokens
+        if (!IsAtEnd()) {
+            throw ParseError("Unexpected tokens after statement: " + Peek().value);
+        }
+
+        return stmt;
     }
 
 private:
@@ -77,6 +90,27 @@ private:
     void Expect(TokenType type, const std::string& message) {
         if (IsAtEnd() || Peek().type != type) {
             throw ParseError(message);
+        }
+        Advance();
+    }
+
+    void Expect(TokenType type, const std::string& value, const std::string& message) {
+        if (IsAtEnd() || Peek().type != type || Peek().value != value) {
+            throw ParseError(message);
+        }
+        Advance();
+    }
+
+    void ExpectPunctuation(const std::string& punctuation) {
+        if (!Match(TokenType::Punctuation, punctuation)) {
+            throw ParseError("Expected '" + punctuation + "', got: " + Peek().value);
+        }
+        Advance();
+    }
+
+    void ExpectOperator(const std::string& op) {
+        if (!Match(TokenType::Operator, op)) {
+            throw ParseError("Expected operator '" + op + "', got: " + Peek().value);
         }
         Advance();
     }
@@ -145,9 +179,9 @@ private:
         if (Match(TokenType::Keyword, "SUM") || Match(TokenType::Keyword, "COUNT") ||
             Match(TokenType::Keyword, "AVG")) {
             std::string func = Advance().value;
-            Expect(TokenType::Punctuation, "Expected '(' after aggregate function");
+            ExpectPunctuation("(");
             std::string column = ParseIdentifier();
-            Expect(TokenType::Punctuation, "Expected ')' after column name");
+            ExpectPunctuation(")");
             return std::make_unique<AggregateExpr>(ParseAggregateFunction(func), column);
         }
 
@@ -194,7 +228,7 @@ private:
         if (Match(TokenType::Punctuation, "(")) {
             Advance();
             auto condition = ParseCondition();
-            Expect(TokenType::Punctuation, "Expected ')' after condition");
+            ExpectPunctuation(")");
             return condition;
         }
 
@@ -271,17 +305,16 @@ private:
             Advance();
             TableRef table = ParseTableRef();
 
-            Expect(TokenType::Punctuation, "Expected '(' after table name");
+            ExpectPunctuation("(");
 
             std::vector<ColumnDef> columns;
-            do {
-                if (Match(TokenType::Punctuation, ",")) {
-                    Advance();
-                }
+            columns.push_back(ParseColumnDefinition());
+            while (Match(TokenType::Punctuation, ",")) {
+                Advance();
                 columns.push_back(ParseColumnDefinition());
-            } while (Match(TokenType::Punctuation, ","));
+            }
 
-            Expect(TokenType::Punctuation, "Expected ')' after column definitions");
+            ExpectPunctuation(")");
 
             return std::make_unique<CreateTableStmt>(table, std::move(columns));
         }
@@ -319,6 +352,10 @@ private:
 
         std::string timestamp;
         while (!IsAtEnd() && !Match(TokenType::Punctuation, ";")) {
+            Token current = Peek();
+            if (current.type == TokenType::Invalid) {
+                throw ParseError("Invalid token in timestamp: " + current.value);
+            }
             timestamp += Advance().value;
         }
 
@@ -332,12 +369,11 @@ private:
     template<typename T, typename ParseFunc>
     std::vector<T> ParseCommaSeparatedList(ParseFunc parse_func) {
         std::vector<T> items;
-        do {
-            if (Match(TokenType::Punctuation, ",")) {
-                Advance();
-            }
+        items.push_back(parse_func());
+        while (Match(TokenType::Punctuation, ",")) {
+            Advance();
             items.push_back(parse_func());
-        } while (Match(TokenType::Punctuation, ","));
+        }
         return items;
     }
 
@@ -347,9 +383,9 @@ private:
 
         TableRef table = ParseTableRef();
 
-        Expect(TokenType::Punctuation, "Expected '(' after table name");
+        ExpectPunctuation("(");
         auto columns = ParseCommaSeparatedList<std::string>([this]() { return ParseIdentifier(); });
-        Expect(TokenType::Punctuation, "Expected ')' after column list");
+        ExpectPunctuation(")");
 
         ExpectKeyword("VALUE");
 
@@ -359,9 +395,9 @@ private:
                 Advance();
             }
 
-            Expect(TokenType::Punctuation, "Expected '(' before values");
+            ExpectPunctuation("(");
             auto row = ParseCommaSeparatedList<std::unique_ptr<Literal>>([this]() { return ParseLiteral(); });
-            Expect(TokenType::Punctuation, "Expected ')' after values");
+            ExpectPunctuation(")");
 
             values.push_back(std::move(row));
         } while (Match(TokenType::Punctuation, ","));
@@ -376,10 +412,7 @@ private:
 
         auto assignments = ParseCommaSeparatedList<std::pair<std::string, std::unique_ptr<Expression>>>([this]() {
             std::string column = ParseIdentifier();
-            if (!Match(TokenType::Operator, "=")) {
-                throw ParseError("Expected '=' in assignment");
-            }
-            Advance();
+            ExpectOperator("=");
             auto value = ParseValue();
             return std::make_pair(column, std::move(value));
         });

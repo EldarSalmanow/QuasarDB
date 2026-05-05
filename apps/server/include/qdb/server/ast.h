@@ -50,10 +50,9 @@ struct AggregateExpr : public Expression {
     enum class Function { Sum, Count, Avg };
     Function FunctionType;
     std::string Column;
-    std::string Alias;
 
-    AggregateExpr(Function f, std::string col, std::string a = "")
-        : FunctionType(f), Column(std::move(col)), Alias(std::move(a)) {}
+    AggregateExpr(Function f, std::string col)
+        : FunctionType(f), Column(std::move(col)) {}
 };
 
 // Conditions

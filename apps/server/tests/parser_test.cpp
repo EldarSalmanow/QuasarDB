@@ -345,7 +345,7 @@ TEST(ParserTest, ErrorInvalidKeyword) {
 }
 
 TEST(ParserTest, ErrorMissingSemicolon) {
-    // Parser doesn't enforce semicolon, but lexer includes it
+    // Parser treats semicolon as optional; when omitted, parsing stops at EOF
     // This test ensures parser handles tokens correctly
     auto stmt = parseSQL("SELECT * FROM users");
     ASSERT_NE(stmt, nullptr);
@@ -521,4 +521,33 @@ TEST(ParserTest, MultilineQuery) {
     ASSERT_NE(select, nullptr);
     EXPECT_EQ(select->Table.Database, "shop");
     EXPECT_EQ(select->Table.Table, "products");
+}
+
+// Validation tests for parser fixes
+TEST(ParserTest, ErrorTrailingGarbageTokens) {
+    EXPECT_THROW(parseSQL("SELECT * FROM users; EXTRA"), ParseError);
+}
+
+TEST(ParserTest, ErrorTrailingGarbageAfterStatement) {
+    EXPECT_THROW(parseSQL("CREATE DATABASE shop garbage"), ParseError);
+}
+
+TEST(ParserTest, ErrorLeadingCommaInColumnList) {
+    EXPECT_THROW(parseSQL("SELECT ,id FROM users;"), ParseError);
+}
+
+TEST(ParserTest, ErrorLeadingCommaInInsertColumns) {
+    EXPECT_THROW(parseSQL("INSERT INTO users (,id, name) VALUE (1, \"Alice\");"), ParseError);
+}
+
+TEST(ParserTest, ErrorLeadingCommaInCreateTable) {
+    EXPECT_THROW(parseSQL("CREATE TABLE users (, id INT, name STRING);"), ParseError);
+}
+
+TEST(ParserTest, ErrorWrongPunctuationInAggregate) {
+    EXPECT_THROW(parseSQL("SELECT SUM[id] FROM users;"), ParseError);
+}
+
+TEST(ParserTest, ErrorWrongPunctuationInCondition) {
+    EXPECT_THROW(parseSQL("SELECT * FROM users WHERE [id == 1];"), ParseError);
 }
