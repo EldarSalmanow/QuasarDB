@@ -5,15 +5,20 @@
 
 namespace qdb::client {
 
+class Response;
+
 class Renderer {
 public:
     void RenderWelcome() const;
 
     void RenderPrompt() const;
 
-    void RenderResult(const std::string& json_data) const;
+    void RenderResponse(const Response& response) const;
 
     void RenderError(const std::string& message) const;
+
+private:
+    void RenderTable(const std::string& json_data) const;
 };
 
 }  // namespace qdb::client
