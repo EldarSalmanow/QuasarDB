@@ -31,14 +31,13 @@ Response Connection::ExecuteQuery(const std::string& sql, const std::string& tok
 
 Response Connection::SendRequest(const Request& request) {
     if (!IsConnected()) {
-        Response error_response;
         return Response::FromJson(R"({"status":"error","code":"NOT_CONNECTED","message":"Not connected to server","data":""})");
     }
 
     try {
         std::string request_json = request.ToJson();
         nlohmann::json j = nlohmann::json::parse(request_json);
-        
+
         if (!client_->Send(j)) {
             return Response::FromJson(R"({"status":"error","code":"SEND_FAILED","message":"Failed to send request","data":""})");
         }
@@ -52,8 +51,13 @@ Response Connection::SendRequest(const Request& request) {
         return Response::FromJson(response_str);
 
     } catch (const std::exception& e) {
-        std::string error_msg = R"({"status":"error","code":"EXCEPTION","message":")" + std::string(e.what()) + R"(","data":""})";
-        return Response::FromJson(error_msg);
+        nlohmann::json error_json = {
+            {"status", "error"},
+            {"code", "EXCEPTION"},
+            {"message", std::string(e.what())},
+            {"data", ""}
+        };
+        return Response::FromJson(error_json.dump());
     }
 }
 

@@ -23,7 +23,11 @@ Response Response::FromJson(const std::string& json_str) {
         }
 
         if (j.contains("data")) {
-            response.data_ = j["data"].get<std::string>();
+            if (j["data"].is_string()) {
+                response.data_ = j["data"].get<std::string>();
+            } else {
+                response.data_ = j["data"].dump();
+            }
         }
     } catch (const std::exception& e) {
         response.status_ = "error";
