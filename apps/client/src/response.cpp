@@ -23,6 +23,8 @@ Response Response::FromJson(const std::string& json_str) {
         }
 
         if (j.contains("data")) {
+            // data may be a plain string or a structured JSON value (object/array);
+            // in the latter case serialize it back to a string for uniform storage.
             if (j["data"].is_string()) {
                 response.data_ = j["data"].get<std::string>();
             } else {

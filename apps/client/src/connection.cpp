@@ -4,6 +4,20 @@
 
 namespace qdb::client {
 
+namespace {
+
+Response MakeErrorResponse(const std::string& code, const std::string& message) {
+    nlohmann::json j = {
+        {"status", "error"},
+        {"code", code},
+        {"message", message},
+        {"data", ""}
+    };
+    return Response::FromJson(j.dump());
+}
+
+}  // namespace
+
 Connection::Connection(const std::string& host, uint32_t port)
     : client_(qdb::core::TcpClient::New(host, port)), host_(host), port_(port) {}
 
@@ -31,7 +45,7 @@ Response Connection::ExecuteQuery(const std::string& sql, const std::string& tok
 
 Response Connection::SendRequest(const Request& request) {
     if (!IsConnected()) {
-        return Response::FromJson(R"({"status":"error","code":"NOT_CONNECTED","message":"Not connected to server","data":""})");
+        return MakeErrorResponse("NOT_CONNECTED", "Not connected to server");
     }
 
     try {
@@ -39,25 +53,19 @@ Response Connection::SendRequest(const Request& request) {
         nlohmann::json j = nlohmann::json::parse(request_json);
 
         if (!client_->Send(j)) {
-            return Response::FromJson(R"({"status":"error","code":"SEND_FAILED","message":"Failed to send request","data":""})");
+            return MakeErrorResponse("SEND_FAILED", "Failed to send request");
         }
 
         auto response_json = client_->Receive();
         if (!response_json.has_value()) {
-            return Response::FromJson(R"({"status":"error","code":"RECEIVE_FAILED","message":"Failed to receive response","data":""})");
+            return MakeErrorResponse("RECEIVE_FAILED", "Failed to receive response");
         }
 
         std::string response_str = response_json.value().dump();
         return Response::FromJson(response_str);
 
     } catch (const std::exception& e) {
-        nlohmann::json error_json = {
-            {"status", "error"},
-            {"code", "EXCEPTION"},
-            {"message", std::string(e.what())},
-            {"data", ""}
-        };
-        return Response::FromJson(error_json.dump());
+        return MakeErrorResponse("EXCEPTION", e.what());
     }
 }
 
