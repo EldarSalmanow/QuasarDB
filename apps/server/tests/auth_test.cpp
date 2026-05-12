@@ -2,7 +2,10 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdio>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 #include <thread>
 
 namespace qdb::server {
