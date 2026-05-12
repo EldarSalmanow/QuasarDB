@@ -17,15 +17,16 @@ add_executable(${EXECUTABLE_NAME} main.cpp ${SERVER_SOURCES})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${SERVER_INCLUDE_DIR})
 
 find_package(OpenSSL REQUIRED)
+find_package(jwt-cpp REQUIRED)
 
-target_link_libraries(${EXECUTABLE_NAME} PRIVATE qdb::core OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(${EXECUTABLE_NAME} PRIVATE qdb::core OpenSSL::SSL OpenSSL::Crypto jwt-cpp::jwt-cpp)
 
 if(BUILD_TESTING AND SERVER_TESTS)
 	add_executable(qdb-server-tests ${SERVER_TESTS} ${SERVER_SOURCES})
 
 	target_include_directories(qdb-server-tests PRIVATE ${SERVER_INCLUDE_DIR})
 
-	target_link_libraries(qdb-server-tests PRIVATE qdb::core GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
+	target_link_libraries(qdb-server-tests PRIVATE qdb::core GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto jwt-cpp::jwt-cpp)
 
 	gtest_discover_tests(qdb-server-tests)
 endif()
