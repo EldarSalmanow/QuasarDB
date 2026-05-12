@@ -306,7 +306,7 @@ auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t> {
     std::string normalized;
     for (auto c : input) {
         if (c == '=') break;
-        if (c == '-' || c == '_' || std::isalnum(c)) {
+        if (c == '-' || c == '_' || std::isalnum(static_cast<unsigned char>(c))) {
             normalized += c;
         }
     }
