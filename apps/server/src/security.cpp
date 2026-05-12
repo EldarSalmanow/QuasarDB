@@ -338,20 +338,27 @@ JwtHandler::JwtHandler(std::string secret_key) : secret_key_(std::move(secret_ke
 auto JwtHandler::GenerateToken(const std::string& username, std::chrono::seconds ttl) -> std::string {
     auto header = nlohmann::json{{"alg", "HS256"}, {"typ", "JWT"}};
     auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    auto exp_val = now + ttl.count();
 
     auto payload = nlohmann::json{
         {"sub", username},
         {"iat", now},
-        {"exp", now + ttl.count()}
+        {"exp", exp_val}
     };
 
-    auto header_b64 = Base64UrlEncode(std::vector<std::uint8_t>(header.dump().begin(), header.dump().end()));
-    auto payload_b64 = Base64UrlEncode(std::vector<std::uint8_t>(payload.dump().begin(), payload.dump().end()));
+    auto hdr_str = header.dump();
+    auto pld_str = payload.dump();
+
+    std::vector<std::uint8_t> hdr_vec(hdr_str.begin(), hdr_str.end());
+    auto header_b64 = Base64UrlEncode(hdr_vec);
+
+    std::vector<std::uint8_t> pld_vec(pld_str.begin(), pld_str.end());
+    auto payload_b64 = Base64UrlEncode(pld_vec);
 
     auto signing_input = header_b64 + "." + payload_b64;
-    auto secret_bytes = std::vector<std::uint8_t>(secret_key_.begin(), secret_key_.end());
-    auto input_bytes = std::vector<std::uint8_t>(signing_input.begin(), signing_input.end());
-    auto signature = ComputeHmacSha256(secret_bytes, input_bytes);
+    std::vector<std::uint8_t> secret_vec(secret_key_.begin(), secret_key_.end());
+    std::vector<std::uint8_t> input_vec(signing_input.begin(), signing_input.end());
+    auto signature = ComputeHmacSha256(secret_vec, input_vec);
     auto signature_b64 = Base64UrlEncode(signature);
 
     return header_b64 + "." + payload_b64 + "." + signature_b64;

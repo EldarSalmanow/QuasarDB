@@ -89,7 +89,6 @@ TEST(AuthTest, GenerateSaltUnique) {
 
 TEST(AuthTest, JwtGenerateAndValidate) {
     JwtHandler jwt("test-secret-key");
-
     auto token = jwt.GenerateToken("testuser");
     ASSERT_FALSE(token.empty());
 
