@@ -396,7 +396,11 @@ auto JwtHandler::ValidateToken(const std::string& token) -> std::optional<std::s
             return std::nullopt;
         }
 
-        return payload.value("sub", std::string());
+        if (!payload.contains("sub") || !payload["sub"].is_string()) {
+            return std::nullopt;
+        }
+
+        return payload["sub"].get<std::string>();
     } catch (...) {
         return std::nullopt;
     }
