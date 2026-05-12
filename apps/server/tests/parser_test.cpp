@@ -41,7 +41,7 @@ TEST(ParserTest, RevertStatement) {
     auto* revert = dynamic_cast<RevertStmt*>(stmt.get());
     ASSERT_NE(revert, nullptr);
     EXPECT_EQ(revert->Table.Table, "products");
-    EXPECT_FALSE(revert->Timestamp.empty());
+    EXPECT_EQ(revert->Timestamp, "2026.05.02-14:30:45.123");
 }
 
 TEST(ParserTest, RevertStatementQualified) {
@@ -192,6 +192,14 @@ TEST(ParserTest, SelectAll) {
     EXPECT_TRUE(select->SelectAll);
     EXPECT_EQ(select->Table.Table, "users");
     EXPECT_EQ(select->WhereClause, nullptr);
+}
+
+TEST(ParserTest, KeywordsAreCaseInsensitive) {
+    auto stmt = parseSQL("sElEcT * FrOm users WhErE age >= 18;");
+    auto* select = dynamic_cast<SelectStmt*>(stmt.get());
+    ASSERT_NE(select, nullptr);
+    EXPECT_TRUE(select->SelectAll);
+    ASSERT_NE(select->WhereClause, nullptr);
 }
 
 TEST(ParserTest, SelectColumns) {
@@ -473,6 +481,11 @@ TEST(ParserTest, ErrorMissingFromKeyword) {
 
 TEST(ParserTest, ErrorMissingBetweenAnd) {
     EXPECT_THROW(parseSQL("SELECT * FROM products WHERE price BETWEEN 10 100;"), ParseError);
+}
+
+TEST(ParserTest, ErrorInvalidRevertTimestamp) {
+    EXPECT_THROW(parseSQL("REVERT products 2026.5.02-14:30:45.123;"), ParseError);
+    EXPECT_THROW(parseSQL("REVERT products tomorrow;"), ParseError);
 }
 
 // Complex real-world queries
