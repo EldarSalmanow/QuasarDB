@@ -235,16 +235,23 @@ auto ComputeHmacSha256(const std::vector<std::uint8_t>& key, const std::vector<s
 }
 
 auto GenerateSalt(size_t length) -> std::string {
-    static const char chars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_int_distribution<> dis(0, sizeof(chars) - 2);
+    static constexpr char chars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    constexpr size_t char_count = sizeof(chars) - 1;
 
+    std::random_device rd;
     std::string salt;
     salt.reserve(length);
+
+    const auto max_acceptable = (std::random_device::max() / char_count) * char_count;
     for (size_t i = 0; i < length; ++i) {
-        salt += chars[dis(gen)];
+        std::random_device::result_type value;
+        do {
+            value = rd();
+        } while (value >= max_acceptable);
+
+        salt += chars[value % char_count];
     }
+
     return salt;
 }
 
