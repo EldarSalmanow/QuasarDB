@@ -31,11 +31,12 @@ public:
     auto HasAccount(const std::string& username) const -> bool;
 
 private:
-    void Load();
-    void Save();
+    auto Load() -> bool;
+    auto Save() -> bool;
 
     std::string storage_path_;
     std::unordered_map<std::string, Account> accounts_;
+    bool load_ok_{false};
 };
 
 auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t>;
