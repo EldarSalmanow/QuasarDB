@@ -141,6 +141,46 @@ private:
         return TableRef(first);
     }
 
+    std::string ParseTimestampPart(const std::string& name, size_t expected_length) {
+        if (!Match(TokenType::IntegerLiteral)) {
+            throw ParseError("Expected " + name + " in timestamp, got: " + Peek().value);
+        }
+
+        std::string value = Advance().value;
+        if (value.size() != expected_length) {
+            throw ParseError("Expected " + std::to_string(expected_length) + " digits for " + name +
+                             " in timestamp");
+        }
+
+        return value;
+    }
+
+    std::string ParseTimestamp() {
+        std::string timestamp;
+
+        timestamp += ParseTimestampPart("year", 4);
+        ExpectPunctuation(".");
+        timestamp += ".";
+        timestamp += ParseTimestampPart("month", 2);
+        ExpectPunctuation(".");
+        timestamp += ".";
+        timestamp += ParseTimestampPart("day", 2);
+        ExpectPunctuation("-");
+        timestamp += "-";
+        timestamp += ParseTimestampPart("hour", 2);
+        ExpectPunctuation(":");
+        timestamp += ":";
+        timestamp += ParseTimestampPart("minute", 2);
+        ExpectPunctuation(":");
+        timestamp += ":";
+        timestamp += ParseTimestampPart("second", 2);
+        ExpectPunctuation(".");
+        timestamp += ".";
+        timestamp += ParseTimestampPart("millisecond", 3);
+
+        return timestamp;
+    }
+
     std::unique_ptr<Literal> ParseLiteral() {
         Token current = Peek();
 
@@ -349,19 +389,7 @@ private:
     std::unique_ptr<Statement> ParseRevertStatement() {
         ExpectKeyword("REVERT");
         TableRef table = ParseTableRef();
-
-        std::string timestamp;
-        while (!IsAtEnd() && !Match(TokenType::Punctuation, ";")) {
-            Token current = Peek();
-            if (current.type == TokenType::Invalid) {
-                throw ParseError("Invalid token in timestamp: " + current.value);
-            }
-            timestamp += Advance().value;
-        }
-
-        if (timestamp.empty()) {
-            throw ParseError("Expected timestamp after table name in REVERT");
-        }
+        std::string timestamp = ParseTimestamp();
 
         return std::make_unique<RevertStmt>(table, timestamp);
     }

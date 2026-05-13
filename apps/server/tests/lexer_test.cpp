@@ -109,31 +109,35 @@ TEST(LexerTest, IntegerLiterals) {
 }
 
 TEST(LexerTest, Operators) {
-    Lexer lexer("== != < > <= >=");
+    Lexer lexer("= == != < > <= >=");
 
     Token token1 = lexer.NextToken();
     EXPECT_EQ(token1.type, TokenType::Operator);
-    EXPECT_EQ(token1.value, "==");
+    EXPECT_EQ(token1.value, "=");
 
     Token token2 = lexer.NextToken();
     EXPECT_EQ(token2.type, TokenType::Operator);
-    EXPECT_EQ(token2.value, "!=");
+    EXPECT_EQ(token2.value, "==");
 
     Token token3 = lexer.NextToken();
     EXPECT_EQ(token3.type, TokenType::Operator);
-    EXPECT_EQ(token3.value, "<");
+    EXPECT_EQ(token3.value, "!=");
 
     Token token4 = lexer.NextToken();
     EXPECT_EQ(token4.type, TokenType::Operator);
-    EXPECT_EQ(token4.value, ">");
+    EXPECT_EQ(token4.value, "<");
 
     Token token5 = lexer.NextToken();
     EXPECT_EQ(token5.type, TokenType::Operator);
-    EXPECT_EQ(token5.value, "<=");
+    EXPECT_EQ(token5.value, ">");
 
     Token token6 = lexer.NextToken();
     EXPECT_EQ(token6.type, TokenType::Operator);
-    EXPECT_EQ(token6.value, ">=");
+    EXPECT_EQ(token6.value, "<=");
+
+    Token token7 = lexer.NextToken();
+    EXPECT_EQ(token7.type, TokenType::Operator);
+    EXPECT_EQ(token7.value, ">=");
 }
 
 TEST(LexerTest, Punctuation) {
@@ -311,6 +315,15 @@ TEST(LexerTest, RevertStatement) {
 
     EXPECT_EQ(tokens[2].type, TokenType::IntegerLiteral);
     EXPECT_EQ(tokens[2].value, "2026");
+
+    EXPECT_EQ(tokens[3].type, TokenType::Punctuation);
+    EXPECT_EQ(tokens[3].value, ".");
+    EXPECT_EQ(tokens[7].type, TokenType::Punctuation);
+    EXPECT_EQ(tokens[7].value, "-");
+    EXPECT_EQ(tokens[9].type, TokenType::Punctuation);
+    EXPECT_EQ(tokens[9].value, ":");
+    EXPECT_EQ(tokens[11].type, TokenType::Punctuation);
+    EXPECT_EQ(tokens[11].value, ":");
 }
 
 TEST(LexerTest, MultilineQuery) {
@@ -414,4 +427,3 @@ TEST(LexerTest, StarOperator) {
     EXPECT_EQ(tokens[2].type, TokenType::Keyword);
     EXPECT_EQ(tokens[2].value, "FROM");
 }
-

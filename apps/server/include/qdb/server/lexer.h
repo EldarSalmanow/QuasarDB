@@ -162,7 +162,7 @@ namespace qdb::server
 
         static bool IsPunctuationChar(char c)
         {
-            return c == '(' || c == ')' || c == ',' || c == ';' || c == '.';
+            return c == '(' || c == ')' || c == ',' || c == ';' || c == '.' || c == '-' || c == ':';
         }
 
         // Position and navigation
