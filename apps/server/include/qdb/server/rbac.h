@@ -10,6 +10,7 @@
 namespace qdb::server {
 
 enum class Permission {
+    INVALID,
     READ,
     WRITE,
     CREATE,
@@ -17,6 +18,7 @@ enum class Permission {
 };
 
 NLOHMANN_JSON_SERIALIZE_ENUM(Permission, {
+    {Permission::INVALID, "INVALID"},
     {Permission::READ, "READ"},
     {Permission::WRITE, "WRITE"},
     {Permission::CREATE, "CREATE"},
@@ -52,7 +54,7 @@ public:
 
 private:
     void Load();
-    void Save() const;
+    auto Save() const -> bool;
 
     std::string storage_path_;
     std::vector<AccessRule> rules_;
