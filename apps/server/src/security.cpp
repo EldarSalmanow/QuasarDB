@@ -30,7 +30,7 @@ AccountStore::AccountStore(std::string storage_path) : storage_path_(std::move(s
 }
 
 auto AccountStore::CreateAccount(const std::string& username, const std::string& password) -> bool {
-    if (username.empty() || password.empty()) return false;
+    if (username.empty() || password.empty() || username == "*") return false;
     if (accounts_.find(username) != accounts_.end()) return false;
 
     Account account;
@@ -99,6 +99,7 @@ auto AccountStore::Save() -> bool {
     file << j.dump(4);
     if (!file.good()) { file.close(); std::filesystem::remove(tmp_path); return false; }
     file.close();
+    if (file.fail()) { std::filesystem::remove(tmp_path); return false; }
     std::filesystem::rename(tmp_path, storage_path_, ec);
     if (ec) { std::filesystem::remove(tmp_path); return false; }
     return true;
