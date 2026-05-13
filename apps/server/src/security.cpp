@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -30,9 +31,8 @@ AccountStore::AccountStore(std::string storage_path) : storage_path_(std::move(s
 }
 
 auto AccountStore::CreateAccount(const std::string& username, const std::string& password) -> bool {
-    if (accounts_.find(username) != accounts_.end()) {
-        return false;
-    }
+    if (username.empty() || password.empty()) return false;
+    if (accounts_.find(username) != accounts_.end()) return false;
 
     Account account;
     account.username = username;
@@ -43,8 +43,7 @@ auto AccountStore::CreateAccount(const std::string& username, const std::string&
     if (account.password_hash.empty()) return false;
 
     accounts_[username] = std::move(account);
-    Save();
-    return true;
+    return Save();
 }
 
 auto AccountStore::Authenticate(const std::string& username, const std::string& password) const -> bool {
@@ -65,29 +64,39 @@ auto AccountStore::HasAccount(const std::string& username) const -> bool {
     return accounts_.find(username) != accounts_.end();
 }
 
-void AccountStore::Load() {
+auto AccountStore::Load() -> bool {
     std::ifstream file(storage_path_);
     if (!file.is_open()) {
-        return;
+        load_ok_ = true;
+        return true;
     }
 
     try {
         nlohmann::json j;
         file >> j;
         accounts_ = j.get<std::unordered_map<std::string, Account>>();
+        load_ok_ = true;
+        return true;
     } catch (...) {
+        load_ok_ = false;
+        return false;
     }
 }
 
-void AccountStore::Save() {
+auto AccountStore::Save() -> bool {
+    if (!load_ok_) return false;
     auto tmp_path = storage_path_ + ".tmp";
     nlohmann::json j = accounts_;
     std::ofstream file(tmp_path);
-    if (!file.is_open()) return;
+    if (!file.is_open()) return false;
     file << j.dump(4);
-    if (!file.good()) return;
+    if (!file.good()) return false;
     file.close();
-    std::rename(tmp_path.c_str(), storage_path_.c_str());
+    std::error_code ec;
+    std::filesystem::permissions(tmp_path, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::replace, ec);
+    if (std::rename(tmp_path.c_str(), storage_path_.c_str()) != 0) return false;
+    return true;
 }
 
 auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t> {
@@ -137,7 +146,7 @@ auto HashPassword(const std::string& password, const std::string& salt) -> std::
     std::vector<unsigned char> hash(32);
     int rc = PKCS5_PBKDF2_HMAC(password.data(), static_cast<int>(password.size()),
                                 reinterpret_cast<const unsigned char*>(salt.data()),
-                                static_cast<int>(salt.size()), 100000,
+                                static_cast<int>(salt.size()), 600000,
                                 EVP_sha256(), 32, hash.data());
     if (rc != 1) return {};
 
@@ -177,6 +186,9 @@ auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t> {
 
     auto eq_pos = normalized.find('=');
     if (eq_pos != std::string::npos) {
+        for (size_t i = eq_pos; i < normalized.size(); ++i) {
+            if (normalized[i] != '=') return {};
+        }
         normalized.resize(eq_pos);
     }
 
@@ -197,12 +209,15 @@ auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t> {
     return std::vector<std::uint8_t>(buf.begin(), buf.end());
 }
 
-JwtHandler::JwtHandler(std::string secret_key) : secret_key_(std::move(secret_key)) {}
+JwtHandler::JwtHandler(std::string secret_key) : secret_key_(std::move(secret_key)) {
+    if (secret_key_.empty()) secret_key_ = {};
+}
 
 auto JwtHandler::GenerateToken(const std::string& username, std::chrono::seconds ttl) const -> std::string {
+    if (secret_key_.empty()) return {};
     auto now = std::chrono::system_clock::now();
     return jwt::create()
-        .set_type("JWS")
+        .set_type("JWT")
         .set_subject(username)
         .set_issued_at(now)
         .set_expires_at(now + ttl)
@@ -210,6 +225,7 @@ auto JwtHandler::GenerateToken(const std::string& username, std::chrono::seconds
 }
 
 auto JwtHandler::ValidateToken(const std::string& token) const -> std::optional<std::string> {
+    if (secret_key_.empty()) return std::nullopt;
     try {
         auto decoded = jwt::decode(token);
         auto verifier = jwt::verify()
