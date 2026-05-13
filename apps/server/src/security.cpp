@@ -2,10 +2,12 @@
 
 #include <jwt-cpp/traits/nlohmann-json/defaults.h>
 
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -41,16 +43,21 @@ auto AccountStore::CreateAccount(const std::string& username, const std::string&
     return true;
 }
 
-auto AccountStore::Authenticate(const std::string& username, const std::string& password) -> bool {
+auto AccountStore::Authenticate(const std::string& username, const std::string& password) const -> bool {
     auto it = accounts_.find(username);
     if (it == accounts_.end()) {
         return false;
     }
 
-    return it->second.password_hash == HashPassword(password, it->second.salt);
+    auto computed = HashPassword(password, it->second.salt);
+    if (computed.size() != it->second.password_hash.size()) {
+        return false;
+    }
+
+    return CRYPTO_memcmp(computed.data(), it->second.password_hash.data(), computed.size()) == 0;
 }
 
-auto AccountStore::HasAccount(const std::string& username) -> bool {
+auto AccountStore::HasAccount(const std::string& username) const -> bool {
     return accounts_.find(username) != accounts_.end();
 }
 
@@ -82,11 +89,16 @@ auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::ui
     unsigned int len = 0;
 
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr);
-    EVP_DigestUpdate(ctx, data.data(), data.size());
-    EVP_DigestFinal_ex(ctx, result.data(), &len);
-    EVP_MD_CTX_free(ctx);
+    if (!ctx) return {};
 
+    if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1
+        || EVP_DigestUpdate(ctx, data.data(), data.size()) != 1
+        || EVP_DigestFinal_ex(ctx, result.data(), &len) != 1) {
+        EVP_MD_CTX_free(ctx);
+        return {};
+    }
+
+    EVP_MD_CTX_free(ctx);
     result.resize(len);
     return result;
 }
@@ -102,9 +114,11 @@ auto ComputeHmacSha256(const std::vector<std::uint8_t>& key, const std::vector<s
     return result;
 }
 
-auto GenerateSalt(size_t length) -> std::string {
-    std::vector<unsigned char> bytes(length);
-    RAND_bytes(bytes.data(), static_cast<int>(length));
+auto GenerateSalt(size_t byte_length) -> std::string {
+    std::vector<unsigned char> bytes(byte_length);
+    if (RAND_bytes(bytes.data(), static_cast<int>(byte_length)) != 1) {
+        return {};
+    }
 
     std::ostringstream oss;
     for (auto byte : bytes) {
@@ -114,14 +128,12 @@ auto GenerateSalt(size_t length) -> std::string {
 }
 
 auto HashPassword(const std::string& password, const std::string& salt) -> std::string {
-    auto input = std::vector<std::uint8_t>(password.begin(), password.end());
-    auto salt_bytes = std::vector<std::uint8_t>(salt.begin(), salt.end());
-    input.insert(input.end(), salt_bytes.begin(), salt_bytes.end());
-
-    auto hash = ComputeSha256(input);
-    for (int i = 0; i < 10000; ++i) {
-        hash = ComputeSha256(hash);
-    }
+    std::vector<unsigned char> hash(32);
+    int rc = PKCS5_PBKDF2_HMAC(password.data(), static_cast<int>(password.size()),
+                                reinterpret_cast<const unsigned char*>(salt.data()),
+                                static_cast<int>(salt.size()), 10000,
+                                EVP_sha256(), 32, hash.data());
+    if (rc != 1) return {};
 
     std::ostringstream oss;
     for (auto byte : hash) {
@@ -157,25 +169,25 @@ auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t> {
         else if (c == '_') c = '/';
     }
 
-    int padding = (4 - (normalized.size() % 4)) % 4;
+    auto eq_pos = normalized.find('=');
+    if (eq_pos != std::string::npos) {
+        normalized.resize(eq_pos);
+    }
+
+    int padding = (4 - (static_cast<int>(normalized.size()) % 4)) % 4;
     normalized.append(padding, '=');
 
     std::vector<unsigned char> buf(normalized.size());
     int actual = EVP_DecodeBlock(buf.data(), reinterpret_cast<const unsigned char*>(normalized.data()),
                                  static_cast<int>(normalized.size()));
 
-    if (actual < 0) {
-        return {};
-    }
+    if (actual < 0) return {};
 
-    int unpadded = static_cast<int>(input.size()) * 3 / 4;
-    if (normalized.size() >= 2 && normalized[normalized.size() - 2] == '=') {
-        unpadded -= 2;
-    } else if (!normalized.empty() && normalized[normalized.size() - 1] == '=') {
-        unpadded -= 1;
-    }
+    int result_len = (static_cast<int>(normalized.size()) / 4) * 3;
+    if (padding >= 1) result_len -= 1;
+    if (padding >= 2) result_len -= 2;
 
-    buf.resize(std::max(0, unpadded));
+    buf.resize(std::max(0, result_len));
     return std::vector<std::uint8_t>(buf.begin(), buf.end());
 }
 
