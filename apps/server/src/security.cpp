@@ -92,12 +92,13 @@ auto AccountStore::Save() -> bool {
     nlohmann::json j = accounts_;
     std::ofstream file(tmp_path, std::ios::trunc);
     if (!file.is_open()) return false;
-    file << j.dump(4);
-    if (!file.good()) { file.close(); std::filesystem::remove(tmp_path); return false; }
-    file.close();
     std::error_code ec;
     std::filesystem::permissions(tmp_path, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
                                  std::filesystem::perm_options::replace, ec);
+    if (ec) { file.close(); std::filesystem::remove(tmp_path); return false; }
+    file << j.dump(4);
+    if (!file.good()) { file.close(); std::filesystem::remove(tmp_path); return false; }
+    file.close();
     std::filesystem::rename(tmp_path, storage_path_, ec);
     if (ec) { std::filesystem::remove(tmp_path); return false; }
     return true;
