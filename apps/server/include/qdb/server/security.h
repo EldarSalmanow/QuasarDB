@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -26,8 +27,8 @@ public:
     explicit AccountStore(std::string storage_path);
 
     auto CreateAccount(const std::string& username, const std::string& password) -> bool;
-    auto Authenticate(const std::string& username, const std::string& password) -> bool;
-    auto HasAccount(const std::string& username) -> bool;
+    auto Authenticate(const std::string& username, const std::string& password) const -> bool;
+    auto HasAccount(const std::string& username) const -> bool;
 
 private:
     void Load();
@@ -39,7 +40,7 @@ private:
 
 auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t>;
 auto ComputeHmacSha256(const std::vector<std::uint8_t>& key, const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t>;
-auto GenerateSalt(size_t length = 16) -> std::string;
+auto GenerateSalt(size_t byte_length = 16) -> std::string;
 auto HashPassword(const std::string& password, const std::string& salt) -> std::string;
 auto Base64UrlEncode(const std::vector<std::uint8_t>& data) -> std::string;
 auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t>;

@@ -2,7 +2,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 #include <thread>
 
 namespace qdb::server {
@@ -57,13 +61,17 @@ TEST(AuthTest, Base64UrlEncode) {
     std::string input = "test";
     auto data = std::vector<std::uint8_t>(input.begin(), input.end());
     auto encoded = Base64UrlEncode(data);
-    ASSERT_EQ(encoded, "dGVzdA==");
+    ASSERT_EQ(encoded, "dGVzdA");
 }
 
 TEST(AuthTest, Base64UrlRoundtrip) {
-    std::string input = "Hello, World! This is a test with URL unsafe chars: +/=";
+    std::string input = "Hello, World! This is a test with URL unsafe chars: +/";
     auto data = std::vector<std::uint8_t>(input.begin(), input.end());
     auto encoded = Base64UrlEncode(data);
+    ASSERT_TRUE(std::none_of(encoded.begin(), encoded.end(), [](char c) {
+        return c == '+' || c == '/' || c == '=';
+    }));
+
     auto decoded = Base64UrlDecode(encoded);
     auto result = std::string(decoded.begin(), decoded.end());
     ASSERT_EQ(result, input);
@@ -71,7 +79,7 @@ TEST(AuthTest, Base64UrlRoundtrip) {
 
 TEST(AuthTest, PasswordHashing) {
     auto salt = GenerateSalt();
-    ASSERT_EQ(salt.size(), 16);
+    ASSERT_EQ(salt.size(), 32);
 
     auto hash1 = HashPassword("password123", salt);
     auto hash2 = HashPassword("password123", salt);
