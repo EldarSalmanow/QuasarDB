@@ -41,7 +41,7 @@ TEST(ParserTest, RevertStatement) {
     auto* revert = dynamic_cast<RevertStmt*>(stmt.get());
     ASSERT_NE(revert, nullptr);
     EXPECT_EQ(revert->Table.Table, "products");
-    EXPECT_FALSE(revert->Timestamp.empty());
+    EXPECT_EQ(revert->Timestamp, "2026.05.02-14:30:45.123");
 }
 
 TEST(ParserTest, RevertStatementQualified) {
@@ -194,6 +194,14 @@ TEST(ParserTest, SelectAll) {
     EXPECT_EQ(select->WhereClause, nullptr);
 }
 
+TEST(ParserTest, KeywordsAreCaseInsensitive) {
+    auto stmt = parseSQL("sElEcT * FrOm users WhErE age >= 18;");
+    auto* select = dynamic_cast<SelectStmt*>(stmt.get());
+    ASSERT_NE(select, nullptr);
+    EXPECT_TRUE(select->SelectAll);
+    ASSERT_NE(select->WhereClause, nullptr);
+}
+
 TEST(ParserTest, SelectColumns) {
     auto stmt = parseSQL("SELECT id, name FROM users;");
     auto* select = dynamic_cast<SelectStmt*>(stmt.get());
@@ -340,9 +348,7 @@ TEST(ParserTest, ErrorEmptyInput) {
     EXPECT_THROW(parser.ParseStatement(), ParseError);
 }
 
-TEST(ParserTest, ErrorInvalidKeyword) {
-    EXPECT_THROW(parseSQL("INVALID STATEMENT;"), ParseError);
-}
+TEST(ParserTest, ErrorInvalidKeyword) { EXPECT_THROW(parseSQL("INVALID STATEMENT;"), ParseError); }
 
 TEST(ParserTest, ErrorMissingSemicolon) {
     // Parser treats semicolon as optional; when omitted, parsing stops at EOF
@@ -351,17 +357,11 @@ TEST(ParserTest, ErrorMissingSemicolon) {
     ASSERT_NE(stmt, nullptr);
 }
 
-TEST(ParserTest, ErrorMissingTableName) {
-    EXPECT_THROW(parseSQL("SELECT * FROM;"), ParseError);
-}
+TEST(ParserTest, ErrorMissingTableName) { EXPECT_THROW(parseSQL("SELECT * FROM;"), ParseError); }
 
-TEST(ParserTest, ErrorMissingWhereCondition) {
-    EXPECT_THROW(parseSQL("DELETE FROM users WHERE;"), ParseError);
-}
+TEST(ParserTest, ErrorMissingWhereCondition) { EXPECT_THROW(parseSQL("DELETE FROM users WHERE;"), ParseError); }
 
-TEST(ParserTest, ErrorInvalidColumnType) {
-    EXPECT_THROW(parseSQL("CREATE TABLE users (id INVALID);"), ParseError);
-}
+TEST(ParserTest, ErrorInvalidColumnType) { EXPECT_THROW(parseSQL("CREATE TABLE users (id INVALID);"), ParseError); }
 
 TEST(ParserTest, ErrorMissingParentheses) {
     EXPECT_THROW(parseSQL("CREATE TABLE users id INT, name STRING;"), ParseError);
@@ -369,7 +369,10 @@ TEST(ParserTest, ErrorMissingParentheses) {
 
 // Edge case tests
 TEST(ParserTest, DeeplyNestedConditions) {
-    auto stmt = parseSQL("SELECT * FROM users WHERE ((age >= 18 AND status == \"active\") OR (role == \"admin\" AND verified == 1)) AND country == \"US\";");
+    auto stmt = parseSQL(
+        "SELECT * FROM users WHERE ((age >= 18 AND status == \"active\") OR (role == \"admin\" AND verified == 1)) AND "
+        "country == \"US\";"
+    );
     auto* select = dynamic_cast<SelectStmt*>(stmt.get());
     ASSERT_NE(select, nullptr);
     ASSERT_NE(select->WhereClause, nullptr);
@@ -451,9 +454,7 @@ TEST(ParserTest, UpdateMultipleColumnsWithComplexValues) {
 }
 
 // Additional error tests
-TEST(ParserTest, ErrorInvalidOperator) {
-    EXPECT_THROW(parseSQL("SELECT * FROM users WHERE age === 18;"), ParseError);
-}
+TEST(ParserTest, ErrorInvalidOperator) { EXPECT_THROW(parseSQL("SELECT * FROM users WHERE age === 18;"), ParseError); }
 
 TEST(ParserTest, ErrorMissingColumnType) {
     EXPECT_THROW(parseSQL("CREATE TABLE users (id, name STRING);"), ParseError);
@@ -467,12 +468,15 @@ TEST(ParserTest, ErrorMissingSetKeyword) {
     EXPECT_THROW(parseSQL("UPDATE users name = \"Bob\" WHERE id == 1;"), ParseError);
 }
 
-TEST(ParserTest, ErrorMissingFromKeyword) {
-    EXPECT_THROW(parseSQL("SELECT * users WHERE id == 1;"), ParseError);
-}
+TEST(ParserTest, ErrorMissingFromKeyword) { EXPECT_THROW(parseSQL("SELECT * users WHERE id == 1;"), ParseError); }
 
 TEST(ParserTest, ErrorMissingBetweenAnd) {
     EXPECT_THROW(parseSQL("SELECT * FROM products WHERE price BETWEEN 10 100;"), ParseError);
+}
+
+TEST(ParserTest, ErrorInvalidRevertTimestamp) {
+    EXPECT_THROW(parseSQL("REVERT products 2026.5.02-14:30:45.123;"), ParseError);
+    EXPECT_THROW(parseSQL("REVERT products tomorrow;"), ParseError);
 }
 
 // Complex real-world queries
@@ -524,17 +528,13 @@ TEST(ParserTest, MultilineQuery) {
 }
 
 // Validation tests for parser fixes
-TEST(ParserTest, ErrorTrailingGarbageTokens) {
-    EXPECT_THROW(parseSQL("SELECT * FROM users; EXTRA"), ParseError);
-}
+TEST(ParserTest, ErrorTrailingGarbageTokens) { EXPECT_THROW(parseSQL("SELECT * FROM users; EXTRA"), ParseError); }
 
 TEST(ParserTest, ErrorTrailingGarbageAfterStatement) {
     EXPECT_THROW(parseSQL("CREATE DATABASE shop garbage"), ParseError);
 }
 
-TEST(ParserTest, ErrorLeadingCommaInColumnList) {
-    EXPECT_THROW(parseSQL("SELECT ,id FROM users;"), ParseError);
-}
+TEST(ParserTest, ErrorLeadingCommaInColumnList) { EXPECT_THROW(parseSQL("SELECT ,id FROM users;"), ParseError); }
 
 TEST(ParserTest, ErrorLeadingCommaInInsertColumns) {
     EXPECT_THROW(parseSQL("INSERT INTO users (,id, name) VALUE (1, \"Alice\");"), ParseError);
@@ -544,9 +544,7 @@ TEST(ParserTest, ErrorLeadingCommaInCreateTable) {
     EXPECT_THROW(parseSQL("CREATE TABLE users (, id INT, name STRING);"), ParseError);
 }
 
-TEST(ParserTest, ErrorWrongPunctuationInAggregate) {
-    EXPECT_THROW(parseSQL("SELECT SUM[id] FROM users;"), ParseError);
-}
+TEST(ParserTest, ErrorWrongPunctuationInAggregate) { EXPECT_THROW(parseSQL("SELECT SUM[id] FROM users;"), ParseError); }
 
 TEST(ParserTest, ErrorWrongPunctuationInCondition) {
     EXPECT_THROW(parseSQL("SELECT * FROM users WHERE [id == 1];"), ParseError);
