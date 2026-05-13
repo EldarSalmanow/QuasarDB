@@ -8,6 +8,7 @@
 #include <openssl/rand.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -36,7 +37,10 @@ auto AccountStore::CreateAccount(const std::string& username, const std::string&
     Account account;
     account.username = username;
     account.salt = GenerateSalt();
+    if (account.salt.empty()) return false;
+
     account.password_hash = HashPassword(password, account.salt);
+    if (account.password_hash.empty()) return false;
 
     accounts_[username] = std::move(account);
     Save();
@@ -72,16 +76,18 @@ void AccountStore::Load() {
         file >> j;
         accounts_ = j.get<std::unordered_map<std::string, Account>>();
     } catch (...) {
-        accounts_.clear();
     }
 }
 
 void AccountStore::Save() {
+    auto tmp_path = storage_path_ + ".tmp";
     nlohmann::json j = accounts_;
-    std::ofstream file(storage_path_);
-    if (file.is_open()) {
-        file << j.dump(4);
-    }
+    std::ofstream file(tmp_path);
+    if (!file.is_open()) return;
+    file << j.dump(4);
+    if (!file.good()) return;
+    file.close();
+    std::rename(tmp_path.c_str(), storage_path_.c_str());
 }
 
 auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t> {
@@ -131,7 +137,7 @@ auto HashPassword(const std::string& password, const std::string& salt) -> std::
     std::vector<unsigned char> hash(32);
     int rc = PKCS5_PBKDF2_HMAC(password.data(), static_cast<int>(password.size()),
                                 reinterpret_cast<const unsigned char*>(salt.data()),
-                                static_cast<int>(salt.size()), 10000,
+                                static_cast<int>(salt.size()), 100000,
                                 EVP_sha256(), 32, hash.data());
     if (rc != 1) return {};
 
@@ -193,7 +199,7 @@ auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t> {
 
 JwtHandler::JwtHandler(std::string secret_key) : secret_key_(std::move(secret_key)) {}
 
-auto JwtHandler::GenerateToken(const std::string& username, std::chrono::seconds ttl) -> std::string {
+auto JwtHandler::GenerateToken(const std::string& username, std::chrono::seconds ttl) const -> std::string {
     auto now = std::chrono::system_clock::now();
     return jwt::create()
         .set_type("JWS")
@@ -203,7 +209,7 @@ auto JwtHandler::GenerateToken(const std::string& username, std::chrono::seconds
         .sign(jwt::algorithm::hs256{secret_key_});
 }
 
-auto JwtHandler::ValidateToken(const std::string& token) -> std::optional<std::string> {
+auto JwtHandler::ValidateToken(const std::string& token) const -> std::optional<std::string> {
     try {
         auto decoded = jwt::decode(token);
         auto verifier = jwt::verify()
