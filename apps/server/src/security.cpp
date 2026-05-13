@@ -8,7 +8,6 @@
 #include <openssl/rand.h>
 
 #include <algorithm>
-#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -43,7 +42,11 @@ auto AccountStore::CreateAccount(const std::string& username, const std::string&
     if (account.password_hash.empty()) return false;
 
     accounts_[username] = std::move(account);
-    return Save();
+    if (!Save()) {
+        accounts_.erase(username);
+        return false;
+    }
+    return true;
 }
 
 auto AccountStore::Authenticate(const std::string& username, const std::string& password) const -> bool {
@@ -87,15 +90,16 @@ auto AccountStore::Save() -> bool {
     if (!load_ok_) return false;
     auto tmp_path = storage_path_ + ".tmp";
     nlohmann::json j = accounts_;
-    std::ofstream file(tmp_path);
+    std::ofstream file(tmp_path, std::ios::trunc);
     if (!file.is_open()) return false;
     file << j.dump(4);
-    if (!file.good()) return false;
+    if (!file.good()) { file.close(); std::filesystem::remove(tmp_path); return false; }
     file.close();
     std::error_code ec;
     std::filesystem::permissions(tmp_path, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
                                  std::filesystem::perm_options::replace, ec);
-    if (std::rename(tmp_path.c_str(), storage_path_.c_str()) != 0) return false;
+    std::filesystem::rename(tmp_path, storage_path_, ec);
+    if (ec) { std::filesystem::remove(tmp_path); return false; }
     return true;
 }
 
@@ -122,8 +126,9 @@ auto ComputeHmacSha256(const std::vector<std::uint8_t>& key, const std::vector<s
     std::vector<std::uint8_t> result(EVP_MAX_MD_SIZE);
     unsigned int len = 0;
 
-    HMAC(EVP_sha256(), key.data(), static_cast<int>(key.size()),
+    auto* hmac_result = HMAC(EVP_sha256(), key.data(), static_cast<int>(key.size()),
          data.data(), data.size(), result.data(), &len);
+    if (hmac_result == nullptr) return {};
 
     result.resize(len);
     return result;
@@ -228,6 +233,7 @@ auto JwtHandler::ValidateToken(const std::string& token) const -> std::optional<
     if (secret_key_.empty()) return std::nullopt;
     try {
         auto decoded = jwt::decode(token);
+        if (!decoded.has_expires_at()) return std::nullopt;
         auto verifier = jwt::verify()
             .allow_algorithm(jwt::algorithm::hs256{secret_key_});
         verifier.verify(decoded);
