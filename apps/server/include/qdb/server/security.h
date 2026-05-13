@@ -49,8 +49,8 @@ class JwtHandler {
 public:
     explicit JwtHandler(std::string secret_key);
 
-    auto GenerateToken(const std::string& username, std::chrono::seconds ttl = std::chrono::hours(24)) -> std::string;
-    auto ValidateToken(const std::string& token) -> std::optional<std::string>;
+    auto GenerateToken(const std::string& username, std::chrono::seconds ttl = std::chrono::hours(24)) const -> std::string;
+    auto ValidateToken(const std::string& token) const -> std::optional<std::string>;
 
 private:
     std::string secret_key_;
