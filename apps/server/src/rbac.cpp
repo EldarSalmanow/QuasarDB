@@ -1,6 +1,7 @@
 #include <qdb/server/rbac.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 
 namespace qdb::server {
@@ -28,15 +29,9 @@ RBACManager::RBACManager(std::string storage_path) : storage_path_(std::move(sto
 auto RBACManager::CheckPermission(const std::string& username, const std::string& database,
                                   const std::string& table, Permission perm) const -> bool {
     auto matches = [&](const AccessRule& rule) -> bool {
-        if (rule.user_id != username && rule.user_id != "*") {
-            return false;
-        }
-        if (rule.database != database && rule.database != "*") {
-            return false;
-        }
-        if (rule.table != table && rule.table != "*") {
-            return false;
-        }
+        if (rule.user_id != username && rule.user_id != "*") return false;
+        if (rule.database != database && rule.database != "*") return false;
+        if (rule.table != table && rule.table != "*") return false;
         return rule.permissions.find(perm) != rule.permissions.end();
     };
 
@@ -46,6 +41,7 @@ auto RBACManager::CheckPermission(const std::string& username, const std::string
 
 auto RBACManager::GrantPermission(const std::string& username, const std::string& database,
                                   const std::string& table, Permission perm) -> void {
+    if (perm == Permission::INVALID) return;
     auto it = std::find_if(rules_.begin(), rules_.end(), [&](const AccessRule& r) {
         return r.user_id == username && r.database == database && r.table == table;
     });
@@ -56,7 +52,13 @@ auto RBACManager::GrantPermission(const std::string& username, const std::string
         rules_.push_back({username, database, table, {perm}});
     }
 
-    Save();
+    if (!Save()) {
+        if (it != rules_.end()) {
+            it->permissions.erase(perm);
+        } else {
+            rules_.pop_back();
+        }
+    }
 }
 
 auto RBACManager::RevokePermission(const std::string& username, const std::string& database,
@@ -65,16 +67,32 @@ auto RBACManager::RevokePermission(const std::string& username, const std::strin
         return r.user_id == username && r.database == database && r.table == table;
     });
 
-    if (it == rules_.end()) {
-        return;
-    }
+    if (it == rules_.end()) return;
 
+    auto old_perms = it->permissions;
     it->permissions.erase(perm);
+    bool rule_erased = false;
+    AccessRule erased_rule;
+    size_t erased_pos = 0;
     if (it->permissions.empty()) {
+        erased_rule = *it;
+        erased_pos = static_cast<size_t>(it - rules_.begin());
         rules_.erase(it);
+        rule_erased = true;
     }
 
-    Save();
+    if (!Save()) {
+        if (rule_erased) {
+            rules_.insert(rules_.begin() + static_cast<ptrdiff_t>(erased_pos), erased_rule);
+        } else {
+            for (auto& r : rules_) {
+                if (r.user_id == username && r.database == database && r.table == table) {
+                    r.permissions = old_perms;
+                    break;
+                }
+            }
+        }
+    }
 }
 
 auto RBACManager::GetUserPermissions(const std::string& username) const -> std::vector<AccessRule> {
@@ -93,25 +111,32 @@ auto RBACManager::GetAllRules() const -> const std::vector<AccessRule>& {
 
 void RBACManager::Load() {
     std::ifstream file(storage_path_);
-    if (!file.is_open()) {
-        return;
-    }
+    if (!file.is_open()) return;
 
     try {
         nlohmann::json j;
         file >> j;
         rules_ = j.get<std::vector<AccessRule>>();
     } catch (...) {
-        rules_.clear();
     }
 }
 
-void RBACManager::Save() const {
+auto RBACManager::Save() const -> bool {
+    auto tmp_path = storage_path_ + ".tmp";
     nlohmann::json j = rules_;
-    std::ofstream file(storage_path_);
-    if (file.is_open()) {
-        file << j.dump(4);
-    }
+    std::ofstream file(tmp_path, std::ios::trunc);
+    if (!file.is_open()) return false;
+    std::error_code ec;
+    std::filesystem::permissions(tmp_path, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::replace, ec);
+    if (ec) { file.close(); std::filesystem::remove(tmp_path); return false; }
+    file << j.dump(4);
+    if (!file.good()) { file.close(); std::filesystem::remove(tmp_path); return false; }
+    file.close();
+    if (file.fail()) { std::filesystem::remove(tmp_path); return false; }
+    std::filesystem::rename(tmp_path, storage_path_, ec);
+    if (ec) { std::filesystem::remove(tmp_path); return false; }
+    return true;
 }
 
 }  // namespace qdb::server
