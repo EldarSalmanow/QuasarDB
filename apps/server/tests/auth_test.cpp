@@ -2,15 +2,23 @@
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <thread>
 
 namespace qdb::server {
+
+namespace {
+auto MakeTempPath(const std::string& name) -> std::string {
+    static int counter = 0;
+    return (std::filesystem::temp_directory_path() / ("qdb_" + name + "_" + std::to_string(++counter) + ".json")).string();
+}
+}
 
 TEST(AuthTest, Sha256Basic) {
     auto empty_hash = ComputeSha256({});
@@ -21,8 +29,7 @@ TEST(AuthTest, Sha256Basic) {
     auto hash = ComputeSha256(data);
     ASSERT_EQ(hash.size(), 32);
 
-    std::string expected_hex =
-        "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+    std::string expected_hex = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
     std::ostringstream oss;
     for (auto byte : hash) {
         oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
@@ -127,68 +134,6 @@ TEST(AuthTest, JwtTamperedToken) {
     ASSERT_FALSE(result.has_value());
 }
 
-TEST(AuthTest, AccountStoreCreate) {
-    auto test_path = "test_accounts.json";
-    std::remove(test_path);
-
-    {
-        AccountStore store(test_path);
-        ASSERT_TRUE(store.CreateAccount("alice", "pass123"));
-        ASSERT_FALSE(store.CreateAccount("alice", "other"));
-    }
-
-    std::remove(test_path);
-}
-
-TEST(AuthTest, AccountStoreAuthenticate) {
-    auto test_path = "test_accounts_auth.json";
-    std::remove(test_path);
-
-    {
-        AccountStore store(test_path);
-        store.CreateAccount("bob", "secure_pass");
-
-        ASSERT_TRUE(store.Authenticate("bob", "secure_pass"));
-        ASSERT_FALSE(store.Authenticate("bob", "wrong_pass"));
-        ASSERT_FALSE(store.Authenticate("nonexistent", "pass"));
-    }
-
-    std::remove(test_path);
-}
-
-TEST(AuthTest, AccountStorePersistence) {
-    auto test_path = "test_accounts_persist.json";
-    std::remove(test_path);
-
-    {
-        AccountStore store(test_path);
-        store.CreateAccount("persist_user", "my_password");
-        ASSERT_TRUE(store.HasAccount("persist_user"));
-    }
-
-    {
-        AccountStore store(test_path);
-        ASSERT_TRUE(store.HasAccount("persist_user"));
-        ASSERT_TRUE(store.Authenticate("persist_user", "my_password"));
-    }
-
-    std::remove(test_path);
-}
-
-TEST(AuthTest, AccountStoreHasAccount) {
-    auto test_path = "test_accounts_has.json";
-    std::remove(test_path);
-
-    {
-        AccountStore store(test_path);
-        ASSERT_FALSE(store.HasAccount("nobody"));
-        store.CreateAccount("someone", "pass");
-        ASSERT_TRUE(store.HasAccount("someone"));
-    }
-
-    std::remove(test_path);
-}
-
 TEST(AuthTest, JwtExpiredToken) {
     JwtHandler jwt("secret");
 
@@ -213,9 +158,71 @@ TEST(AuthTest, SaltChangesHash) {
     ASSERT_NE(hash1, hash2);
 }
 
+TEST(AuthTest, AccountStoreCreate) {
+    auto test_path = MakeTempPath("accounts_create");
+    std::remove(test_path.c_str());
+
+    {
+        AccountStore store(test_path);
+        ASSERT_TRUE(store.CreateAccount("alice", "pass123"));
+        ASSERT_FALSE(store.CreateAccount("alice", "other"));
+    }
+
+    std::remove(test_path.c_str());
+}
+
+TEST(AuthTest, AccountStoreAuthenticate) {
+    auto test_path = MakeTempPath("accounts_auth");
+    std::remove(test_path.c_str());
+
+    {
+        AccountStore store(test_path);
+        store.CreateAccount("bob", "secure_pass");
+
+        ASSERT_TRUE(store.Authenticate("bob", "secure_pass"));
+        ASSERT_FALSE(store.Authenticate("bob", "wrong_pass"));
+        ASSERT_FALSE(store.Authenticate("nonexistent", "pass"));
+    }
+
+    std::remove(test_path.c_str());
+}
+
+TEST(AuthTest, AccountStorePersistence) {
+    auto test_path = MakeTempPath("accounts_persist");
+    std::remove(test_path.c_str());
+
+    {
+        AccountStore store(test_path);
+        store.CreateAccount("persist_user", "my_password");
+        ASSERT_TRUE(store.HasAccount("persist_user"));
+    }
+
+    {
+        AccountStore store(test_path);
+        ASSERT_TRUE(store.HasAccount("persist_user"));
+        ASSERT_TRUE(store.Authenticate("persist_user", "my_password"));
+    }
+
+    std::remove(test_path.c_str());
+}
+
+TEST(AuthTest, AccountStoreHasAccount) {
+    auto test_path = MakeTempPath("accounts_has");
+    std::remove(test_path.c_str());
+
+    {
+        AccountStore store(test_path);
+        ASSERT_FALSE(store.HasAccount("nobody"));
+        store.CreateAccount("someone", "pass");
+        ASSERT_TRUE(store.HasAccount("someone"));
+    }
+
+    std::remove(test_path.c_str());
+}
+
 TEST(AuthTest, AccountStoreMultipleUsers) {
-    auto test_path = "test_accounts_multi.json";
-    std::remove(test_path);
+    auto test_path = MakeTempPath("accounts_multi");
+    std::remove(test_path.c_str());
 
     {
         AccountStore store(test_path);
@@ -230,7 +237,7 @@ TEST(AuthTest, AccountStoreMultipleUsers) {
         ASSERT_FALSE(store.Authenticate("user1", "wrong"));
     }
 
-    std::remove(test_path);
+    std::remove(test_path.c_str());
 }
 
 }  // namespace qdb::server

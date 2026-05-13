@@ -70,7 +70,8 @@ TEST(LoggerTest, FileRotation) {
         logger.Flush();
 
         int file_count = 0;
-        for (const auto& _ : std::filesystem::directory_iterator(test_dir)) {
+        for (const auto& entry : std::filesystem::directory_iterator(test_dir)) {
+            (void)entry;
             ++file_count;
         }
         ASSERT_GE(file_count, 2);
