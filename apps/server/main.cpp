@@ -1,13 +1,12 @@
-#include <iostream>
+#include <qdb/server/application.h>
 
-/**
- * @brief QuasarDB Server Application Entry Point
- */
+
 int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
+    auto config = qdb::server::Config::New();
 
-    std::cout << "QuasarDB Server" << std::endl;
+    auto application = qdb::server::Application::New(config);
 
-    return 0;
+    auto result = application->Run();
+
+    return result;
 }
