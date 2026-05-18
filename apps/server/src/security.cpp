@@ -235,6 +235,7 @@ auto JwtHandler::ValidateToken(const std::string& token) const -> std::optional<
     try {
         auto decoded = jwt::decode(token);
         if (!decoded.has_expires_at()) return std::nullopt;
+        if (!decoded.has_type() || decoded.get_type() != "JWT") return std::nullopt;
         auto verifier = jwt::verify()
             .allow_algorithm(jwt::algorithm::hs256{secret_key_});
         verifier.verify(decoded);
