@@ -41,7 +41,7 @@ private:
 
 auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t>;
 auto ComputeHmacSha256(const std::vector<std::uint8_t>& key, const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t>;
-auto GenerateSalt(size_t byte_length = 16) -> std::string;
+auto GenerateSalt(size_t byte_length = 32) -> std::string;
 auto HashPassword(const std::string& password, const std::string& salt) -> std::string;
 auto Base64UrlEncode(const std::vector<std::uint8_t>& data) -> std::string;
 auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t>;
