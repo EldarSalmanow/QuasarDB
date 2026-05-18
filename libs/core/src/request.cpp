@@ -64,6 +64,14 @@ auto Request::ToJson() const -> std::string {
     return ToJsonObject().dump() + "\n";
 }
 
+auto Request::Method() const -> const std::string & { return method_; }
+
+auto Request::Sql() const -> const std::string & { return sql_; }
+
+auto Request::Token() const -> const std::string & { return token_; }
+
+auto Request::RequestId() const -> const std::optional<std::string> & { return request_id_; }
+
 RequestBuilder::RequestBuilder() = default;
 
 auto RequestBuilder::ExecuteQuery(std::string sql) -> RequestBuilder {

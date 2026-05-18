@@ -24,9 +24,17 @@ public:
     static auto FromJsonObject(const nlohmann::json &json) -> Request;
 
 public:
-    nlohmann::json ToJsonObject() const;
+    auto ToJson() const -> std::string;
 
-    std::string ToJson() const;
+    auto ToJsonObject() const -> nlohmann::json;
+
+    auto Method() const -> const std::string &;
+
+    auto Sql() const -> const std::string &;
+
+    auto Token() const -> const std::string &;
+
+    auto RequestId() const -> const std::optional<std::string> &;
 
 private:
     std::string method_;

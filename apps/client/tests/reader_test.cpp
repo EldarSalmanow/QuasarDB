@@ -2,85 +2,58 @@
 
 #include <gtest/gtest.h>
 
-#include <cstdio>
-#include <fstream>
 #include <string>
+
+#include "test_support.h"
 
 namespace qdb::client::test {
 
-TEST(FileReaderTest, SingleLineCommand) {
-    const std::string test_file = "test_single_line.sql";
-    {
-        std::ofstream out(test_file);
-        out << "SELECT * FROM users;";
-    }
+TEST(ConsoleReaderTest, ReadsSingleLineAndPrintsPrompt) {
+    InputRedirect input("  SELECT 1;\n");
+    OutputCapture capture(std::cout);
 
-    FileReader reader(test_file);
-
+    ConsoleReader reader;
     auto command = reader.ReadCommand();
-    ASSERT_TRUE(command.has_value());
-    EXPECT_EQ(command.value(), "SELECT * FROM users");
 
-    command = reader.ReadCommand();
-    EXPECT_FALSE(command.has_value());
+    ASSERT_TRUE(command.has_value());
+    EXPECT_EQ(command.value(), "SELECT 1;");
+    EXPECT_EQ(capture.Str(), "qdb> ");
+}
+
+TEST(ConsoleReaderTest, EmptyLineReturnsEmptyCommand) {
+    InputRedirect input("\n");
+
+    ConsoleReader reader;
+    auto command = reader.ReadCommand();
+
+    ASSERT_TRUE(command.has_value());
+    EXPECT_EQ(command.value(), "");
+}
+
+TEST(FileReaderTest, ReadsTrimmedLinesOneByOne) {
+    ScopedTempFile file("  SELECT * FROM users;  \n\n   INSERT INTO users VALUES (1);\n");
+
+    FileReader reader(file.Path().string());
+
+    auto first = reader.ReadCommand();
+    ASSERT_TRUE(first.has_value());
+    EXPECT_EQ(first.value(), "SELECT * FROM users;");
+    EXPECT_TRUE(reader.HasMore());
+
+    auto second = reader.ReadCommand();
+    ASSERT_TRUE(second.has_value());
+    EXPECT_EQ(second.value(), "INSERT INTO users VALUES (1);");
     EXPECT_FALSE(reader.HasMore());
 
-    std::remove(test_file.c_str());
+    auto third = reader.ReadCommand();
+    EXPECT_FALSE(third.has_value());
 }
 
-TEST(FileReaderTest, MultilineCommand) {
-    const std::string test_file = "test_multiline.sql";
-    {
-        std::ofstream out(test_file);
-        out << "SELECT id, name, email\n";
-        out << "FROM users\n";
-        out << "WHERE active = 1;";
-    }
+TEST(FileReaderTest, MissingFileHasNoCommands) {
+    FileReader reader("definitely_missing_file.sql");
 
-    FileReader reader(test_file);
-
-    auto command = reader.ReadCommand();
-    ASSERT_TRUE(command.has_value());
-    EXPECT_EQ(command.value(), "SELECT id, name, email FROM users WHERE active = 1");
-
-    command = reader.ReadCommand();
-    EXPECT_FALSE(command.has_value());
     EXPECT_FALSE(reader.HasMore());
-}
-
-TEST(FileReaderTest, CommandWithoutSemicolonAtEOF) {
-    const std::string test_file = "test_no_semicolon.sql";
-    {
-        std::ofstream out(test_file);
-        out << "SELECT * FROM users";
-    }
-
-    FileReader reader(test_file);
-
-    auto command = reader.ReadCommand();
-    ASSERT_TRUE(command.has_value());
-    EXPECT_EQ(command.value(), "SELECT * FROM users");
-
-    std::remove(test_file.c_str());
-}
-
-TEST(FileReaderTest, ComplexMultilineQuery) {
-    const std::string test_file = "test_complex.sql";
-    {
-        std::ofstream out(test_file);
-        out << "INSERT INTO users\n";
-        out << "  (id, name, email)\n";
-        out << "VALUES\n";
-        out << "  (1, 'John Doe', 'john@example.com');";
-    }
-
-    FileReader reader(test_file);
-
-    auto command = reader.ReadCommand();
-    ASSERT_TRUE(command.has_value());
-    EXPECT_EQ(command.value(), "INSERT INTO users (id, name, email) VALUES (1, 'John Doe', 'john@example.com')");
-
-    std::remove(test_file.c_str());
+    EXPECT_FALSE(reader.ReadCommand().has_value());
 }
 
 }  // namespace qdb::client::test

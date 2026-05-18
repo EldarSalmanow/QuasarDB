@@ -54,6 +54,10 @@ auto Response::FromJsonObject(const nlohmann::json &json) -> Response {
     return response;
 }
 
+auto Response::ToJson() const -> std::string {
+    return ToJsonObject().dump();
+}
+
 auto Response::ToJsonObject() const -> nlohmann::json {
     return nlohmann::json{
         {"status", status_},
@@ -61,10 +65,6 @@ auto Response::ToJsonObject() const -> nlohmann::json {
         {"message", message_},
         {"data", data_}
     };
-}
-
-auto Response::ToJson() const -> std::string {
-    return ToJsonObject().dump();
 }
 
 auto Response::IsError() const -> bool { return status_ == "error"; }

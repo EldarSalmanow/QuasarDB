@@ -23,9 +23,9 @@ public:
     static auto FromJsonObject(const nlohmann::json &json) -> Response;
 
 public:
-    auto ToJsonObject() const -> nlohmann::json;
-
     auto ToJson() const -> std::string;
+
+    auto ToJsonObject() const -> nlohmann::json;
 
     auto IsError() const -> bool;
 
