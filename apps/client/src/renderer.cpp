@@ -1,11 +1,11 @@
 #include <qdb/client/renderer.h>
 
-#include <qdb/client/response.h>
+#include <qdb/core/response.h>
 
 #include <nlohmann/json.hpp>
 
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <vector>
 
 namespace qdb::client {
@@ -22,11 +22,7 @@ void Renderer::RenderWelcome() const {
     std::cout << std::endl;
 }
 
-void Renderer::RenderPrompt() const {
-    std::cout << BLUE << "quasar> " << RESET << std::flush;
-}
-
-void Renderer::RenderResponse(const Response& response) const {
+void Renderer::RenderResponse(const qdb::core::Response& response) const {
     if (response.IsError()) {
         std::cout << RED << "Error [" << response.GetCode() << "]: " 
                   << response.GetMessage() << RESET << std::endl;
@@ -53,11 +49,13 @@ void Renderer::RenderTable(const std::string& json_data) const {
             parsed = nlohmann::json::parse(json_data);
         } catch (...) {
             std::cout << json_data << std::endl;
+
             return;
         }
 
         if (parsed.is_array() && !parsed.empty()) {
             auto first = parsed[0];
+
             if (first.is_object()) {
                 std::vector<std::string> columns;
                 for (auto it = first.begin(); it != first.end(); ++it) {
@@ -72,9 +70,11 @@ void Renderer::RenderTable(const std::string& json_data) const {
                 for (const auto& row : parsed) {
                     for (size_t i = 0; i < columns.size(); ++i) {
                         std::string value = row[columns[i]].is_null() ? "NULL" : row[columns[i]].dump();
+
                         if (value.front() == '"' && value.back() == '"') {
                             value = value.substr(1, value.length() - 2);
                         }
+
                         widths[i] = std::max(widths[i], value.length());
                     }
                 }
@@ -93,28 +93,34 @@ void Renderer::RenderTable(const std::string& json_data) const {
                 for (const auto& row : parsed) {
                     for (size_t i = 0; i < columns.size(); ++i) {
                         std::string value = row[columns[i]].is_null() ? "NULL" : row[columns[i]].dump();
+
                         if (value.front() == '"' && value.back() == '"') {
                             value = value.substr(1, value.length() - 2);
                         }
+
                         std::cout << "| " << std::left << std::setw(widths[i]) << value << " ";
                     }
+
                     std::cout << "|" << std::endl;
                 }
 
                 std::cout << std::endl;
+
                 std::cout << parsed.size() << " row(s) returned" << std::endl;
+
                 return;
             }
         }
 
         if (parsed.is_object()) {
             std::cout << parsed.dump(2) << std::endl;
+
             return;
         }
 
         std::cout << parsed.dump(2) << std::endl;
 
-    } catch (const std::exception& e) {
+    } catch (const std::exception &exception) {
         std::cout << "Data: " << json_data << std::endl;
     }
 }

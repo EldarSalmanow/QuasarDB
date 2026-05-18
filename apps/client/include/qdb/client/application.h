@@ -2,17 +2,31 @@
 #define QUASARDB_APPLICATION_H
 
 #include <qdb/client/config.h>
+#include <qdb/client/renderer.h>
+
+#include <qdb/core/tcp_client.h>
 
 #include <memory>
+
 
 namespace qdb::client {
 
 class Application {
 public:
-    static auto New(const std::unique_ptr<Config>& config) -> std::unique_ptr<Application>;
+    explicit Application(Config config);
 
 public:
-    auto Run() -> int;
+    static auto New(Config config) -> std::unique_ptr<Application>;
+
+public:
+    auto Run() -> std::int32_t;
+
+private:
+    Config config_;
+
+    std::unique_ptr<qdb::core::TcpClient> client_;
+
+    Renderer renderer_;
 };
 
 }  // namespace qdb::client

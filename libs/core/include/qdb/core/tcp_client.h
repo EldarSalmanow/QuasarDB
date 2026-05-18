@@ -3,6 +3,10 @@
 
 #include <nlohmann/json.hpp>
 
+#include <qdb/core/request.h>
+#include <qdb/core/response.h>
+
+#include <optional>
 #include <memory>
 #include <string>
 
@@ -36,7 +40,15 @@ public:
 
     auto Send(const nlohmann::json& request) -> bool;
 
+    auto SendRequest(const Request& request) -> bool;
+
+    auto SendResponse(const Response& response) -> bool;
+
     auto Receive() -> std::optional<nlohmann::json>;
+
+    auto ReceiveRequest() -> std::optional<Request>;
+
+    auto ReceiveResponse() -> std::optional<Response>;
 
     auto IsConnected() const -> bool;
 

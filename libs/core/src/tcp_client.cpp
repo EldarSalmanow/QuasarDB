@@ -117,7 +117,31 @@ auto TcpClient::Disconnect() -> void { impl_->Disconnect(); }
 
 auto TcpClient::Send(const nlohmann::json& request) -> bool { return impl_->Send(request); }
 
+auto TcpClient::SendRequest(const Request& request) -> bool { return impl_->Send(request.ToJsonObject()); }
+
+auto TcpClient::SendResponse(const Response& response) -> bool { return impl_->Send(response.ToJsonObject()); }
+
 auto TcpClient::Receive() -> std::optional<nlohmann::json> { return impl_->Receive(); }
+
+auto TcpClient::ReceiveRequest() -> std::optional<Request> {
+    auto request = impl_->Receive();
+
+    if (!request.has_value()) {
+        return std::nullopt;
+    }
+
+    return Request::FromJsonObject(request.value());
+}
+
+auto TcpClient::ReceiveResponse() -> std::optional<Response> {
+    auto response = impl_->Receive();
+
+    if (!response.has_value()) {
+        return std::nullopt;
+    }
+
+    return Response::FromJsonObject(response.value());
+}
 
 auto TcpClient::IsConnected() const -> bool { return impl_->IsConnected(); }
 
