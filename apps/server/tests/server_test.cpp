@@ -40,6 +40,15 @@ TEST(ServerPipelineTest, QueryReturnsSyntaxErrors) {
     EXPECT_EQ(response.GetMessage(), "Invalid token in SQL query");
 }
 
+TEST(ServerPipelineTest, SemanticAnalyzerRejectsInvalidDefaultType) {
+    Application application(TestConfig("semantic_default"));
+
+    auto response =
+        application.Process(qdb::core::RequestBuilder::Query("CREATE TABLE users (id INT DEFAULT \"abc\");").Build());
+    ASSERT_TRUE(response.IsError());
+    EXPECT_EQ(response.GetMessage(), "SEMANTIC_ERROR: column 'id' expects INT default");
+}
+
 TEST(ServerPipelineTest, UnknownActionsAreRejected) {
     Application application(TestConfig("async"));
 

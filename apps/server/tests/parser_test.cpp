@@ -82,6 +82,17 @@ TEST(ParserTest, CreateTableWithModifiers) {
     EXPECT_FALSE(create_table->Columns[1].Indexed);
 }
 
+TEST(ParserTest, CreateTableWithStringDefault) {
+    auto stmt = parseSQL("CREATE TABLE users (id INT, name STRING DEFAULT \"anon\");");
+    auto* create_table = dynamic_cast<CreateTableStmt*>(stmt.get());
+    ASSERT_NE(create_table, nullptr);
+    ASSERT_EQ(create_table->Columns.size(), 2);
+
+    ASSERT_NE(create_table->Columns[1].DefaultValue, nullptr);
+    EXPECT_EQ(create_table->Columns[1].DefaultValue->LiteralType, Literal::Type::String);
+    EXPECT_EQ(create_table->Columns[1].DefaultValue->Value, "anon");
+}
+
 TEST(ParserTest, CreateTableQualified) {
     auto stmt = parseSQL("CREATE TABLE shop.products (id INT, name STRING);");
     auto* create_table = dynamic_cast<CreateTableStmt*>(stmt.get());

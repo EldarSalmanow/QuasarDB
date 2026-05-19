@@ -84,6 +84,38 @@ TEST_F(TableTest, InsertNullValidation) {
     }
 }
 
+TEST_F(TableTest, InsertUsesDefaultsForOmittedColumns) {
+    std::vector<Column> columns;
+    columns.push_back(Column("id", Column::ColumnType::INT, Column::NOT_NULL_FLAG));
+    columns.push_back(Column("name", Column::ColumnType::STRING, Column::NOT_NULL_FLAG,
+                             Column::DefaultType::STRING, 0, "anon"));
+    columns.push_back(Column("score", Column::ColumnType::INT, 0, Column::DefaultType::INT, 7));
+    columns.push_back(Column("comment", Column::ColumnType::STRING));
+    auto schema = Schema(columns);
+    auto table = Table("defaults", table_root, schema, &interner);
+
+    auto record = table.insert_record({Value(1)}, {"id"});
+
+    EXPECT_EQ(record[0].as_int(), 1);
+    EXPECT_EQ(record[1].to_string(), "anon");
+    EXPECT_EQ(record[2].as_int(), 7);
+    EXPECT_TRUE(record[3].is_null());
+}
+
+TEST_F(TableTest, InsertExplicitValueOverridesDefault) {
+    std::vector<Column> columns;
+    columns.push_back(Column("id", Column::ColumnType::INT, Column::NOT_NULL_FLAG));
+    columns.push_back(Column("name", Column::ColumnType::STRING, Column::NOT_NULL_FLAG,
+                             Column::DefaultType::STRING, 0, "anon"));
+    auto schema = Schema(columns);
+    auto table = Table("explicit_defaults", table_root, schema, &interner);
+
+    auto record = table.insert_record({Value(1), interner.str_to_value("Alice")}, {"id", "name"});
+
+    EXPECT_EQ(record[0].as_int(), 1);
+    EXPECT_EQ(record[1].to_string(), "Alice");
+}
+
 TEST_F(TableTest, InsertNullInIndexedValidation) {
     std::vector<Column> columns;
     columns.push_back(Column("int", Column::ColumnType::INT));
