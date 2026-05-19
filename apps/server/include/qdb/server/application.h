@@ -27,13 +27,9 @@ public:
 public:
     auto Run() -> std::int32_t;
 
-    auto ProcessJson(const nlohmann::json& json) -> qdb::core::Response;
-
     auto Process(const qdb::core::Request& request) -> qdb::core::Response;
 
 private:
-    auto HandleLogin(const nlohmann::json& json) -> qdb::core::Response;
-
     auto HandleLogin(const qdb::core::Request& request) -> qdb::core::Response;
 
     auto HandleExecute(const qdb::core::Request& request) -> qdb::core::Response;

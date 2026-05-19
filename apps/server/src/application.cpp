@@ -54,13 +54,13 @@ auto Application::Run() -> std::int32_t {
 
         std::thread([this, client = std::move(client)]() mutable {
             while (client->IsConnected()) {
-                auto request = client->Receive();
+                auto request = client->ReceiveRequest();
 
                 if (!request.has_value()) {
                     break;
                 }
 
-                client->SendResponse(ProcessJson(request.value()));
+                client->SendResponse(Process(request.value()));
             }
         }).detach();
     }
@@ -68,21 +68,11 @@ auto Application::Run() -> std::int32_t {
     return 0;
 }
 
-auto Application::ProcessJson(const nlohmann::json& json) -> qdb::core::Response {
-    if (!json.contains("action") || !json["action"].is_string()) {
+auto Application::Process(const qdb::core::Request& request) -> qdb::core::Response {
+    if (request.Action().empty()) {
         return Error("Request must contain string field 'action'");
     }
 
-    const auto action = json["action"].get<std::string>();
-
-    if (action == "login") {
-        return HandleLogin(json);
-    }
-
-    return Process(qdb::core::Request::FromJsonObject(json));
-}
-
-auto Application::Process(const qdb::core::Request& request) -> qdb::core::Response {
     try {
         if (request.Action() == "login") {
             return HandleLogin(request);
@@ -102,8 +92,8 @@ auto Application::Process(const qdb::core::Request& request) -> qdb::core::Respo
     }
 }
 
-auto Application::HandleLogin(const nlohmann::json& json) -> qdb::core::Response {
-    const auto data = json.value("data", nlohmann::json::object());
+auto Application::HandleLogin(const qdb::core::Request& request) -> qdb::core::Response {
+    const auto data = request.Data();
     const auto username = data.value("username", "");
     const auto password = data.value("password", "");
 
@@ -116,10 +106,6 @@ auto Application::HandleLogin(const nlohmann::json& json) -> qdb::core::Response
     }
 
     return Ok("Login successful", {{"token", jwt_.GenerateToken(username)}});
-}
-
-auto Application::HandleLogin(const qdb::core::Request& request) -> qdb::core::Response {
-    return HandleLogin(request.ToJsonObject());
 }
 
 auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core::Response {
