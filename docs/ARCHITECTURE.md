@@ -152,7 +152,6 @@ graph TD
 ## Контракты запросов (план)
 - query: `{ "action": "query", "token": "...", "data": { "query": "..." } }`.
 - check_task: `{ "action": "check_task", "token": "...", "data": { "task_id": "..." } }`.
-- telemetry: `{ "action": "telemetry", "token": "...", "data": {} }`.
 - Ответ: `{ "status": "success|error|pending", "message": "...", "data": { ... } }`.
 
 ## Формат результата SELECT

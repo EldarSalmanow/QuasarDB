@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "qdb/server/ast.h"
+#include "../include/qdb/server/ast.h"
 #include "qdb/server/lexer.h"
 #include "qdb/server/parser.h"
 

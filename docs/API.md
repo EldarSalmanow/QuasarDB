@@ -132,32 +132,6 @@ Pending:
 
 Completed tasks return the same shape as a synchronous `query` response.
 
-### telemetry
-
-Requires an admin token.
-
-```json
-{
-  "action": "telemetry",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5c...",
-  "data": {}
-}
-```
-
-```json
-{
-  "status": "success",
-  "message": "Telemetry snapshot",
-  "data": {
-    "current_rps": 154,
-    "avg_rps_10m": 120,
-    "max_rps_10m": 300,
-    "avg_response_time_10s_ms": 45.2,
-    "error_rate_1m": 0.02
-  }
-}
-```
-
 ## Internal API
 
 Internal requests are sent between Entrypoint and Storage nodes. Storage does not parse SQL strings.

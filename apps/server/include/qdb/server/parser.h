@@ -1,13 +1,14 @@
 #ifndef QUASARDB_PARSER_H
 #define QUASARDB_PARSER_H
 
+#include <qdb/server/ast.h>
+#include <qdb/server/lexer.h>
+
 #include <stdexcept>
 #include <string>
 #include <vector>
 #include <memory>
 
-#include "qdb/server/ast.h"
-#include "qdb/server/lexer.h"
 
 namespace qdb::server {
 
