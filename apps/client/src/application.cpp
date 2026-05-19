@@ -46,7 +46,7 @@ auto Application::Run() -> std::int32_t {
             continue;
         }
 
-        auto request = qdb::core::RequestBuilder::ExecuteQuery(command.value()).Build();
+        auto request = qdb::core::RequestBuilder::Query(command.value()).Build();
 
         if (!client_->SendRequest(request)) {
             renderer_.RenderError("Failed to send request");
@@ -71,5 +71,4 @@ auto Application::Run() -> std::int32_t {
 }
 
 }  // namespace qdb::client
-
 

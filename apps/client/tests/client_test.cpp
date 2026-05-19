@@ -33,14 +33,13 @@ TEST(ClientTransportTest, TcpClientSendsRequestAndReceivesResponse) {
 			return;
 		}
 
-		server_ok.store(server_ok.load() && request->Method() == "ExecuteQuery");
-		server_ok.store(server_ok.load() && request->Sql() == "SELECT * FROM users");
+		server_ok.store(server_ok.load() && request->Action() == "query");
+		server_ok.store(server_ok.load() && request->Query() == "SELECT * FROM users");
 		server_ok.store(server_ok.load() && request->Token() == "token-123");
 
-		auto response = qdb::core::ResponseBuilder::Ok()
-							.Code("SUCCESS")
+		auto response = qdb::core::ResponseBuilder::Success()
 							.Message("Query executed")
-							.Data(R"([{"id":1,"name":"Alice"}])")
+							.Data(nlohmann::json::parse(R"([{"id":1,"name":"Alice"}])"))
 							.Build();
 
 		server_ok.store(server_ok.load() && client->SendResponse(response));
@@ -51,13 +50,12 @@ TEST(ClientTransportTest, TcpClientSendsRequestAndReceivesResponse) {
 	qdb::core::TcpClient client("127.0.0.1", port);
 	ASSERT_TRUE(client.Connect());
 
-	auto request = qdb::core::RequestBuilder::ExecuteQuery("SELECT * FROM users").Token("token-123").Build();
+	auto request = qdb::core::RequestBuilder::Query("SELECT * FROM users").Token("token-123").Build();
 	ASSERT_TRUE(client.SendRequest(request));
 
 	auto response = client.ReceiveResponse();
 	ASSERT_TRUE(response.has_value());
 	EXPECT_TRUE(response->IsSuccess());
-	EXPECT_EQ(response->GetCode(), "SUCCESS");
 	EXPECT_EQ(response->GetMessage(), "Query executed");
 	EXPECT_EQ(response->GetData(), R"([{"id":1,"name":"Alice"}])");
 

@@ -13,7 +13,6 @@ namespace qdb::client {
 const std::string RESET = "\033[0m";
 const std::string RED = "\033[31m";
 const std::string GREEN = "\033[32m";
-const std::string BLUE = "\033[34m";
 const std::string CYAN = "\033[36m";
 
 void Renderer::RenderWelcome() const {
@@ -24,8 +23,7 @@ void Renderer::RenderWelcome() const {
 
 void Renderer::RenderResponse(const qdb::core::Response& response) const {
     if (response.IsError()) {
-        std::cout << RED << "Error [" << response.GetCode() << "]: " 
-                  << response.GetMessage() << RESET << std::endl;
+        std::cout << RED << "Error: " << response.GetMessage() << RESET << std::endl;
         return;
     }
 

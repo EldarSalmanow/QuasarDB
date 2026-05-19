@@ -45,8 +45,8 @@ TEST(TcpClient, HasCorrectHostAndPort) {
 TEST(TcpClient, SendFailsWhenDisconnected) {
     qdb::core::TcpClient client("127.0.0.1", 8080);
     nlohmann::json request = {
-        {"method", "Echo"},
-        {"message", "ping"},
+        {"action", "echo"},
+        {"data", {{"message", "ping"}}},
     };
 
     EXPECT_FALSE(client.Send(request));

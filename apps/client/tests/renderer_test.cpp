@@ -31,22 +31,20 @@ TEST(RendererTest, ErrorResponseIsPrintedInRed) {
 TEST(RendererTest, ErrorResponseRenderedViaResponseObject) {
     Renderer renderer;
     const auto response = qdb::core::ResponseBuilder::Error()
-                              .Code("SYNTAX_ERROR")
                               .Message("Bad query")
                               .Build();
     OutputCapture capture(std::cout);
 
     renderer.RenderResponse(response);
 
-    EXPECT_EQ(capture.Str(), "\033[31mError [SYNTAX_ERROR]: Bad query\033[0m\n");
+    EXPECT_EQ(capture.Str(), "\033[31mError: Bad query\033[0m\n");
 }
 
 TEST(RendererTest, SuccessfulSelectResponseRendersTable) {
     Renderer renderer;
-    const auto response = qdb::core::ResponseBuilder::Ok()
-                             .Code("SUCCESS")
+    const auto response = qdb::core::ResponseBuilder::Success()
                              .Message("Query executed")
-                             .Data(R"([{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}])")
+                             .Data(nlohmann::json::parse(R"([{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}])"))
                              .Build();
     OutputCapture capture(std::cout);
 
@@ -63,10 +61,9 @@ TEST(RendererTest, SuccessfulSelectResponseRendersTable) {
 
 TEST(RendererTest, JsonObjectIsPrintedPretty) {
     Renderer renderer;
-    const auto response = qdb::core::ResponseBuilder::Ok()
-                             .Code("SUCCESS")
+    const auto response = qdb::core::ResponseBuilder::Success()
                              .Message("Insert successful")
-                             .Data(R"({"affected_rows":1})")
+                             .Data(nlohmann::json::parse(R"({"affected_rows":1})"))
                              .Build();
     OutputCapture capture(std::cout);
 
@@ -79,5 +76,3 @@ TEST(RendererTest, JsonObjectIsPrintedPretty) {
 }
 
 }  // namespace qdb::client::test
-
-

@@ -16,7 +16,7 @@ private:
 public:
     Request();
 
-    Request(std::string method, std::string sql, std::string token);
+    Request(std::string action, nlohmann::json data = nlohmann::json::object(), std::string token = {});
 
 public:
     static auto FromJson(std::string string) -> Request;
@@ -28,22 +28,22 @@ public:
 
     auto ToJsonObject() const -> nlohmann::json;
 
-    auto Method() const -> const std::string &;
+    auto Action() const -> const std::string &;
 
-    auto Sql() const -> const std::string &;
+    auto Data() const -> const nlohmann::json &;
+
+    auto Query() const -> std::string;
+
+    auto TaskId() const -> std::optional<std::string>;
 
     auto Token() const -> const std::string &;
 
-    auto RequestId() const -> const std::optional<std::string> &;
-
 private:
-    std::string method_;
-
-    std::string sql_;
+    std::string action_;
 
     std::string token_;
 
-    std::optional<std::string> request_id_;
+    nlohmann::json data_ = nlohmann::json::object();
 };
 
 class RequestBuilder {
@@ -51,20 +51,22 @@ public:
     RequestBuilder();
 
 public:
-    static auto ExecuteQuery(std::string sql) -> RequestBuilder;
+    static auto Login(std::string username, std::string password) -> RequestBuilder;
 
-    static auto SubmitQuery(std::string sql) -> RequestBuilder;
+    static auto Query(std::string sql) -> RequestBuilder;
 
-    static auto GetStatus(std::string request_id) -> RequestBuilder;
+    static auto CheckTask(std::string task_id) -> RequestBuilder;
+
+    static auto Telemetry() -> RequestBuilder;
 
 public:
-    auto Method(std::string method) -> RequestBuilder &;
+    auto Action(std::string action) -> RequestBuilder &;
 
-    auto Sql(std::string sql) -> RequestBuilder &;
+    auto Data(nlohmann::json data) -> RequestBuilder &;
 
     auto Token(std::string token) -> RequestBuilder &;
 
-    auto RequestId(std::string request_id) -> RequestBuilder &;
+    auto TaskId(std::string task_id) -> RequestBuilder &;
 
     auto Build() const -> Request;
 
@@ -75,5 +77,3 @@ private:
 }  // namespace qdb::core
 
 #endif  // QUASARDB_REQUEST_H
-
-

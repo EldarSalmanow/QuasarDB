@@ -17,6 +17,10 @@ add_executable(${EXECUTABLE_NAME} main.cpp ${SERVER_SOURCES})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${SERVER_INCLUDE_DIR})
 
 find_package(OpenSSL REQUIRED)
+if(NOT TARGET openssl::openssl)
+	add_library(openssl::openssl INTERFACE IMPORTED)
+	target_link_libraries(openssl::openssl INTERFACE OpenSSL::SSL OpenSSL::Crypto)
+endif()
 find_package(jwt-cpp REQUIRED)
 
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE qdb::core OpenSSL::SSL OpenSSL::Crypto jwt-cpp::jwt-cpp)

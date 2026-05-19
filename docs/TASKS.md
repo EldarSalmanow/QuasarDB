@@ -40,9 +40,9 @@
 ### INFRA-2 (Контракт API) - Статус: Не начато
 Ветка: docs/INFRA-2-api-contract
 План:
-1) Создать API.md со схемой запросов/ответов ExecuteQuery.
-2) Определить формат ошибок, коды и JSON формат данных.
-3) Описать async API: SubmitQuery + GetStatus.
+1) Создать API.md со схемой запросов/ответов `query`.
+2) Определить формат ошибок и JSON формат данных.
+3) Описать async API: `query` со статусом `pending` + `check_task`.
 4) Добавить примеры SELECT/INSERT/UPDATE/DELETE.
 Результат: API.md, примеры JSON.
 
@@ -168,7 +168,7 @@
 Ветка: feature/CLIENT-2-network
 План:
 1) Реализация Connection через core TcpClient.
-2) Отправка ExecuteQuery на сервер.
+2) Отправка `query` на сервер.
 3) Парсинг JSON ответа и вывод.
 4) Подсветка ошибок цветом.
 Результат: клиентская сеть + renderer, тесты.

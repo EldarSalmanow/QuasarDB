@@ -7,8 +7,8 @@ namespace qdb::core {
 
 Request::Request() = default;
 
-Request::Request(std::string method, std::string sql, std::string token)
-        : method_(std::move(method)), sql_(std::move(sql)), token_(std::move(token)) {}
+Request::Request(std::string action, nlohmann::json data, std::string token)
+        : action_(std::move(action)), token_(std::move(token)), data_(std::move(data)) {}
 
 auto Request::FromJson(std::string string) -> Request {
     try {
@@ -21,20 +21,16 @@ auto Request::FromJson(std::string string) -> Request {
 auto Request::FromJsonObject(const nlohmann::json &json) -> Request {
     Request request;
 
-    if (json.contains("method")) {
-        request.method_ = json["method"].get<std::string>();
+    if (json.contains("action")) {
+        request.action_ = json["action"].get<std::string>();
     }
 
-    if (json.contains("sql")) {
-        request.sql_ = json["sql"].get<std::string>();
+    if (json.contains("data") && json["data"].is_object()) {
+        request.data_ = json["data"];
     }
 
     if (json.contains("token")) {
         request.token_ = json["token"].get<std::string>();
-    }
-
-    if (json.contains("request_id")) {
-        request.request_id_ = json["request_id"].get<std::string>();
     }
 
     return request;
@@ -43,57 +39,64 @@ auto Request::FromJsonObject(const nlohmann::json &json) -> Request {
 auto Request::ToJsonObject() const -> nlohmann::json {
     nlohmann::json json;
 
-    json["method"] = method_;
-
-    if (!sql_.empty()) {
-        json["sql"] = sql_;
-    }
+    json["action"] = action_;
 
     if (!token_.empty()) {
         json["token"] = token_;
     }
 
-    if (request_id_.has_value()) {
-        json["request_id"] = request_id_.value();
-    }
+    json["data"] = data_;
 
     return json;
 }
 
 auto Request::ToJson() const -> std::string {
-    return ToJsonObject().dump() + "\n";
+    return ToJsonObject().dump();
 }
 
-auto Request::Method() const -> const std::string & { return method_; }
+auto Request::Action() const -> const std::string & { return action_; }
 
-auto Request::Sql() const -> const std::string & { return sql_; }
+auto Request::Data() const -> const nlohmann::json & { return data_; }
+
+auto Request::Query() const -> std::string { return data_.value("query", ""); }
 
 auto Request::Token() const -> const std::string & { return token_; }
 
-auto Request::RequestId() const -> const std::optional<std::string> & { return request_id_; }
+auto Request::TaskId() const -> std::optional<std::string> {
+    if (!data_.contains("task_id") || !data_["task_id"].is_string()) {
+        return std::nullopt;
+    }
+    return data_["task_id"].get<std::string>();
+}
 
 RequestBuilder::RequestBuilder() = default;
 
-auto RequestBuilder::ExecuteQuery(std::string sql) -> RequestBuilder {
-    return RequestBuilder{}.Method("ExecuteQuery").Sql(std::move(sql));
+auto RequestBuilder::Login(std::string username, std::string password) -> RequestBuilder {
+    return RequestBuilder{}
+        .Action("login")
+        .Data({{"username", std::move(username)}, {"password", std::move(password)}});
 }
 
-auto RequestBuilder::SubmitQuery(std::string sql) -> RequestBuilder {
-    return RequestBuilder{}.Method("SubmitQuery").Sql(std::move(sql));
+auto RequestBuilder::Query(std::string sql) -> RequestBuilder {
+    return RequestBuilder{}.Action("query").Data({{"query", std::move(sql)}});
 }
 
-auto RequestBuilder::GetStatus(std::string request_id) -> RequestBuilder {
-    return RequestBuilder{}.Method("GetStatus").RequestId(std::move(request_id));
+auto RequestBuilder::CheckTask(std::string task_id) -> RequestBuilder {
+    return RequestBuilder{}.Action("check_task").TaskId(std::move(task_id));
 }
 
-auto RequestBuilder::Method(std::string method) -> RequestBuilder & {
-    request_.method_ = std::move(method);
+auto RequestBuilder::Telemetry() -> RequestBuilder {
+    return RequestBuilder{}.Action("telemetry");
+}
+
+auto RequestBuilder::Action(std::string action) -> RequestBuilder & {
+    request_.action_ = std::move(action);
 
     return *this;
 }
 
-auto RequestBuilder::Sql(std::string sql) -> RequestBuilder & {
-    request_.sql_ = std::move(sql);
+auto RequestBuilder::Data(nlohmann::json data) -> RequestBuilder & {
+    request_.data_ = std::move(data);
 
     return *this;
 }
@@ -104,8 +107,8 @@ auto RequestBuilder::Token(std::string token) -> RequestBuilder & {
     return *this;
 }
 
-auto RequestBuilder::RequestId(std::string request_id) -> RequestBuilder & {
-    request_.request_id_ = std::move(request_id);
+auto RequestBuilder::TaskId(std::string task_id) -> RequestBuilder & {
+    request_.data_["task_id"] = std::move(task_id);
 
     return *this;
 }

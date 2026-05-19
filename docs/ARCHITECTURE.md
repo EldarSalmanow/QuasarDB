@@ -50,9 +50,9 @@ sequenceDiagram
     participant E as Entrypoint
     participant S as Storage
 
-    C->>E: ExecuteQuery(SQL)
+    C->>E: query { data.query = SQL }
     E->>E: Parse + Analyze + Plan
-    E->>S: Execute(Plan)
+    E->>S: execute_ast(AST)
     S->>S: Read/Write + Index
     S-->>E: Result JSON / Error
     E-->>C: Result JSON / Error
@@ -66,10 +66,10 @@ sequenceDiagram
     participant W as Worker Pool
     participant S as Storage
 
-    C->>E: ExecuteQuery(SQL long)
+    C->>E: query { data.query = SQL long }
     E->>E: Enqueue + GUID v4
-    E-->>C: GUID
-    C->>E: GetStatus(GUID)
+    E-->>C: pending { task_id }
+    C->>E: check_task { task_id }
     E->>W: Dequeue job
     W->>S: Execute(Plan)
     S-->>W: Result JSON / Error
@@ -144,16 +144,16 @@ graph TD
 ```
 
 ## Формат API и сообщения
-- Вход: JSON запрос с полями `method`, `sql`, `token`, `request_id`.
+- Вход: JSON запрос с полями `action`, `token`, `data`.
 - Выход: JSON ответ со статусом, сообщением об ошибке и данными.
-- Для асинхронного режима: `request_id` (GUID v4) и метод проверки статуса.
-- Ошибки: структурированное сообщение + код (например, `SYNTAX_ERROR`, `NOT_FOUND`).
+- Для асинхронного режима: `task_id` (GUID v4) и действие проверки статуса.
+- Ошибки: `status: "error"`, человекочитаемое `message` и JSON `data`.
 
 ## Контракты запросов (план)
-- ExecuteQuery: `{ "method": "ExecuteQuery", "sql": "...", "token": "..." }`.
-- SubmitQuery: `{ "method": "SubmitQuery", "sql": "...", "token": "..." }`.
-- GetStatus: `{ "method": "GetStatus", "request_id": "...", "token": "..." }`.
-- Ответ: `{ "status": "ok|error", "code": "...", "message": "...", "data": "{...}" }`.
+- query: `{ "action": "query", "token": "...", "data": { "query": "..." } }`.
+- check_task: `{ "action": "check_task", "token": "...", "data": { "task_id": "..." } }`.
+- telemetry: `{ "action": "telemetry", "token": "...", "data": {} }`.
+- Ответ: `{ "status": "success|error|pending", "message": "...", "data": { ... } }`.
 
 ## Формат результата SELECT
 - Возвращается JSON-массив объектов.

@@ -15,7 +15,7 @@ private:
 public:
     Response();
 
-    Response(std::string status, std::string code, std::string message, std::string data);
+    Response(std::string status, std::string message, nlohmann::json data = nlohmann::json::object());
 
 public:
     static auto FromJson(std::string string) -> Response;
@@ -31,22 +31,20 @@ public:
 
     auto IsSuccess() const -> bool;
 
-    auto GetStatus() const -> std::string;
-
-    auto GetCode() const -> std::string;
+    auto IsPending() const -> bool;
 
     auto GetMessage() const -> std::string;
 
     auto GetData() const -> std::string;
 
+    auto GetDataObject() const -> const nlohmann::json&;
+
 private:
     std::string status_;
 
-    std::string code_;
-
     std::string message_;
 
-    std::string data_;
+    nlohmann::json data_ = nlohmann::json::object();
 };
 
 class ResponseBuilder {
@@ -54,18 +52,18 @@ public:
     ResponseBuilder();
 
 public:
-    static auto Ok() -> ResponseBuilder;
+    static auto Success() -> ResponseBuilder;
+
+    static auto Pending() -> ResponseBuilder;
 
     static auto Error() -> ResponseBuilder;
 
 public:
     auto Status(std::string status) -> ResponseBuilder &;
 
-    auto Code(std::string code) -> ResponseBuilder &;
-
     auto Message(std::string message) -> ResponseBuilder &;
 
-    auto Data(std::string data) -> ResponseBuilder &;
+    auto Data(nlohmann::json data) -> ResponseBuilder &;
 
     auto Build() const -> Response;
 
@@ -76,6 +74,3 @@ private:
 }  // namespace qdb::core
 
 #endif  // QUASARDB_RESPONSE_H
-
-
-

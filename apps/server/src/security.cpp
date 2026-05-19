@@ -208,11 +208,10 @@ auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t> {
 
     if (actual < 0) return {};
 
-    int result_len = (static_cast<int>(normalized.size()) / 4) * 3;
-    if (padding >= 1) result_len -= 1;
-    if (padding >= 2) result_len -= 2;
-
-    buf.resize(std::max(0, result_len));
+    buf.resize(static_cast<std::size_t>(actual));
+    while (!buf.empty() && buf.back() == '\0') {
+        buf.pop_back();
+    }
     return std::vector<std::uint8_t>(buf.begin(), buf.end());
 }
 
@@ -223,6 +222,7 @@ JwtHandler::JwtHandler(std::string secret_key) : secret_key_(std::move(secret_ke
 auto JwtHandler::GenerateToken(const std::string& username, std::chrono::seconds ttl) const -> std::string {
     if (secret_key_.empty()) return {};
     auto now = std::chrono::system_clock::now();
+
     return jwt::create()
         .set_type("JWT")
         .set_subject(username)
@@ -236,9 +236,10 @@ auto JwtHandler::ValidateToken(const std::string& token) const -> std::optional<
     try {
         auto decoded = jwt::decode(token);
         if (!decoded.has_expires_at()) return std::nullopt;
-        auto verifier = jwt::verify()
-            .allow_algorithm(jwt::algorithm::hs256{secret_key_});
+
+        auto verifier = jwt::verify().allow_algorithm(jwt::algorithm::hs256{secret_key_});
         verifier.verify(decoded);
+
         return decoded.get_subject();
     } catch (const std::exception&) {
         return std::nullopt;

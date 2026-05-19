@@ -47,7 +47,7 @@ TEST(TcpIntegration, EchoResponse) {
             auto request = client->Receive();
             if (request) {
                 nlohmann::json response = {
-                    {"status", "ok"},
+                    {"status", "success"},
                     {"echo", *request},
                 };
                 client->Send(response);
@@ -62,8 +62,8 @@ TEST(TcpIntegration, EchoResponse) {
     ASSERT_TRUE(client.Connect());
 
     nlohmann::json request = {
-        {"method", "Echo"},
-        {"message", "ping"},
+        {"action", "echo"},
+        {"data", {{"message", "ping"}}},
     };
 
     ASSERT_TRUE(client.Send(request));
@@ -71,9 +71,9 @@ TEST(TcpIntegration, EchoResponse) {
     auto response = client.Receive();
     ASSERT_TRUE(response.has_value());
 
-    EXPECT_EQ((*response)["status"], "ok");
-    EXPECT_EQ((*response)["echo"]["method"], "Echo");
-    EXPECT_EQ((*response)["echo"]["message"], "ping");
+    EXPECT_EQ((*response)["status"], "success");
+    EXPECT_EQ((*response)["echo"]["action"], "echo");
+    EXPECT_EQ((*response)["echo"]["data"]["message"], "ping");
 
     done_future.wait();
     server_thread.join();

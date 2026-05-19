@@ -56,18 +56,17 @@ TEST(ApplicationTest, ExecutesFileAndReceivesResponse) {
 
         auto request = client->ReceiveRequest();
         if (request) {
-            server_ok.store(server_ok.load() && request->Method() == "ExecuteQuery");
-            server_ok.store(server_ok.load() && request->Sql() == "SELECT * FROM users;");
+            server_ok.store(server_ok.load() && request->Action() == "query");
+            server_ok.store(server_ok.load() && request->Query() == "SELECT * FROM users;");
         } else {
             server_ok.store(false);
             server.Stop();
             return;
         }
 
-        auto response = qdb::core::ResponseBuilder::Ok()
-                            .Code("SUCCESS")
+        auto response = qdb::core::ResponseBuilder::Success()
                             .Message("Query executed")
-                            .Data(R"([{"id":1,"name":"Alice"}])")
+                            .Data(nlohmann::json::parse(R"([{"id":1,"name":"Alice"}])"))
                             .Build();
 
         server_ok.store(server_ok.load() && client->SendResponse(response));
@@ -106,8 +105,6 @@ TEST(ApplicationTest, ReportsConnectionFailureWhenServerIsUnavailable) {
 }
 
 }  // namespace qdb::client::test
-
-
 
 
 

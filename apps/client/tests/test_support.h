@@ -29,8 +29,8 @@ public:
 
 private:
     std::ostream& stream_;
-    std::streambuf* old_;
     std::ostringstream buffer_;
+    std::streambuf* old_;
 };
 
 class InputRedirect {
@@ -109,5 +109,4 @@ inline auto Contains(const std::string& haystack, const std::string& needle) -> 
 }
 
 }  // namespace qdb::client::test
-
 
