@@ -344,8 +344,20 @@ private:
             );
         }
         Record record(record_id, _schema.size());
+        apply_defaults(record);
         update_some_columns(record, values, column_names);
         return record;
+    }
+
+    void apply_defaults(Record& record) {
+        if (DEBUG) {
+            std::cout << "Table::apply_defaults" << std::endl;
+        }
+        for (size_t i = 0; i < _schema.size(); ++i) {
+            if (_schema[i].has_default()) {
+                record[i] = _schema[i].default_value(*_interner);
+            }
+        }
     }
 
     void update_some_columns(Record& record, std::vector<Value> values, const std::vector<std::string>& column_names)

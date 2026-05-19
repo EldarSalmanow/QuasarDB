@@ -36,6 +36,29 @@ TEST(ColumnTest, BinarySerialization) {
     EXPECT_TRUE(restored->indexed());
 }
 
+TEST(ColumnTest, DefaultBinarySerialization) {
+    Column original("name", Column::ColumnType::STRING, Column::NOT_NULL_FLAG,
+                    Column::DefaultType::STRING, 0, "anon");
+
+    std::stringstream ss;
+    ASSERT_TRUE(original.to_binary(ss));
+
+    ss.seekg(0);
+    auto restored = Column::from_binary(ss);
+
+    ASSERT_TRUE(restored.has_value());
+    EXPECT_EQ(original, *restored);
+    EXPECT_TRUE(restored->has_default());
+    EXPECT_EQ(restored->default_type(), Column::DefaultType::STRING);
+}
+
+TEST(ColumnTest, RejectsInvalidDefault) {
+    EXPECT_THROW(Column("id", Column::ColumnType::INT, 0, Column::DefaultType::STRING, 0, "oops"),
+                 std::invalid_argument);
+    EXPECT_THROW(Column("id", Column::ColumnType::INT, Column::NOT_NULL_FLAG, Column::DefaultType::NULL_VALUE),
+                 std::invalid_argument);
+}
+
 TEST(ColumnTest, FromBinaryCorruptedData) {
     std::stringstream ss;
     uint32_t fake_large_size = 2 * 1024 * 1024;

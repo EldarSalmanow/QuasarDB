@@ -164,6 +164,7 @@ auto Application::RouteSql(const std::string& sql) -> qdb::core::Response {
 
     Parser parser(std::move(tokens));
     auto statement = parser.ParseStatement();
+    Analyzer::ValidateStatement(*statement);
 
     if (const auto* create = dynamic_cast<const CreateTableStmt*>(statement.get())) {
         auto node = router_.CreateNode(create->Table);
