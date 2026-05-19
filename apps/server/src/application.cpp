@@ -1,7 +1,5 @@
 #include <qdb/server/application.h>
 
-#include <qdb/server/ast.h>
-#include <qdb/server/analyzer.h>
 #include <qdb/server/lexer.h>
 #include <qdb/server/parser.h>
 
@@ -54,13 +52,13 @@ auto Application::Run() -> std::int32_t {
 
         std::thread([this, client = std::move(client)]() mutable {
             while (client->IsConnected()) {
-                auto request = client->Receive();
+                auto request = client->ReceiveRequest();
 
                 if (!request.has_value()) {
                     break;
                 }
 
-                client->SendResponse(ProcessJson(request.value()));
+                client->SendResponse(Process(request.value()));
             }
         }).detach();
     }
@@ -68,21 +66,11 @@ auto Application::Run() -> std::int32_t {
     return 0;
 }
 
-auto Application::ProcessJson(const nlohmann::json& json) -> qdb::core::Response {
-    if (!json.contains("action") || !json["action"].is_string()) {
+auto Application::Process(const qdb::core::Request& request) -> qdb::core::Response {
+    if (request.Action().empty()) {
         return Error("Request must contain string field 'action'");
     }
 
-    const auto action = json["action"].get<std::string>();
-
-    if (action == "login") {
-        return HandleLogin(json);
-    }
-
-    return Process(qdb::core::Request::FromJsonObject(json));
-}
-
-auto Application::Process(const qdb::core::Request& request) -> qdb::core::Response {
     try {
         if (request.Action() == "login") {
             return HandleLogin(request);
@@ -102,8 +90,8 @@ auto Application::Process(const qdb::core::Request& request) -> qdb::core::Respo
     }
 }
 
-auto Application::HandleLogin(const nlohmann::json& json) -> qdb::core::Response {
-    const auto data = json.value("data", nlohmann::json::object());
+auto Application::HandleLogin(const qdb::core::Request& request) -> qdb::core::Response {
+    const auto data = request.Data();
     const auto username = data.value("username", "");
     const auto password = data.value("password", "");
 
@@ -118,10 +106,6 @@ auto Application::HandleLogin(const nlohmann::json& json) -> qdb::core::Response
     return Ok("Login successful", {{"token", jwt_.GenerateToken(username)}});
 }
 
-auto Application::HandleLogin(const qdb::core::Request& request) -> qdb::core::Response {
-    return HandleLogin(request.ToJsonObject());
-}
-
 auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core::Response {
     if (request.Query().empty()) {
         return Error("query requires data.query");
@@ -131,7 +115,19 @@ auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core:
         return Error("Valid token is required");
     }
 
-    return RouteSql(request.Query());
+    Lexer lexer(request.Query());
+
+    auto tokens = lexer.Tokenize();
+
+    if (std::any_of(tokens.begin(), tokens.end(), [](const Token& token) { return token.type == TokenType::Invalid; })) {
+        return Error("Invalid token in SQL query");
+    }
+
+    Parser parser(std::move(tokens));
+
+    auto statement = parser.ParseStatement();
+
+    return router_.Route(*statement);
 }
 
 auto Application::HandleCheckTask(const qdb::core::Request& request) -> qdb::core::Response {
@@ -152,72 +148,6 @@ auto Application::Authenticate(const qdb::core::Request& request) const -> std::
     }
 
     return jwt_.ValidateToken(request.Token());
-}
-
-auto Application::RouteSql(const std::string& sql) -> qdb::core::Response {
-    Lexer lexer(sql);
-    auto tokens = lexer.Tokenize();
-
-    if (std::any_of(tokens.begin(), tokens.end(), [](const Token& token) { return token.type == TokenType::Invalid; })) {
-        return Error("Invalid token in SQL query");
-    }
-
-    Parser parser(std::move(tokens));
-    auto statement = parser.ParseStatement();
-    Analyzer::ValidateStatement(*statement);
-
-    if (const auto* create = dynamic_cast<const CreateTableStmt*>(statement.get())) {
-        auto node = router_.CreateNode(create->Table);
-        return Ok("Storage node created", {
-            {"storage_node", node.address},
-            {"table", node.table},
-            {"internal_request", {
-                {"action", "execute_ast"},
-                {"data", {
-                    {"database", create->Table.Database},
-                    {"ast_root", SerializeAst(*statement)}
-                }}
-            }},
-            {"rows", nlohmann::json::array()},
-            {"rows_affected", 0}
-        });
-    }
-
-    if (const auto* drop = dynamic_cast<const DropTableStmt*>(statement.get())) {
-        const auto removed = router_.DropNode(drop->Table);
-        return Ok(removed ? "Storage node removed" : "Table had no storage node",
-                 {{"removed", removed}, {"internal_request", {
-                      {"action", "execute_ast"},
-                      {"data", {
-                          {"database", drop->Table.Database},
-                          {"ast_root", SerializeAst(*statement)}
-                      }}
-                  }}});
-    }
-
-    auto table = Analyzer::TableFromStatement(*statement);
-    if (!table.has_value()) {
-        return Ok("Query parsed", {{"executed", false}});
-    }
-
-    auto node = router_.Resolve(table.value());
-    if (!node.has_value()) {
-        return Error("No storage node for table");
-    }
-
-    return Ok("Query routed", {
-        {"storage_node", node->address},
-        {"table", node->table},
-        {"internal_request", {
-            {"action", "execute_ast"},
-            {"data", {
-                {"database", table->Database},
-                {"ast_root", SerializeAst(*statement)}
-            }}
-        }},
-        {"rows", nlohmann::json::array()},
-        {"rows_affected", 0}
-    });
 }
 
 }  // namespace qdb::server

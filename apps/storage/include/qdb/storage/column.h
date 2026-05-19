@@ -14,7 +14,7 @@ namespace qdb::storage {
 
 class Column final {
 public:
-    enum class ColumnType : uint8_t {
+    enum ColumnType : uint8_t {
         INT,
         STRING,
     };

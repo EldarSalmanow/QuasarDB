@@ -8,8 +8,6 @@
 #include <qdb/server/router.h>
 #include <qdb/server/security.h>
 
-#include <nlohmann/json.hpp>
-
 #include <memory>
 #include <optional>
 #include <string>
@@ -27,13 +25,9 @@ public:
 public:
     auto Run() -> std::int32_t;
 
-    auto ProcessJson(const nlohmann::json& json) -> qdb::core::Response;
-
     auto Process(const qdb::core::Request& request) -> qdb::core::Response;
 
 private:
-    auto HandleLogin(const nlohmann::json& json) -> qdb::core::Response;
-
     auto HandleLogin(const qdb::core::Request& request) -> qdb::core::Response;
 
     auto HandleExecute(const qdb::core::Request& request) -> qdb::core::Response;
@@ -41,8 +35,6 @@ private:
     auto HandleCheckTask(const qdb::core::Request& request) -> qdb::core::Response;
 
     auto Authenticate(const qdb::core::Request& request) const -> std::optional<std::string>;
-
-    auto RouteSql(const std::string& sql) -> qdb::core::Response;
 
 private:
     Config config_;
