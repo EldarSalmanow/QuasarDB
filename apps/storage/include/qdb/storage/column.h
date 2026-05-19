@@ -2,6 +2,7 @@
 #define QUASARDB_COLUMN_H
 
 #include <cassert>
+#include <cstdint>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -10,7 +11,7 @@ namespace qdb::storage {
 
 class Column final {
 public:
-    enum class ColumnType : uint8_t {
+    enum ColumnType : uint8_t {
         INT,
         STRING,
     };
