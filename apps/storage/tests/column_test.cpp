@@ -59,6 +59,14 @@ TEST(ColumnTest, RejectsInvalidDefault) {
                  std::invalid_argument);
 }
 
+TEST(ColumnTest, RejectsOversizedDefaultStringOnSerialization) {
+    std::string large_default(1024 * 1024 + 1, 'x');
+    Column original("name", Column::ColumnType::STRING, 0, Column::DefaultType::STRING, 0, large_default);
+
+    std::stringstream ss;
+    EXPECT_FALSE(original.to_binary(ss));
+}
+
 TEST(ColumnTest, FromBinaryCorruptedData) {
     std::stringstream ss;
     uint32_t fake_large_size = 2 * 1024 * 1024;

@@ -51,9 +51,24 @@ public:
             return std::nullopt;
         }
 
-        uint32_t record_id_count;
-        if (!stream.read(reinterpret_cast<char*>(&record_id_count), sizeof(record_id_count))) {
+        uint32_t first_field;
+        if (!stream.read(reinterpret_cast<char*>(&first_field), sizeof(first_field))) {
             return std::nullopt;
+        }
+
+        bool read_default_metadata = false;
+        uint32_t record_id_count = first_field;
+        if (first_field == FORMAT_MAGIC) {
+            uint32_t format_version;
+            if (!stream.read(reinterpret_cast<char*>(&format_version), sizeof(format_version)) ||
+                format_version != FORMAT_VERSION)
+            {
+                return std::nullopt;
+            }
+            if (!stream.read(reinterpret_cast<char*>(&record_id_count), sizeof(record_id_count))) {
+                return std::nullopt;
+            }
+            read_default_metadata = true;
         }
 
         uint32_t columns_len;
@@ -64,7 +79,7 @@ public:
         std::vector<Column> _columns;
         _columns.reserve(columns_len);
         for (uint32_t i = 0; i < columns_len; ++i) {
-            auto column = Column::from_binary(stream);
+            auto column = Column::from_binary(stream, read_default_metadata);
 
             if (column) {
                 _columns.push_back(std::move(*column));
@@ -87,6 +102,10 @@ public:
         }
 
         stream.write(HEADER.data(), HEADER.size());
+        uint32_t format_magic = FORMAT_MAGIC;
+        uint32_t format_version = FORMAT_VERSION;
+        stream.write(reinterpret_cast<char*>(&format_magic), sizeof(format_magic));
+        stream.write(reinterpret_cast<char*>(&format_version), sizeof(format_version));
         stream.write(reinterpret_cast<char*>(&_record_id_count), sizeof(_record_id_count));
 
         uint32_t columns_len = _columns.size();
@@ -157,6 +176,8 @@ public:
 private:
     static constexpr bool DEBUG = false;
     static constexpr std::string_view HEADER = "SCHEMA";
+    static constexpr uint32_t FORMAT_MAGIC = 0x51444232;  // QDB2
+    static constexpr uint32_t FORMAT_VERSION = 2;
 
     std::vector<Column> _columns;
     uint32_t _record_id_count = 0;

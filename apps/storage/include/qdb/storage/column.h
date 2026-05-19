@@ -56,6 +56,10 @@ public:
 
 public:
     static std::optional<Column> from_binary(std::istream& stream) {
+        return from_binary(stream, true);
+    }
+
+    static std::optional<Column> from_binary(std::istream& stream, bool read_default_metadata) {
         if (DEBUG) {
             std::cout << "Column::from_binary" << std::endl;
         }
@@ -81,28 +85,33 @@ public:
             return std::nullopt;
         }
 
-        DefaultType default_type;
-        if (!stream.read(reinterpret_cast<char*>(&default_type), sizeof(default_type))) {
-            return std::nullopt;
-        }
-
+        DefaultType default_type = DefaultType::NONE;
         int32_t default_int = 0;
         std::string default_string;
-        if (default_type == DefaultType::INT) {
-            if (!stream.read(reinterpret_cast<char*>(&default_int), sizeof(default_int))) {
+
+        if (read_default_metadata) {
+            if (!stream.read(reinterpret_cast<char*>(&default_type), sizeof(default_type))) {
                 return std::nullopt;
             }
-        } else if (default_type == DefaultType::STRING) {
-            uint32_t default_len;
-            if (!stream.read(reinterpret_cast<char*>(&default_len), sizeof(default_len)) || default_len > 1024 * 1024) {
+
+            if (default_type == DefaultType::INT) {
+                if (!stream.read(reinterpret_cast<char*>(&default_int), sizeof(default_int))) {
+                    return std::nullopt;
+                }
+            } else if (default_type == DefaultType::STRING) {
+                uint32_t default_len;
+                if (!stream.read(reinterpret_cast<char*>(&default_len), sizeof(default_len)) ||
+                    default_len > MAX_SERIALIZED_STRING_SIZE)
+                {
+                    return std::nullopt;
+                }
+                default_string.resize(default_len);
+                if (!stream.read(default_string.data(), default_len)) {
+                    return std::nullopt;
+                }
+            } else if (default_type != DefaultType::NONE && default_type != DefaultType::NULL_VALUE) {
                 return std::nullopt;
             }
-            default_string.resize(default_len);
-            if (!stream.read(default_string.data(), default_len)) {
-                return std::nullopt;
-            }
-        } else if (default_type != DefaultType::NONE && default_type != DefaultType::NULL_VALUE) {
-            return std::nullopt;
         }
 
         try {
@@ -129,6 +138,9 @@ public:
         if (default_type_ == DefaultType::INT) {
             stream.write(reinterpret_cast<const char*>(&default_int_), sizeof(default_int_));
         } else if (default_type_ == DefaultType::STRING) {
+            if (default_string_.size() > MAX_SERIALIZED_STRING_SIZE) {
+                return false;
+            }
             uint32_t default_len = default_string_.size();
             stream.write(reinterpret_cast<const char*>(&default_len), sizeof(default_len));
             stream.write(default_string_.c_str(), default_len);
@@ -204,6 +216,7 @@ private:
     }
 
     static constexpr bool DEBUG = false;
+    static constexpr uint32_t MAX_SERIALIZED_STRING_SIZE = 1024 * 1024;
 };
 
 }  // namespace qdb::storage
