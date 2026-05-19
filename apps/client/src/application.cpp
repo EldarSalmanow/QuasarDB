@@ -28,6 +28,7 @@ auto Application::Run() -> std::int32_t {
     if (!config_.File().empty()) {
         if (!std::ifstream(config_.File()).is_open()) {
             renderer_.RenderError("Failed to open file: " + config_.File());
+
             return 1;
         }
         reader = std::make_unique<FileReader>(config_.File());

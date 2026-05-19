@@ -66,6 +66,7 @@ auto Request::TaskId() const -> std::optional<std::string> {
     if (!data_.contains("task_id") || !data_["task_id"].is_string()) {
         return std::nullopt;
     }
+
     return data_["task_id"].get<std::string>();
 }
 

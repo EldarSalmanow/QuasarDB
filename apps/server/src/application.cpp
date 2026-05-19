@@ -230,8 +230,7 @@ Application::Application(Config config)
     : config_(std::move(config)),
       server_(qdb::core::TcpServer::New(config_.Host(), config_.Port())),
       accounts_(config_.AccountPath()),
-      jwt_(config_.JwtSecret()),
-      router_(config_.StorageNodes()) {}
+      jwt_(config_.JwtSecret()) {}
 
 auto Application::New(Config config) -> std::unique_ptr<Application> {
     return std::make_unique<Application>(std::move(config));
@@ -251,6 +250,7 @@ auto Application::Run() -> std::int32_t {
         std::thread([this, client = std::move(client)]() mutable {
             while (client->IsConnected()) {
                 auto request = client->Receive();
+
                 if (!request.has_value()) {
                     break;
                 }
@@ -269,6 +269,7 @@ auto Application::ProcessJson(const nlohmann::json& json) -> qdb::core::Response
     }
 
     const auto action = json["action"].get<std::string>();
+
     if (action == "login") {
         return HandleLogin(json);
     }
@@ -336,17 +337,21 @@ auto Application::HandleCheckTask(const qdb::core::Request& request) -> qdb::cor
     if (config_.AuthRequired() && !Authenticate(request).has_value()) {
         return Error("Valid token is required");
     }
+
     if (!request.TaskId().has_value()) {
         return Error("check_task requires data.task_id");
     }
+
     return Error("Task not found", {{"task_id", request.TaskId().value()}});
 }
 
 auto Application::HandleTelemetry(const qdb::core::Request& request) -> qdb::core::Response {
     const auto user = Authenticate(request);
+
     if (config_.AuthRequired() && (!user.has_value() || user.value() != "admin")) {
         return Error("Admin token is required");
     }
+
     return Ok("Telemetry snapshot", {
         {"current_rps", 0},
         {"avg_rps_10m", 0},

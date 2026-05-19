@@ -5,6 +5,8 @@
 
 namespace qdb::server {
 
+StorageNode::StorageNode() = default;
+
 StorageNode::StorageNode(std::uint64_t node_id, std::string node_table, std::string node_address, bool node_alive)
     : id(node_id), table(std::move(node_table)), address(std::move(node_address)), alive(node_alive) {}
 

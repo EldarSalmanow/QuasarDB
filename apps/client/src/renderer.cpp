@@ -24,6 +24,7 @@ void Renderer::RenderWelcome() const {
 void Renderer::RenderResponse(const qdb::core::Response& response) const {
     if (response.IsError()) {
         std::cout << RED << "Error: " << response.GetMessage() << RESET << std::endl;
+
         return;
     }
 

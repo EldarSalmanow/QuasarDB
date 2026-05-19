@@ -1,13 +1,10 @@
-//
-// Created by eldar on 09.04.2026.
-//
-
 #ifndef QUASARDB_AST_H
 #define QUASARDB_AST_H
 
 #include <memory>
 #include <string>
 #include <vector>
+
 
 namespace qdb::server {
 
@@ -19,89 +16,88 @@ struct Condition;
 
 // Base AST node
 struct ASTNode {
-    virtual ~ASTNode() = default;
+    virtual ~ASTNode();
 };
 
 // Literals
-struct Literal : public ASTNode {
+struct Literal : ASTNode {
     enum class Type { String, Integer, Null };
+
     Type LiteralType;
     std::string Value;
 
-    Literal(Type t, std::string v) : LiteralType(t), Value(std::move(v)) {}
+    Literal(Type type, std::string value);
 };
 
 // Expressions
-struct Expression : public ASTNode {
-    virtual ~Expression() = default;
+struct Expression : ASTNode {
+    ~Expression() override;
 };
 
-struct IdentifierExpr : public Expression {
+struct IdentifierExpr : Expression {
     std::string Name;
-    explicit IdentifierExpr(std::string n) : Name(std::move(n)) {}
+
+    explicit IdentifierExpr(std::string name);
 };
 
-struct LiteralExpr : public Expression {
+struct LiteralExpr : Expression {
     std::unique_ptr<Literal> LiteralValue;
-    explicit LiteralExpr(std::unique_ptr<Literal> lit) : LiteralValue(std::move(lit)) {}
+
+    explicit LiteralExpr(std::unique_ptr<Literal> literal);
 };
 
-struct AggregateExpr : public Expression {
+struct AggregateExpr : Expression {
     enum class Function { Sum, Count, Avg };
+
     Function FunctionType;
     std::string Column;
 
-    AggregateExpr(Function f, std::string col)
-        : FunctionType(f), Column(std::move(col)) {}
+    AggregateExpr(Function function, std::string column);
 };
 
 // Conditions
-struct Condition : public ASTNode {
-    virtual ~Condition() = default;
+struct Condition : ASTNode {
+    ~Condition() override;
 };
 
-struct ComparisonCondition : public Condition {
+struct ComparisonCondition : Condition {
     enum class Operator { Equal, NotEqual, Less, Greater, LessEqual, GreaterEqual };
+
     std::unique_ptr<Expression> Left;
     Operator Op;
     std::unique_ptr<Expression> Right;
 
-    ComparisonCondition(std::unique_ptr<Expression> l, Operator o, std::unique_ptr<Expression> r)
-        : Left(std::move(l)), Op(o), Right(std::move(r)) {}
+    ComparisonCondition(std::unique_ptr<Expression> left, Operator op, std::unique_ptr<Expression> right);
 };
 
-struct BetweenCondition : public Condition {
+struct BetweenCondition : Condition {
     std::unique_ptr<Expression> Value;
     std::unique_ptr<Expression> Lower;
     std::unique_ptr<Expression> Upper;
 
-    BetweenCondition(std::unique_ptr<Expression> v, std::unique_ptr<Expression> l,
-                     std::unique_ptr<Expression> u)
-        : Value(std::move(v)), Lower(std::move(l)), Upper(std::move(u)) {}
+    BetweenCondition(std::unique_ptr<Expression> value, std::unique_ptr<Expression> lower,
+                     std::unique_ptr<Expression> upper);
 };
 
-struct LikeCondition : public Condition {
+struct LikeCondition : Condition {
     std::unique_ptr<Expression> Value;
     std::string Pattern;
 
-    LikeCondition(std::unique_ptr<Expression> v, std::string p)
-        : Value(std::move(v)), Pattern(std::move(p)) {}
+    LikeCondition(std::unique_ptr<Expression> value, std::string pattern);
 };
 
-struct AndCondition : public Condition {
+struct AndCondition : Condition {
     std::unique_ptr<Condition> Left;
     std::unique_ptr<Condition> Right;
 
-    AndCondition(std::unique_ptr<Condition> l, std::unique_ptr<Condition> r)
-        : Left(std::move(l)), Right(std::move(r)) {}
+    AndCondition(std::unique_ptr<Condition> left, std::unique_ptr<Condition> right);
 };
 
-struct OrCondition : public Condition {
+struct OrCondition : Condition {
     std::unique_ptr<Condition> Left;
     std::unique_ptr<Condition> Right;
 
-    OrCondition(std::unique_ptr<Condition> l, std::unique_ptr<Condition> r)
-        : Left(std::move(l)), Right(std::move(r)) {}
+    OrCondition(std::unique_ptr<Condition> left, std::unique_ptr<Condition> right);
 };
 
 // Table reference
@@ -109,20 +105,22 @@ struct TableRef {
     std::string Database;
     std::string Table;
 
-    explicit TableRef(std::string t) : Table(std::move(t)) {}
-    TableRef(std::string db, std::string t) : Database(std::move(db)), Table(std::move(t)) {}
+    explicit TableRef(std::string table);
+
+    TableRef(std::string database, std::string table);
 };
 
 // Column definition
 struct ColumnDef {
     enum class Type { Int, String };
+
     std::string Name;
     Type ColumnType;
     bool NotNull = false;
     bool Indexed = false;
     std::unique_ptr<Literal> DefaultValue;
 
-    ColumnDef(std::string n, Type t) : Name(std::move(n)), ColumnType(t) {}
+    ColumnDef(std::string name, Type type);
 };
 
 // Select item
@@ -130,91 +128,88 @@ struct SelectItem {
     std::unique_ptr<Expression> Expr;
     std::string Alias;
 
-    explicit SelectItem(std::unique_ptr<Expression> expr, std::string a = "")
-        : Expr(std::move(expr)), Alias(std::move(a)) {}
+    explicit SelectItem(std::unique_ptr<Expression> expr, std::string alias = "");
 };
 
 // Statements
-struct Statement : public ASTNode {
-    virtual ~Statement() = default;
+struct Statement : ASTNode {
+    ~Statement() override;
 };
 
 // Database statements
-struct CreateDatabaseStmt : public Statement {
+struct CreateDatabaseStmt : Statement {
     std::string DatabaseName;
-    explicit CreateDatabaseStmt(std::string name) : DatabaseName(std::move(name)) {}
+
+    explicit CreateDatabaseStmt(std::string name);
 };
 
-struct DropDatabaseStmt : public Statement {
+struct DropDatabaseStmt : Statement {
     std::string DatabaseName;
-    explicit DropDatabaseStmt(std::string name) : DatabaseName(std::move(name)) {}
+
+    explicit DropDatabaseStmt(std::string name);
 };
 
-struct UseDatabaseStmt : public Statement {
+struct UseDatabaseStmt : Statement {
     std::string DatabaseName;
-    explicit UseDatabaseStmt(std::string name) : DatabaseName(std::move(name)) {}
+
+    explicit UseDatabaseStmt(std::string name);
 };
 
-struct RevertStmt : public Statement {
+struct RevertStmt : Statement {
     TableRef Table;
     std::string Timestamp;
 
-    RevertStmt(TableRef t, std::string ts) : Table(std::move(t)), Timestamp(std::move(ts)) {}
+    RevertStmt(TableRef table, std::string timestamp);
 };
 
 // DDL statements
-struct CreateTableStmt : public Statement {
+struct CreateTableStmt : Statement {
     TableRef Table;
     std::vector<ColumnDef> Columns;
 
-    CreateTableStmt(TableRef t, std::vector<ColumnDef> cols)
-        : Table(std::move(t)), Columns(std::move(cols)) {}
+    CreateTableStmt(TableRef table, std::vector<ColumnDef> columns);
 };
 
-struct DropTableStmt : public Statement {
+struct DropTableStmt : Statement {
     TableRef Table;
-    explicit DropTableStmt(TableRef t) : Table(std::move(t)) {}
+
+    explicit DropTableStmt(TableRef table);
 };
 
 // DML statements
-struct InsertStmt : public Statement {
+struct InsertStmt : Statement {
     TableRef Table;
     std::vector<std::string> Columns;
     std::vector<std::vector<std::unique_ptr<Literal>>> Values;
 
-    InsertStmt(TableRef t, std::vector<std::string> cols,
-               std::vector<std::vector<std::unique_ptr<Literal>>> vals)
-        : Table(std::move(t)), Columns(std::move(cols)), Values(std::move(vals)) {}
+    InsertStmt(TableRef table, std::vector<std::string> columns,
+               std::vector<std::vector<std::unique_ptr<Literal>>> values);
 };
 
-struct UpdateStmt : public Statement {
+struct UpdateStmt : Statement {
     TableRef Table;
     std::vector<std::pair<std::string, std::unique_ptr<Expression>>> Assignments;
     std::unique_ptr<Condition> WhereClause;
 
-    UpdateStmt(TableRef t, std::vector<std::pair<std::string, std::unique_ptr<Expression>>> assigns,
-               std::unique_ptr<Condition> where)
-        : Table(std::move(t)), Assignments(std::move(assigns)), WhereClause(std::move(where)) {}
+    UpdateStmt(TableRef table, std::vector<std::pair<std::string, std::unique_ptr<Expression>>> assigns,
+               std::unique_ptr<Condition> where);
 };
 
-struct DeleteStmt : public Statement {
+struct DeleteStmt : Statement {
     TableRef Table;
     std::unique_ptr<Condition> WhereClause;
 
-    DeleteStmt(TableRef t, std::unique_ptr<Condition> where)
-        : Table(std::move(t)), WhereClause(std::move(where)) {}
+    DeleteStmt(TableRef table, std::unique_ptr<Condition> where);
 };
 
-struct SelectStmt : public Statement {
+struct SelectStmt : Statement {
     bool SelectAll = false;
     std::vector<SelectItem> SelectItems;
     TableRef Table;
     std::unique_ptr<Condition> WhereClause;
 
-    SelectStmt(bool all, std::vector<SelectItem> items, TableRef t,
-               std::unique_ptr<Condition> where = nullptr)
-        : SelectAll(all), SelectItems(std::move(items)), Table(std::move(t)),
-          WhereClause(std::move(where)) {}
+    SelectStmt(bool all, std::vector<SelectItem> items, TableRef table,
+               std::unique_ptr<Condition> where = nullptr);
 };
 
 }  // namespace qdb::server

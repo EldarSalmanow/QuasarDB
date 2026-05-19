@@ -1,17 +1,13 @@
-//
-// Created by eldar on 09.04.2026.
-//
-
 #ifndef QUASARDB_ROUTER_H
 #define QUASARDB_ROUTER_H
 
 #include <qdb/server/ast.h>
 
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
 
 namespace qdb::server {
 
@@ -21,7 +17,7 @@ struct StorageNode {
     std::string address;
     bool alive{true};
 
-    StorageNode() = default;
+    StorageNode();
 
     StorageNode(std::uint64_t id, std::string table, std::string address, bool alive = true);
 };

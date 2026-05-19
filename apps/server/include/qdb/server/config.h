@@ -1,28 +1,22 @@
 #ifndef QUASARDB_SERVER_CONFIG_H
 #define QUASARDB_SERVER_CONFIG_H
 
-#include <qdb/server/router.h>
-
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <vector>
 
 namespace qdb::server {
 
 class Config {
 public:
     Config(std::string host, std::uint32_t port, bool auth_required, std::string jwt_secret,
-           std::string account_path, std::string rbac_path, std::string access_log_path,
-           std::vector<StorageNode> storage_nodes = {});
+           std::string account_path, std::string rbac_path);
 
 public:
     static auto New(std::string host, std::uint32_t port, bool auth_required = false,
                     std::string jwt_secret = "quasardb-dev-secret",
                     std::string account_path = "qdb_accounts.json",
-                    std::string rbac_path = "qdb_rbac.json",
-                    std::string access_log_path = "qdb_access.log",
-                    std::vector<StorageNode> storage_nodes = {}) -> Config;
+                    std::string rbac_path = "qdb_rbac.json") -> Config;
 
     static auto FromArguments(int argc, char** argv) -> std::optional<Config>;
 
@@ -39,10 +33,6 @@ public:
 
     auto RbacPath() const -> const std::string&;
 
-    auto AccessLogPath() const -> const std::string&;
-
-    auto StorageNodes() const -> const std::vector<StorageNode>&;
-
 private:
     std::string host_;
 
@@ -55,10 +45,6 @@ private:
     std::string account_path_;
 
     std::string rbac_path_;
-
-    std::string access_log_path_;
-
-    std::vector<StorageNode> storage_nodes_;
 };
 
 }  // namespace qdb::server

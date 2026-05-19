@@ -54,6 +54,7 @@ auto Response::ToJsonObject() const -> nlohmann::json {
         {"message", message_},
         {"data", data_}
     };
+
     return json;
 }
 
@@ -69,6 +70,7 @@ auto Response::GetData() const -> std::string {
     if (data_.is_string()) {
         return data_.get<std::string>();
     }
+
     return data_.dump();
 }
 
