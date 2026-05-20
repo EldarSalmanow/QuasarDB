@@ -5,6 +5,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include "record.h"
 
@@ -74,7 +75,7 @@ public:
             : Track(Track::Type::INSERT, record.id()), _serialized_record(record.serialized(schema, serializer)) {}
 
         uint32_t write(std::fstream& os) override {
-            uint32_t size = Track::write(os) + _serialized_record.size() + sizeof(uint32_t);
+            uint32_t size = Track::write(os) + sizeof(uint32_t) + _serialized_record.size() + sizeof(uint32_t);
             uint32_t data_size = static_cast<uint32_t>(_serialized_record.size());
             os.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
             os.write(reinterpret_cast<const char*>(_serialized_record.data()), data_size);
@@ -91,7 +92,7 @@ public:
             : Track(Track::Type::UPDATE, record.id()), _serialized_record(record.serialized(schema, serializer)) {}
 
         uint32_t write(std::fstream& os) override {
-            uint32_t size = Track::write(os) + _serialized_record.size() + sizeof(uint32_t);
+            uint32_t size = Track::write(os) + sizeof(uint32_t) + _serialized_record.size() + sizeof(uint32_t);
             uint32_t data_size = static_cast<uint32_t>(_serialized_record.size());
             os.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
             os.write(reinterpret_cast<const char*>(_serialized_record.data()), data_size);
@@ -138,8 +139,17 @@ public:
 
     void close() noexcept {
         if (_file.is_open()) {
+            _file.seekp(0, std::ios::end);
+            if (_pos != _file.tellp()) {
+                truncate_to_last();
+            }
             _file.close();
         }
+    }
+
+    void drop() {
+        close();
+        fs::remove(_path);
     }
 
     std::string save_insertion(const Record& record) {
@@ -150,6 +160,7 @@ public:
         DeleteTrack track(record.id());
         track.write(_file);
         _pos = _file.seekp(0, std::ios::end).tellp();
+        _file.flush();
         return track.time();
     }
 
@@ -161,6 +172,7 @@ public:
         UpdateTrack track(old_record, schema, serializer);
         track.write(_file);
         _pos = _file.seekp(0, std::ios::end).tellp();
+        _file.flush();
         return track.time();
     }
 
@@ -172,6 +184,7 @@ public:
         InsertTrack track(record, schema, serializer);
         track.write(_file);
         _pos = _file.seekp(0, std::ios::end).tellp();
+        _file.flush();
         return track.time();
     }
 
@@ -181,32 +194,32 @@ public:
         StringStorage* str_storage,
         Serializer* serializer
     ) {
-        _file.seekp(0, std::ios::end);
-        std::streampos end_pos = _file.tellg();
-        if (end_pos <= 0) return {"", Track::Type::INSERT, Record(0, 0)};
-        _file.seekg(-static_cast<long>(sizeof(uint32_t)), std::ios::end);
-        uint32_t record_size;
-        _file.read(reinterpret_cast<char*>(&record_size), sizeof(record_size));
-        _file.seekg(-static_cast<long>(record_size), std::ios::end);
+        if (_pos <= 0) return {"", Track::Type::INSERT, Record(0, 1)};
+        auto last_pos = _pos;
+        _file.seekg(_pos - static_cast<std::streamoff>(sizeof(uint32_t)), std::ios::beg);
+        uint32_t track_size;
+        _file.read(reinterpret_cast<char*>(&track_size), sizeof(track_size));
+        _file.seekg(_pos - static_cast<std::streamoff>(track_size), std::ios::beg);
         _pos = _file.tellg();
 
         std::string writed_time(Track::TIME_LEN, '\0');
         _file.read(&writed_time[0], Track::TIME_LEN);
+        std::cout << "revert_last: time: " << time << ", writed_time: " << writed_time << std::endl;
         if (writed_time < time) {
-            _pos = end_pos;
-            return {"", Track::Type::INSERT, Record(0, 0)};
+            _pos = last_pos;
+            return {"", Track::Type::INSERT, Record(0, 1)};
         }
         uint32_t record_id;
         Track::Type type;
         _file.read(reinterpret_cast<char*>(&record_id), sizeof(record_id));
         _file.read(reinterpret_cast<char*>(&type), sizeof(type));
-        Record record(record_id, 0);
+        Record record(record_id, 1);
         if (type == Track::Type::INSERT || type == Track::Type::UPDATE) {
             uint32_t data_size;
             _file.read(reinterpret_cast<char*>(&data_size), sizeof(data_size));
             std::vector<uint8_t> data(data_size);
             _file.read(reinterpret_cast<char*>(data.data()), data_size);
-            record = Record::from_binary(data.data(), record_size, record_id, schema, str_storage, serializer);
+            record = Record::from_binary(data.data(), data_size, record_id, schema, str_storage, serializer);
         }
         return {writed_time, type, std::move(record)};
     }
@@ -217,7 +230,7 @@ private:
             _file.close();
         }
         std::error_code ec;
-        std::filesystem::resize_file(_path, static_cast<uintmax_t>(_pos), ec);
+        std::filesystem::resize_file(_path, static_cast<std::streamoff>(_pos), ec);
         if (ec) {
             throw std::runtime_error("Failed to truncate journal: " + ec.message());
         }
@@ -225,6 +238,8 @@ private:
         if (!_file.is_open()) {
             throw std::runtime_error("Journal cannot reopen file after truncation.");
         }
+        _file.seekp(_pos, std::ios::beg);
+        _file.seekg(_pos, std::ios::beg);
     }
 };
 

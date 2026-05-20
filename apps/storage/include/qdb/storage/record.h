@@ -32,7 +32,11 @@ class Record final {
     bool _has_addr = false;
 
 public:
-    Record(uint32_t id, uint32_t n) : _id(id), _fields(std::vector<Value>(n)) {}
+    Record(uint32_t id, uint32_t n) : _id(id), _fields(std::vector<Value>(n)) {
+        if (n == 0) {
+            throw std::runtime_error("Record cannot have 0 columns.");
+        }
+    }
 
     Record(uint32_t id, std::vector<Value> values) : _id(id), _fields(std::move(values)){};
 

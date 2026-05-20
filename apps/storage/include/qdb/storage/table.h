@@ -223,6 +223,8 @@ public:
         fs::remove(_root / (_name + std::string(DATA_EXT)));
         fs::remove(_root / (_name + std::string(SCHEMA_EXT)));
         fs::remove(_root / (_name + std::string(STR_STORAGE_EXT)));
+        _journal.drop();
+        fs::remove(_root / (_name + "_id_to_addr" + std::string(INDEX_EXT)));
     }
 
     void close() noexcept {
@@ -231,6 +233,7 @@ public:
         for (auto& [column_name, index] : _indexes) {
             std::visit([](auto& tree) { return tree.close(); }, index);
         }
+        _id_to_addr.close();
     }
 
     Record insert_record(std::vector<Value> values, const std::vector<std::string>& column_names = {}) {

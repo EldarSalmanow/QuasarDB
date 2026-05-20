@@ -51,8 +51,8 @@ TEST_F(JournalTest, InitializationCreatesFile) {
 
 TEST_F(JournalTest, RevertInsertion) {
     Journal journal(test_root, table_name);
-    Record record(42, 0);
-    std::string target_time = journal.save_insertion(record);
+    Record record(42, {Value(0)});
+    auto target_time = journal.save_insertion(record);
     auto revert_data = journal.revert_last(target_time, test_schema, str_storage, &serializer);
     EXPECT_FALSE(revert_data.time.empty());
     EXPECT_EQ(revert_data.type, Journal::Track::Type::DELETE);
@@ -61,8 +61,8 @@ TEST_F(JournalTest, RevertInsertion) {
 
 TEST_F(JournalTest, RevertDeletion) {
     Journal journal(test_root, table_name);
-    Record record(100, 0);
-    std::string target_time = journal.save_deletion(record, test_schema, &serializer);
+    Record record(100, {Value(0)});
+    auto target_time = journal.save_deletion(record, test_schema, &serializer);
     auto revert_data = journal.revert_last(target_time, test_schema, str_storage, &serializer);
     EXPECT_FALSE(revert_data.time.empty());
     EXPECT_EQ(revert_data.type, Journal::Track::Type::INSERT);
@@ -71,19 +71,19 @@ TEST_F(JournalTest, RevertDeletion) {
 
 TEST_F(JournalTest, RevertUpdation) {
     Journal journal(test_root, table_name);
-    Record old_record(77, std::vector<Value>({Value(0)}));
-    Record new_record(77, std::vector<Value>({Value(1)}));
-    std::string target_time = journal.save_updation(old_record, test_schema, &serializer);
+    Record old_record(77, {Value(0)});
+    Record new_record(77, {Value(1)});
+    auto target_time = journal.save_updation(old_record, test_schema, &serializer);
     auto revert_data = journal.revert_last(target_time, test_schema, str_storage, &serializer);
     EXPECT_FALSE(revert_data.time.empty());
     EXPECT_EQ(revert_data.type, Journal::Track::Type::UPDATE);
     EXPECT_EQ(revert_data.record.id(), 77);
-    EXPECT_EQ(revert_data.record[0], 0);
+    EXPECT_EQ(revert_data.record[0] == Value(0), SqlBool::TRUE);
 }
 
 TEST_F(JournalTest, RevertRespectsTargetTime) {
     Journal journal(test_root, table_name);
-    Record record(1, 0);
+    Record record(1, {Value(0)});
     journal.save_insertion(record);
     std::this_thread::sleep_for(std::chrono::seconds(1));
     std::string future_time = Journal::Track::get_now();
@@ -113,7 +113,7 @@ TEST_F(JournalTest, TruncateBranchAfterRevertAndNewWrite) {
     Journal journal(test_root, table_name);
     Record record_1(10, {Value(0)});
     Record record_2(20, {Value(0)});
-    std::string target_time = journal.save_insertion(record_1);
+    auto target_time = journal.save_insertion(record_1);
     journal.save_insertion(record_2);
     auto revert_2 = journal.revert_last(target_time, test_schema, str_storage, &serializer);
     EXPECT_EQ(revert_2.record.id(), 20);
