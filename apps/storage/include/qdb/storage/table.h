@@ -2,6 +2,7 @@
 #define QUASARDB_TABLE_H
 
 #include <inttypes.h>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -390,9 +391,39 @@ private:
                 " != " + std::to_string(column_names.size()) + "."
             );
         }
+        auto column_indices = resolve_column_indices(column_names);
+
         Record record(record_id, _schema.size());
-        update_some_columns(record, values, column_names);
+        apply_defaults(record, column_indices);
+        update_columns(record, values, column_indices);
         return record;
+    }
+
+    std::vector<size_t> resolve_column_indices(const std::vector<std::string>& column_names) const {
+        std::vector<size_t> column_indices;
+        column_indices.reserve(column_names.size());
+        for (const auto& column_name : column_names) {
+            auto col_index = _schema.get_column_idx(column_name);
+            if (col_index == -1) {
+                throw std::runtime_error("Unknown column: " + column_name);
+            }
+            column_indices.push_back(static_cast<size_t>(col_index));
+        }
+        return column_indices;
+    }
+
+    void apply_defaults(Record& record, const std::vector<size_t>& provided_column_indices) {
+        if (DEBUG) {
+            std::cout << "Table::apply_defaults" << std::endl;
+        }
+        for (size_t i = 0; i < _schema.size(); ++i) {
+            if (_schema[i].has_default() &&
+                std::find(provided_column_indices.begin(), provided_column_indices.end(), i) ==
+                    provided_column_indices.end())
+            {
+                record[i] = _schema[i].default_value(*_interner);
+            }
+        }
     }
 
     void update_some_columns(Record& record, std::vector<Value> values, const std::vector<std::string>& column_names)
@@ -406,6 +437,15 @@ private:
                 throw std::runtime_error("Unknown column: " + column_names[i]);
             }
             record[col_index] = std::move(values[i]);
+        }
+    }
+
+    void update_columns(Record& record, std::vector<Value> values, const std::vector<size_t>& column_indices) {
+        if (DEBUG) {
+            std::cout << "Table::update_columns" << std::endl;
+        }
+        for (size_t i = 0; i < column_indices.size(); ++i) {
+            record[column_indices[i]] = std::move(values[i]);
         }
     }
 

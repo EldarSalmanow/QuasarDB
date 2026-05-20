@@ -19,7 +19,7 @@ public:
     DatabaseManager(DatabaseManager&& other) noexcept = delete;
 
 public:
-    void CreateDatabase(const std::string& name) {
+    void CreateDatabase(std::string name) {
         if (databases_.find(name) != databases_.end()) {
             throw std::
                 runtime_error("[ERROR in qdb::storage::DatabaseManager]: DB with name '" + name + "' already exists!");
@@ -29,7 +29,9 @@ public:
 
         fs::create_directory(db_path);
 
-        databases_.emplace(name, Database(name, db_path.string()));
+        databases_.emplace(std::piecewise_construct,
+                          std::forward_as_tuple(name),
+                          std::forward_as_tuple(name, db_path));
     }
 
     void DropDatabase(const std::string& name) {

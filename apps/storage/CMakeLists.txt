@@ -12,9 +12,12 @@ message(STATUS "    TestsDir: ${STORAGE_TESTS_DIR}")
 file(GLOB_RECURSE STORAGE_SOURCES CONFIGURE_DEPENDS "${STORAGE_SRC_DIR}/*.cpp")
 file(GLOB_RECURSE STORAGE_TESTS CONFIGURE_DEPENDS "${STORAGE_TESTS_DIR}/*.cpp")
 
+set(STORAGE_SOURCES ${STORAGE_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/../server/src/ast.cpp)
+
 add_executable(${EXECUTABLE_NAME} main.cpp ${STORAGE_SOURCES})
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${STORAGE_INCLUDE_DIR})
+target_include_directories(${EXECUTABLE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../server/include)
 
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE qdb::core)
 
@@ -22,6 +25,7 @@ if(BUILD_TESTING AND STORAGE_TESTS)
 	add_executable(qdb-storage-tests ${STORAGE_TESTS} ${STORAGE_SOURCES})
 
 	target_include_directories(qdb-storage-tests PRIVATE ${STORAGE_INCLUDE_DIR})
+	target_include_directories(qdb-storage-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../server/include)
 
 	target_link_libraries(qdb-storage-tests PRIVATE qdb::core GTest::gtest_main)
 

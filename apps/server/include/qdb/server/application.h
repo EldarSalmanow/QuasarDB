@@ -8,8 +8,6 @@
 #include <qdb/server/router.h>
 #include <qdb/server/security.h>
 
-#include <nlohmann/json.hpp>
-
 #include <memory>
 #include <optional>
 #include <string>
@@ -37,8 +35,6 @@ private:
     auto HandleCheckTask(const qdb::core::Request& request) -> qdb::core::Response;
 
     auto Authenticate(const qdb::core::Request& request) const -> std::optional<std::string>;
-
-    auto RouteSql(const std::string& sql) -> qdb::core::Response;
 
 private:
     Config config_;

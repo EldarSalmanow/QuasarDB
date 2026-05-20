@@ -72,6 +72,33 @@ TEST(SchemaTest, FullCycleSerialization) {
     EXPECT_EQ(restored->record_id_count(), 5);
 }
 
+TEST(SchemaTest, ReadsLegacySchemaWithoutDefaults) {
+    std::stringstream ss;
+    ss.write("SCHEMA", 6);
+
+    uint32_t record_id_count = 3;
+    uint32_t columns_len = 1;
+    ss.write(reinterpret_cast<char*>(&record_id_count), sizeof(record_id_count));
+    ss.write(reinterpret_cast<char*>(&columns_len), sizeof(columns_len));
+
+    std::string name = "name";
+    uint32_t name_len = name.size();
+    auto type = Column::ColumnType::STRING;
+    uint8_t flags = 0;
+    ss.write(reinterpret_cast<char*>(&name_len), sizeof(name_len));
+    ss.write(name.c_str(), name_len);
+    ss.write(reinterpret_cast<char*>(&type), sizeof(type));
+    ss.write(reinterpret_cast<char*>(&flags), sizeof(flags));
+
+    ss.seekg(0);
+    auto restored = Schema::from_binary(ss);
+
+    ASSERT_TRUE(restored.has_value());
+    ASSERT_EQ(restored->size(), 1);
+    EXPECT_EQ(restored->record_id_count(), 3);
+    EXPECT_FALSE((*restored)[0].has_default());
+}
+
 TEST(SchemaTest, FromBinaryInvalidHeader) {
     std::stringstream ss;
     ss << "WRONG_HEADER" << uint32_t(0) << uint32_t(0);
