@@ -109,6 +109,14 @@ public:
         ++_record_id_count;
     }
 
+    void decrement_record_id_count() {
+        if (DEBUG) {
+            std::cout << "Schema::decrement_record_id_count" << std::endl;
+        }
+
+        --_record_id_count;
+    }
+
     int32_t get_column_idx(const std::string& column_name) const {
         for (size_t index = 0; index < _columns.size(); ++index) {
             if (_columns[index].name() == column_name) {

@@ -11,6 +11,7 @@
 #include <variant>
 #include "b_star_plus_tree.h"
 #include "interner.h"
+#include "journal.h"
 #include "page.h"
 #include "pager.h"
 #include "record.h"
@@ -80,6 +81,8 @@ class Table final {
     Interner* _interner;
     Serializer _serializer;
     Schema _schema;
+    Journal _journal;
+    BStarPlusTree<uint32_t, RecordAddress> _id_to_addr;
     std::unordered_map<
         std::string,
         std::variant<BStarPlusTree<int32_t, RecordAddress>, BStarPlusTree<FastStr, RecordAddress>>>
@@ -105,7 +108,9 @@ public:
           _pager(_root / (_name + std::string(DATA_EXT)), PAGE_SIZE),
           _str_storage(_root / (_name + std::string(STR_STORAGE_EXT))),
           _interner(interner),
-          _serializer(_interner, MAX_SMALL_STR_LENGTH) {
+          _serializer(_interner, MAX_SMALL_STR_LENGTH),
+          _journal(_root, _name),
+          _id_to_addr(_root / (_name + "_id_to_addr" + std::string(INDEX_EXT))) {
         // read table
         if (DEBUG) {
             std::cout << "Table::Table(read)" << std::endl;
@@ -139,7 +144,9 @@ public:
           _str_storage(_root / (_name + std::string(STR_STORAGE_EXT))),
           _interner(interner),
           _serializer(_interner, MAX_SMALL_STR_LENGTH),
-          _schema(std::move(schema)) {
+          _schema(std::move(schema)),
+          _journal(_root, _name),
+          _id_to_addr(_root / (_name + "_id_to_addr" + std::string(INDEX_EXT))) {
         // create table
         if (DEBUG) {
             std::cout << "Table::Table(create)" << std::endl;
@@ -236,6 +243,8 @@ public:
         save_schema();
         write_record_to_disk(record);
         update_indexes_after_insert(record);
+        _id_to_addr.insert(record.id(), record.address());
+        _journal.save_insertion(record);
         return record;
     }
 
@@ -278,11 +287,14 @@ public:
         }
         validate_record(record);
         auto old_record_addr = record.address();
+        auto old_record = *read_record(old_record_addr);
         delete_record(record);
-        auto new_record_addr = write_record_to_disk(record, record.address().page_idx);
+        auto new_record_addr = write_record_to_disk(record, old_record_addr.page_idx);
         if (old_record_addr != new_record_addr) {
             update_indexes_after_update(record);
+            _id_to_addr.update(record.id(), record.address());
         }
+        _journal.save_updation(old_record, _schema, &_serializer);
         return new_record_addr;
     }
 
@@ -310,6 +322,8 @@ public:
         auto table_page = TablePage(record.address().page_idx, &_pager, &_str_storage, &_serializer);
         table_page.delete_record(record.address().slot_idx);
         update_indexes_after_delete(record);
+        _id_to_addr.remove(record.id());
+        _journal.save_deletion(record, _schema, &_serializer);
     }
 
     void delete_multiple(const std::vector<Record>& records) {
@@ -319,6 +333,39 @@ public:
         for (const auto& record : records) {
             delete_record(record);
         }
+    }
+
+    void revert(const std::string& time) {
+        auto revert_data = _journal.revert_last(time, _schema, &_str_storage, &_serializer);
+        while (!revert_data.time.empty()) {
+            auto& record = revert_data.record;
+            if (revert_data.type == Journal::Track::Type::INSERT) {
+                write_record_to_disk(record);
+                update_indexes_after_insert(record);
+                _id_to_addr.insert(record.id(), record.address());
+            } else if (revert_data.type == Journal::Track::Type::UPDATE) {
+                assert(_id_to_addr.search(record.id()).size() == 1);
+                auto old_record_addr = _id_to_addr.search(record.id()).back();
+                record.set_address(old_record_addr);
+                delete_record(record);
+                auto new_record_addr = write_record_to_disk(record, record.address().page_idx);
+                if (old_record_addr != new_record_addr) {
+                    update_indexes_after_update(record);
+                    _id_to_addr.update(record.id(), record.address());
+                }
+            } else if (revert_data.type == Journal::Track::Type::DELETE) {
+                assert(_id_to_addr.search(record.id()).size() == 1);
+                record.set_address(_id_to_addr.search(record.id()).back());
+                auto table_page = TablePage(record.address().page_idx, &_pager, &_str_storage, &_serializer);
+                table_page.delete_record(record.address().slot_idx);
+                update_indexes_after_delete(record);
+                _id_to_addr.remove(record.id());
+                assert(record.id() + 1 == _schema.record_id_count());
+                _schema.decrement_record_id_count();
+            }
+            revert_data = _journal.revert_last(time, _schema, &_str_storage, &_serializer);
+        }
+        save_schema();
     }
 
 private:
