@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -156,6 +157,22 @@ public:
     SqlBool operator>=(const Value& other) const { return !(*this < other); }
 
     SqlBool operator!=(const Value& other) const { return !(*this == other); }
+
+    friend std::ostream& operator<<(std::ostream& os, const Value& value) {
+        os << "V(" << value.type_name();
+        if (value.is_int()) {
+            os << "|" << value.as_int();
+        } else if (value.is_string()) {
+            os << "|has_ext_addr=" << value.as_string().has_ext_addr;
+            if (value.as_string().has_ext_addr) {
+                os << "|ext_addr=(offset=" << value.as_string().ext_addr.offset
+                   << "|size=" << value.as_string().ext_addr.size;
+            }
+            os << "|string=" << value.as_string().intern_view;
+        }
+        os << ")";
+        return os;
+    }
 };
 
 }  // namespace qdb::storage

@@ -204,7 +204,6 @@ public:
 
         std::string writed_time(Track::TIME_LEN, '\0');
         _file.read(&writed_time[0], Track::TIME_LEN);
-        std::cout << "revert_last: time: " << time << ", writed_time: " << writed_time << std::endl;
         if (writed_time < time) {
             _pos = last_pos;
             return {"", Track::Type::INSERT, Record(0, 1)};

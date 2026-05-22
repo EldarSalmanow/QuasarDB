@@ -292,7 +292,8 @@ public:
         validate_record(record);
         auto old_record_addr = record.address();
         auto old_record = *read_record(old_record_addr);
-        delete_record(record);
+        auto table_page = TablePage(record.address().page_idx, &_pager, &_str_storage, &_serializer);
+        table_page.delete_record(record.address().slot_idx);
         auto new_record_addr = write_record_to_disk(record, old_record_addr.page_idx);
         if (old_record_addr != new_record_addr) {
             update_indexes_after_update(record);
@@ -340,6 +341,9 @@ public:
     }
 
     void revert(const std::string& time) {
+        if (DEBUG) {
+            std::cout << "Table::revert" << std::endl;
+        }
         auto revert_data = _journal.revert_last(time, _schema, &_str_storage, &_serializer);
         while (!revert_data.time.empty()) {
             auto& record = revert_data.record;
@@ -349,20 +353,22 @@ public:
                 _id_to_addr.insert(record.id(), record.address());
             } else if (revert_data.type == Journal::Track::Type::UPDATE) {
                 assert(_id_to_addr.search(record.id()).size() == 1);
-                auto old_record_addr = _id_to_addr.search(record.id()).back();
-                record.set_address(old_record_addr);
-                delete_record(record);
+                auto current_record_addr = _id_to_addr.search(record.id()).back();
+                record.set_address(current_record_addr);
+                auto table_page = TablePage(record.address().page_idx, &_pager, &_str_storage, &_serializer);
+                table_page.delete_record(record.address().slot_idx);
                 auto new_record_addr = write_record_to_disk(record, record.address().page_idx);
-                if (old_record_addr != new_record_addr) {
+                if (current_record_addr != new_record_addr) {
                     update_indexes_after_update(record);
                     _id_to_addr.update(record.id(), record.address());
                 }
             } else if (revert_data.type == Journal::Track::Type::DELETE) {
                 assert(_id_to_addr.search(record.id()).size() == 1);
-                record.set_address(_id_to_addr.search(record.id()).back());
-                auto table_page = TablePage(record.address().page_idx, &_pager, &_str_storage, &_serializer);
-                table_page.delete_record(record.address().slot_idx);
-                update_indexes_after_delete(record);
+                auto address = _id_to_addr.search(record.id()).back();
+                auto table_page = TablePage(address.page_idx, &_pager, &_str_storage, &_serializer);
+                auto real_record = *table_page.read_record(address.slot_idx, _schema);
+                table_page.delete_record(address.slot_idx);
+                update_indexes_after_delete(real_record);
                 _id_to_addr.remove(record.id());
                 assert(record.id() + 1 == _schema.record_id_count());
                 _schema.decrement_record_id_count();
@@ -403,6 +409,9 @@ private:
     }
 
     std::vector<size_t> resolve_column_indices(const std::vector<std::string>& column_names) const {
+        if (DEBUG) {
+            std::cout << "Table::resolve_column_indices" << std::endl;
+        }
         std::vector<size_t> column_indices;
         column_indices.reserve(column_names.size());
         for (const auto& column_name : column_names) {
@@ -588,7 +597,7 @@ private:
 
     void update_indexes_after_delete(const Record& record) {
         if (DEBUG) {
-            std::cout << "Table::update_indexes_after_delete" << std::endl;
+            std::cout << "Table::update_indexes_after_delete, record=" << record << std::endl;
         }
         for (size_t i = 0; i < _schema.size(); ++i) {
             const auto& column = _schema[i];
@@ -644,6 +653,23 @@ public:
     std::string name() const { return _name; }
 
     auto schema() const { return _schema; }
+
+    friend std::ostream& operator<<(std::ostream& os, Table& table) {
+        os << "==================== Table " << table._name << " ====================" << std::endl;
+        for (uint32_t i = 0; i < table._schema.record_id_count(); ++i) {
+            auto addresses = table._id_to_addr.search(i);
+            assert(addresses.size() <= 1);
+            if (addresses.size() == 1) {
+                os << "--- " << *table.read_record(addresses.back()) << std::endl;
+            }
+        }
+        os << "================================================================================" << std::endl;
+        return os;
+    }
+
+    void print() { std::cout << *this; }
+
+    BStarPlusTree<uint32_t, RecordAddress>* get_id_to_addr() { return &_id_to_addr; }
 };
 
 }  // namespace qdb::storage

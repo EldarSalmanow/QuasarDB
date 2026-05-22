@@ -145,6 +145,15 @@ public:
         }
         return Record(record_id, values);
     }
+
+    friend std::ostream& operator<<(std::ostream& os, const Record& record) {
+        os << "Rec(id=" << record._id << "|has_addr=" << record._has_addr << "|";
+        for (const auto& v : record._fields) {
+            os << v << "|";
+        }
+        os << ")";
+        return os;
+    }
 };
 
 }  // namespace qdb::storage

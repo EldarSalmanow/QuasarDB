@@ -61,8 +61,7 @@ public:
         if (first_field == FORMAT_MAGIC) {
             uint32_t format_version;
             if (!stream.read(reinterpret_cast<char*>(&format_version), sizeof(format_version)) ||
-                format_version != FORMAT_VERSION)
-            {
+                format_version != FORMAT_VERSION) {
                 return std::nullopt;
             }
             if (!stream.read(reinterpret_cast<char*>(&record_id_count), sizeof(record_id_count))) {
