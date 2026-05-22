@@ -1,5 +1,6 @@
 #include "../include/qdb/storage/table.h"
 #include <gtest/gtest.h>
+#include <sstream>
 
 namespace qdb::storage::test {
 
@@ -87,8 +88,9 @@ TEST_F(TableTest, InsertNullValidation) {
 TEST_F(TableTest, InsertUsesDefaultsForOmittedColumns) {
     std::vector<Column> columns;
     columns.push_back(Column("id", Column::ColumnType::INT, Column::NOT_NULL_FLAG));
-    columns.push_back(Column("name", Column::ColumnType::STRING, Column::NOT_NULL_FLAG,
-                             Column::DefaultType::STRING, 0, "anon"));
+    columns.push_back(
+        Column("name", Column::ColumnType::STRING, Column::NOT_NULL_FLAG, Column::DefaultType::STRING, 0, "anon")
+    );
     columns.push_back(Column("score", Column::ColumnType::INT, 0, Column::DefaultType::INT, 7));
     columns.push_back(Column("comment", Column::ColumnType::STRING));
     auto schema = Schema(columns);
@@ -105,8 +107,9 @@ TEST_F(TableTest, InsertUsesDefaultsForOmittedColumns) {
 TEST_F(TableTest, InsertExplicitValueOverridesDefault) {
     std::vector<Column> columns;
     columns.push_back(Column("id", Column::ColumnType::INT, Column::NOT_NULL_FLAG));
-    columns.push_back(Column("name", Column::ColumnType::STRING, Column::NOT_NULL_FLAG,
-                             Column::DefaultType::STRING, 0, "anon"));
+    columns.push_back(
+        Column("name", Column::ColumnType::STRING, Column::NOT_NULL_FLAG, Column::DefaultType::STRING, 0, "anon")
+    );
     auto schema = Schema(columns);
     auto table = Table("explicit_defaults", table_root, schema, &interner);
 
@@ -293,6 +296,147 @@ TEST_F(TableTest, CRUD_test) {
     EXPECT_EQ(table.read_record(record_2.address()), std::nullopt);
     EXPECT_EQ(table.read_record(record_4.address()), std::nullopt);
     EXPECT_EQ(table.read_record(record_6.address()), std::nullopt);
+}
+
+TEST_F(TableTest, RevertTest) {
+    std::vector<Column> columns;
+    columns.push_back(Column("int", Column::ColumnType::INT));
+    columns.push_back(Column("int_not_null", Column::ColumnType::INT, Column::NOT_NULL_FLAG));
+    columns.push_back(Column("int_indexed", Column::ColumnType::INT, Column::INDEXED_FLAG));
+    columns.push_back(Column("str", Column::ColumnType::STRING));
+    columns.push_back(Column("str_not_null", Column::ColumnType::STRING, Column::NOT_NULL_FLAG));
+    columns.push_back(Column("str_indexed", Column::ColumnType::STRING, Column::INDEXED_FLAG));
+    auto schema = Schema(columns);
+    std::string table_name = "table_name_3";
+    auto table = Table(table_name, table_root, schema, &interner);
+
+    std::vector<Value> values_1 = {
+        Value(10),
+        Value(10),
+        Value(10),
+        interner.str_to_value("a"),
+        interner.str_to_value("b"),
+        interner.str_to_value("z")};
+    std::vector<Value> values_2 =
+        {Value(10), Value(20), Value(20), Value(), interner.str_to_value("c"), interner.str_to_value("y")};
+    std::vector<Value> values_3 = {
+        Value(),
+        Value(20),
+        Value(30),
+        interner.str_to_value("a"),
+        interner.str_to_value("d"),
+        interner.str_to_value("x")};
+    std::vector<Value> values_4 = {
+        Value(20),
+        Value(20),
+        Value(40),
+        interner.str_to_value("a"),
+        interner.str_to_value("d"),
+        interner.str_to_value("w")};
+    std::vector<Value> values_5 = {
+        Value(20),
+        Value(30),
+        Value(50),
+        interner.str_to_value("b"),
+        interner.str_to_value("f"),
+        interner.str_to_value("v")};
+    std::vector<Value> values_6 = {
+        Value(30),
+        Value(30),
+        Value(60),
+        interner.str_to_value("c"),
+        interner.str_to_value("f"),
+        interner.str_to_value("u")};
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    auto before_1 = Journal::Track::get_now();
+    std::stringstream table_str_dump_1;
+    table_str_dump_1 << table;
+
+    auto record_1 = table.insert_record(values_1);
+
+    auto record_2 = table.insert_record(values_2);
+
+    auto record_3 = table.insert_record(values_3);
+
+    auto record_4 = table.insert_record(values_4);
+
+    record_3[2] = Value(70);
+    table.update_record(record_3);
+
+    auto record_5 = table.insert_record(values_5);
+
+    record_2[1] = Value(30);
+    table.update_record(record_2);
+
+    record_5[4] = interner.str_to_value("g");
+    table.update_record(record_5);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    auto before_2 = Journal::Track::get_now();
+    std::stringstream table_str_dump_2;
+    table_str_dump_2 << table;
+
+    auto record_6 = table.insert_record(values_6);
+
+    record_1[0] = Value(10);
+    table.update_record(record_1);
+
+    record_4[3] = Value();
+    table.update_record(record_4);
+
+    table.delete_record(record_1);
+
+    record_6[5] = interner.str_to_value("t");
+    table.update_record(record_6);
+
+    table.delete_record(record_3);
+
+    table.delete_record(record_5);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    auto before_3 = Journal::Track::get_now();
+    std::stringstream table_str_dump_3;
+    table_str_dump_3 << table;
+
+    table.delete_record(record_2);
+
+    table.delete_record(record_4);
+
+    table.delete_record(record_6);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    auto before_4 = Journal::Track::get_now();
+    std::stringstream table_str_dump_4;
+    table_str_dump_4 << table;
+
+    table.revert(before_4);
+    std::stringstream table_str_dump_rev4;
+    table_str_dump_rev4 << table;
+
+    ASSERT_EQ(table_str_dump_rev4.str(), table_str_dump_4.str());
+
+    table.revert(before_3);
+    std::stringstream table_str_dump_rev3;
+    table_str_dump_rev3 << table;
+
+    ASSERT_EQ(table_str_dump_rev3.str(), table_str_dump_3.str());
+
+    table.revert(before_2);
+    std::stringstream table_str_dump_rev2;
+    table_str_dump_rev2 << table;
+
+    ASSERT_EQ(table_str_dump_rev2.str(), table_str_dump_2.str());
+
+    auto record_id2 = *table.read_record(table.get_id_to_addr()->search(2).back());
+    record_id2[2] = Value(1000);
+    table.update_record(record_id2);
+
+    table.revert(before_1);
+    std::stringstream table_str_dump_rev1;
+    table_str_dump_rev1 << table;
+
+    ASSERT_EQ(table_str_dump_rev1.str(), table_str_dump_1.str());
 }
 
 }  // namespace qdb::storage::test

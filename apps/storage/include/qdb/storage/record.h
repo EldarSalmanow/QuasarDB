@@ -1,6 +1,7 @@
 #ifndef QUASARDB_RECORD_H
 #define QUASARDB_RECORD_H
 
+#include <fstream>
 #include <string>
 #include <vector>
 #include "schema.h"
@@ -13,16 +14,11 @@ struct RecordAddress {
     uint32_t page_idx;
     uint32_t slot_idx;
 
-    bool operator==(const RecordAddress& other) const {
-        return page_idx == other.page_idx && slot_idx == other.slot_idx;
-    }
+    bool operator==(const RecordAddress& other) const;
 
-    bool operator!=(const RecordAddress& other) const { return !(*this == other); }
+    bool operator!=(const RecordAddress& other) const;
 
-    friend std::ostream& operator<<(std::ostream& os, const RecordAddress& record_addr) {
-        os << "(page_idx=" << record_addr.page_idx << ", slot_idx=" << record_addr.slot_idx << ")";
-        return os;
-    }
+    friend std::ostream& operator<<(std::ostream& os, const RecordAddress& record_addr);
 };
 
 class Record final {
@@ -32,81 +28,31 @@ class Record final {
     bool _has_addr = false;
 
 public:
-    Record(uint32_t id, uint32_t n) : _id(id), _fields(std::vector<Value>(n)) {}
+    Record(uint32_t id, uint32_t n);
 
-    Record(uint32_t id, std::vector<Value> values) : _id(id), _fields(std::move(values)){};
+    Record(uint32_t id, std::vector<Value> values);
 
-    Record(uint32_t id, std::vector<Value> values, RecordAddress addr)
-        : _id(id), _fields(std::move(values)), _addr(addr), _has_addr(true){};
+    Record(uint32_t id, std::vector<Value> values, RecordAddress addr);
 
-    bool operator==(const Record& other) const {
-        if (size() != other.size()) {
-            return false;
-        }
-        for (uint32_t i = 0; i < size(); ++i) {
-            if (!_fields[i].StrictEq(other._fields[i])) {
-                return false;
-            }
-        }
-        return _id == other._id && _has_addr == other._has_addr && (!_has_addr || (address() == other.address()));
-    }
+    bool operator==(const Record& other) const;
 
-    uint32_t size() const { return _fields.size(); }
+    uint32_t size() const;
 
-    Value& operator[](int idx) { return _fields[idx]; }
+    Value& operator[](int idx);
 
-    const Value& operator[](int idx) const { return _fields[idx]; }
+    const Value& operator[](int idx) const;
 
-    auto id() const { return _id; }
+    uint32_t id() const;
 
-    bool has_addr() const { return _has_addr; }
+    bool has_addr() const;
 
-    RecordAddress address() const {
-        if (!has_addr()) {
-            throw std::runtime_error("Record has not address.");
-        }
-        return _addr;
-    }
+    RecordAddress address() const;
 
-    void set_address(RecordAddress addr) {
-        _addr = addr;
-        _has_addr = true;
-    }
+    void set_address(RecordAddress addr);
 
-    uint32_t serialized_values_size(const Schema& schema, Serializer* serializer) const {
-        if (serializer == nullptr) {
-            throw std::runtime_error("Serializer should not be nullptr.");
-        }
-        uint32_t result = schema.null_bitmap_size();
-        for (const auto& value : _fields) {
-            if (value.is_null()) {
-                continue;
-            }
-            result += serializer->serialized_size(value);
-        }
-        return result;
-    }
+    uint32_t serialized_values_size(const Schema& schema, Serializer* serializer) const;
 
-    std::vector<uint8_t> serialized(const Schema& schema, Serializer* serializer) const {
-        if (serializer == nullptr) {
-            throw std::runtime_error("Serializer should not be nullptr.");
-        }
-        std::vector<uint8_t> data_v;
-        auto result_size = serialized_values_size(schema, serializer);
-        data_v.reserve(result_size);
-        data_v.resize(schema.null_bitmap_size());
-        for (size_t i = 0; i < _fields.size(); ++i) {
-            const auto& value = _fields[i];
-            if (value.is_null()) {
-                auto bitmap_idx = schema.get_bitmap_idx(static_cast<uint32_t>(i));
-                data_v[bitmap_idx / 8] |= (1 << (bitmap_idx % 8));
-            } else {
-                serializer->append_value_to_buffer(value, data_v);
-            }
-        }
-        assert(data_v.size() == result_size);
-        return data_v;
-    }
+    std::vector<uint8_t> serialized(const Schema& schema, Serializer* serializer) const;
 
     static Record from_binary(
         uint8_t* data,
@@ -115,32 +61,9 @@ public:
         const Schema& schema,
         StringStorage* string_storage,
         Serializer* serializer
-    ) {
-        if (serializer == nullptr) {
-            throw std::runtime_error("Serializer should not be nullptr.");
-        }
-        const uint8_t* null_bitmap = data;
-        data += schema.null_bitmap_size();
-        std::vector<Value> values(schema.size());
-        for (size_t i = 0; i < schema.size(); ++i) {
-            if (!schema[i].not_null()) {
-                auto bitmap_idx = schema.get_bitmap_idx(static_cast<uint32_t>(i));
-                bool value_is_null = null_bitmap[bitmap_idx / 8] & (1 << (bitmap_idx % 8));
-                if (value_is_null) {
-                    continue;
-                }
-            }
-            if (schema[i].is_int()) {
-                values[i] = serializer->read_value(data, Value::Type::INT, string_storage);
-            } else if (schema[i].is_string()) {
-                values[i] = serializer->read_value(data, Value::Type::STRING, string_storage);
-            }
-        }
-        if (data - null_bitmap != size) {
-            throw std::runtime_error("Read data and size are mismatch.");
-        }
-        return Record(record_id, values);
-    }
+    );
+
+    friend std::ostream& operator<<(std::ostream& os, const Record& record);
 };
 
 }  // namespace qdb::storage

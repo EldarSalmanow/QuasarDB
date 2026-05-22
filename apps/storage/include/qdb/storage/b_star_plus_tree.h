@@ -273,6 +273,20 @@ public:
         return leaf->update_value(key, value);
     }
 
+    void update_or_insert(K_t key, V_t value) {
+        if (DEBUG) {
+            std::cout << "BStarPlusTree::update_or_insert: key=" << key << ", value=" << value << std::endl;
+        }
+        std::vector<V_t> result;
+        std::stack<std::pair<node_size_t, int>> stub;
+        auto leaf = findLeaf(key, stub);
+        if (!leaf) {
+            insert(key, value);
+        } else {
+            leaf->update_value(key, value);
+        }
+    }
+
     std::vector<std::pair<K_t, V_t>> rangeSearch(const K_t& low, const K_t& high) {
         if (DEBUG) {
             std::cout << "BStarPlusTree::rangeSearch(low=" << low << ", high=" << high << ")" << std::endl;
@@ -863,13 +877,15 @@ private:
         std::string indent(depth * 2, ' ');
         auto node = std::make_unique<Node<K_t, V_t>>(node_id, &pager);
         if (node->is_leaf()) {
-            os << indent << "-" << " Leaf[" << node->id() << "](" << node->size() << "): ";
+            os << indent << "-"
+               << " Leaf[" << node->id() << "](" << node->size() << "): ";
             for (node_size_t i = 0; i < node->size(); ++i) {
                 os << node->get_key(i) << " ";
             }
             os << "\n";
         } else {
-            os << indent << "-" << " Internal[" << node->id() << "](" << node->size() << "); ";
+            os << indent << "-"
+               << " Internal[" << node->id() << "](" << node->size() << "); ";
             for (node_size_t i = 0; i < node->size(); ++i) {
                 os << node->get_key(i) << " ";
             }
@@ -925,7 +941,8 @@ private:
                 if (DEBUG) {
                     std::cout
                         << "IntegrityError: node[" << node->id() << "].get_key(" << i << ")==" << node->get_key(i)
-                        << " >= " << "node.get_key(" << i + 1 << ")==" << node->get_key(i + 1) << std::endl;
+                        << " >= "
+                        << "node.get_key(" << i + 1 << ")==" << node->get_key(i + 1) << std::endl;
                 }
                 result = false;
             }

@@ -12,51 +12,18 @@ namespace qdb::storage {
 
 class DatabaseManager final {
 public:
-    DatabaseManager(std::string root) : root_(std::move(root)) {}
+    DatabaseManager(std::string root);
 
     DatabaseManager(const DatabaseManager& other) = delete;
 
     DatabaseManager(DatabaseManager&& other) noexcept = delete;
 
 public:
-    void CreateDatabase(std::string name) {
-        if (databases_.find(name) != databases_.end()) {
-            throw std::
-                runtime_error("[ERROR in qdb::storage::DatabaseManager]: DB with name '" + name + "' already exists!");
-        }
+    void CreateDatabase(std::string name);
 
-        fs::path db_path = fs::path(root_) / name;
+    void DropDatabase(const std::string& name);
 
-        fs::create_directory(db_path);
-
-        databases_.emplace(std::piecewise_construct,
-                          std::forward_as_tuple(name),
-                          std::forward_as_tuple(name, db_path));
-    }
-
-    void DropDatabase(const std::string& name) {
-        auto db_iterator = databases_.find(name);
-
-        if (db_iterator == databases_.end()) {
-            return;
-        }
-
-        fs::path db_path = fs::path(root_) / name;
-
-        fs::remove_all(db_path);
-
-        databases_.erase(db_iterator);
-    }
-
-    Database* UseDatabase(const std::string& name) {
-        auto db_iterator = databases_.find(name);
-
-        if (db_iterator == databases_.end()) {
-            return nullptr;
-        }
-
-        return &db_iterator->second;
-    }
+    Database* UseDatabase(const std::string& name);
 
 public:
     DatabaseManager& operator=(const DatabaseManager& other) = delete;
