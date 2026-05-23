@@ -4,11 +4,11 @@
 #include <qdb/core/request.h>
 #include <qdb/core/response.h>
 #include <qdb/core/tcp_server.h>
+#include <qdb/server/async_status.h>
 #include <qdb/server/config.h>
 #include <qdb/server/monitor.h>
 #include <qdb/server/router.h>
 #include <qdb/server/security.h>
-#include <qdb/server/task_queue.h>
 
 #include <memory>
 #include <optional>
@@ -53,7 +53,7 @@ private:
 
     Monitor monitor_;
 
-    TaskQueue tasks_;
+    TaskTracker tasks_;
 };
 
 }  // namespace qdb::server

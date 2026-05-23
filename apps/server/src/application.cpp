@@ -182,7 +182,14 @@ auto Application::HandleCheckTask(const qdb::core::Request& request) -> qdb::cor
         return Error("Task not found", {{"task_id", request.TaskId().value()}});
     }
 
-    return task.value();
+    if (task->result.has_value()) {
+        return task->result.value();
+    }
+
+    return qdb::core::ResponseBuilder::Pending()
+        .Message(task->status == TaskStatus::Running ? "Operation is still running" : "Operation is pending")
+        .Data({{"task_id", request.TaskId().value()}, {"status", task->status == TaskStatus::Running ? "running" : "pending"}})
+        .Build();
 }
 
 auto Application::Authenticate(const qdb::core::Request& request) const -> std::optional<std::string> {
