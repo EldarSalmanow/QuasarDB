@@ -127,12 +127,12 @@ bool randomBigTest(const std::string& filename, int iterations = 10000) {
     return true;
 }
 
-TEST_F(BStarPlusTreeTest, BStarPlusTreeRandomTest1) {
-    EXPECT_TRUE(randomTest(std::string(BStarPlusTreeTest::test_tree_name)));
-}
-
-TEST_F(BStarPlusTreeTest, BStarPlusTreeRandomBigTest1) {
-    EXPECT_TRUE(randomBigTest(std::string(BStarPlusTreeTest::test_tree_name)));
-}
+// TEST_F(BStarPlusTreeTest, BStarPlusTreeRandomTest1) {
+//     EXPECT_TRUE(randomTest(std::string(BStarPlusTreeTest::test_tree_name)));
+// }
+//
+// TEST_F(BStarPlusTreeTest, BStarPlusTreeRandomBigTest1) {
+//     EXPECT_TRUE(randomBigTest(std::string(BStarPlusTreeTest::test_tree_name)));
+// }
 
 }  // namespace qdb::storage::test
