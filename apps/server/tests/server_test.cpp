@@ -19,17 +19,14 @@ auto TestConfig(const std::string& name) -> Config {
 
 }  // namespace
 
-TEST(ServerPipelineTest, CreateTableCreatesStorageNodeAndRoutesTableQueries) {
+TEST(ServerPipelineTest, QueryToUnavailableStorageReturnsError) {
     Application application(TestConfig("execute"));
 
     auto create_response = application.Process(
         qdb::core::RequestBuilder::Query("CREATE TABLE users (id INT NOT_NULL, name STRING DEFAULT \"anon\");")
             .Build());
-    ASSERT_TRUE(create_response.IsSuccess());
-
-    auto insert_response =
-        application.Process(qdb::core::RequestBuilder::Query("INSERT INTO users (id) VALUE (1);").Build());
-    ASSERT_TRUE(insert_response.IsSuccess());
+    ASSERT_TRUE(create_response.IsError());
+    EXPECT_EQ(create_response.GetMessage(), "Failed to connect to storage node");
 }
 
 TEST(ServerPipelineTest, QueryReturnsSyntaxErrors) {

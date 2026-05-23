@@ -1,15 +1,6 @@
 #ifndef QUASARDB_TABLE_H
 #define QUASARDB_TABLE_H
 
-#include <inttypes.h>
-#include <algorithm>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <string_view>
-#include <unordered_map>
-#include <variant>
 #include "b_star_plus_tree.h"
 #include "interner.h"
 #include "journal.h"
@@ -19,7 +10,16 @@
 #include "schema.h"
 #include "string_storage.h"
 
+#include <algorithm>
+#include <filesystem>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <variant>
+
+
 namespace qdb::storage {
+
 class Table final {
     static constexpr bool DEBUG = false;
     static constexpr std::string_view HEADER = "TABLE";

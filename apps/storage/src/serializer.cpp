@@ -1,5 +1,7 @@
 #include "../include/qdb/storage/serializer.h"
 
+#include <cstring>
+
 namespace qdb::storage {
 
 Serializer::Serializer(Interner* interner, uint32_t max_small_str_size)

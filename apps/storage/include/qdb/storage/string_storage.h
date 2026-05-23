@@ -1,17 +1,20 @@
 #ifndef QUASARDB_STRING_STORAGE_H
 #define QUASARDB_STRING_STORAGE_H
 
-#include <deque>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <string_view>
-#include "external_string.h"
+
+
+namespace fs = std::filesystem;
 
 namespace qdb::storage {
 
-namespace fs = std::filesystem;
+struct ExternalString {
+    uint64_t offset;
+    uint64_t size;
+};
 
 class StringStorage {
     fs::path _data_path;

@@ -1,5 +1,7 @@
 #include "../include/qdb/storage/journal.h"
 
+#include <sstream>
+
 namespace qdb::storage {
 Journal::Track::Track(Type type, uint32_t record_id) : _type(type), _record_id(record_id), _time(get_now()) {}
 

@@ -1,20 +1,28 @@
 #ifndef QUASARDB_VALUE_H
 #define QUASARDB_VALUE_H
 
-#include "external_string.h"
-#include "sql_bool.h"
+#include "string_storage.h"
 
 #include <cassert>
-#include <cstdint>
-#include <cstring>
-#include <iostream>
-#include <stdexcept>
 #include <string>
-#include <utility>
 #include <variant>
-#include <vector>
+
 
 namespace qdb::storage {
+
+enum class SqlBool {
+    FALSE,
+    TRUE,
+    UNKNOWN,
+};
+
+SqlBool operator&&(SqlBool a, SqlBool b);
+
+SqlBool operator||(SqlBool a, SqlBool b);
+
+SqlBool operator!(SqlBool a);
+
+bool operator==(SqlBool a, SqlBool b);
 
 struct InternedString {
     ExternalString ext_addr;

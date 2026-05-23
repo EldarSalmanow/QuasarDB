@@ -1,19 +1,20 @@
 #ifndef QUASARDB_DB_MANAGER_H
 #define QUASARDB_DB_MANAGER_H
 
-// #include <qdb/storage/database.h>
 #include "database.h"
 
 #include <filesystem>
 #include <string>
 #include <unordered_map>
 
+
 namespace qdb::storage {
 
 class DatabaseManager final {
 public:
-    DatabaseManager(std::string root);
+    explicit DatabaseManager(std::string root);
 
+public:
     DatabaseManager(const DatabaseManager& other) = delete;
 
     DatabaseManager(DatabaseManager&& other) noexcept = delete;

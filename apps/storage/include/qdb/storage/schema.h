@@ -1,13 +1,13 @@
 #ifndef QUASARDB_SCHEMA_H
 #define QUASARDB_SCHEMA_H
 
-#include <iostream>
+#include "column.h"
+
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
-#include "column.h"
+
 
 namespace qdb::storage {
 

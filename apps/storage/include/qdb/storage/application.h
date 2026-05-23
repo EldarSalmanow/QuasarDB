@@ -1,13 +1,16 @@
 #ifndef QUASARDB_APPLICATION_H
 #define QUASARDB_APPLICATION_H
 
-#include <memory>
-#include <optional>
+#include <nlohmann/json.hpp>
+
 #include <qdb/core/tcp_server.h>
 #include <qdb/core/tcp_client.h>
 #include <qdb/storage/config.h>
 #include <qdb/storage/db_manager.h>
-#include <nlohmann/json.hpp>
+
+#include <memory>
+#include <optional>
+
 
 namespace qdb::storage {
 

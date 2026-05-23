@@ -1,13 +1,13 @@
 #ifndef QUASARDB_JOURNAL_H
 #define QUASARDB_JOURNAL_H
 
+#include "record.h"
+
 #include <cassert>
-#include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <string>
-#include "record.h"
+
 
 namespace qdb::storage {
 class Journal final {

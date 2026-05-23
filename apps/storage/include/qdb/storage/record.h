@@ -1,12 +1,10 @@
 #ifndef QUASARDB_RECORD_H
 #define QUASARDB_RECORD_H
 
-#include <fstream>
-#include <string>
-#include <vector>
 #include "schema.h"
 #include "serializer.h"
 #include "value.h"
+
 
 namespace qdb::storage {
 

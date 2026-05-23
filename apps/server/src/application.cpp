@@ -1,5 +1,6 @@
 #include <qdb/server/application.h>
 
+#include <qdb/server/analyzer.h>
 #include <qdb/server/lexer.h>
 #include <qdb/server/parser.h>
 
@@ -33,7 +34,10 @@ Application::Application(Config config)
     : config_(std::move(config)),
       server_(qdb::core::TcpServer::New(config_.Host(), config_.Port())),
       accounts_(config_.AccountPath()),
-      jwt_(config_.JwtSecret()) {}
+      jwt_(config_.JwtSecret()),
+      registry_(Registry::New()),
+      router_(registry_),
+      monitor_(registry_) {}
 
 auto Application::New(Config config) -> std::unique_ptr<Application> {
     return std::make_unique<Application>(std::move(config));
@@ -43,6 +47,8 @@ auto Application::Run() -> std::int32_t {
     if (!server_ || !server_->Start()) {
         return 1;
     }
+
+    monitor_.Start();
 
     while (server_->IsRunning()) {
         auto client = server_->Accept();
@@ -62,6 +68,8 @@ auto Application::Run() -> std::int32_t {
             }
         }).detach();
     }
+
+    monitor_.Stop();
 
     return 0;
 }
@@ -115,7 +123,9 @@ auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core:
         return Error("Valid token is required");
     }
 
-    Lexer lexer(request.Query());
+    const auto query = request.Query();
+
+    Lexer lexer(query);
 
     auto tokens = lexer.Tokenize();
 
@@ -126,6 +136,8 @@ auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core:
     Parser parser(std::move(tokens));
 
     auto statement = parser.ParseStatement();
+
+    Analyzer::ValidateStatement(*statement);
 
     return router_.Route(*statement);
 }

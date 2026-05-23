@@ -1,5 +1,8 @@
 #include "../include/qdb/storage/page.h"
 
+#include <cstring>
+#include <iostream>
+
 namespace qdb::storage {
 
 void TablePage::PageDeleter::operator()(DataPage* p) const {

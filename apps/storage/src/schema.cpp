@@ -1,5 +1,7 @@
 #include "../include/qdb/storage/schema.h"
 
+#include <iostream>
+
 namespace qdb::storage {
 
 Schema::Schema(std::vector<Column> columns, uint32_t record_id_count)
