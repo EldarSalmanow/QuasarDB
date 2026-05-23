@@ -8,6 +8,7 @@
 #include <qdb/server/monitor.h>
 #include <qdb/server/router.h>
 #include <qdb/server/security.h>
+#include <qdb/server/task_queue.h>
 
 #include <memory>
 #include <optional>
@@ -51,6 +52,8 @@ private:
     Router router_;
 
     Monitor monitor_;
+
+    TaskQueue tasks_;
 };
 
 }  // namespace qdb::server

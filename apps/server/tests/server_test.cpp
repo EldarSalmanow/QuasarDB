@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <string>
 
 namespace qdb::server {
 
@@ -44,6 +45,23 @@ TEST(ServerPipelineTest, SemanticAnalyzerRejectsInvalidDefaultType) {
         application.Process(qdb::core::RequestBuilder::Query("CREATE TABLE users (id INT DEFAULT \"abc\");").Build());
     ASSERT_TRUE(response.IsError());
     EXPECT_EQ(response.GetMessage(), "SEMANTIC_ERROR: column 'id' expects INT default");
+}
+
+TEST(ServerPipelineTest, LongQueryReturnsTaskIdImmediately) {
+    Application application(TestConfig("async_query"));
+
+    auto response = application.Process(qdb::core::RequestBuilder::Query("SELECT COUNT(id) FROM users;").Build());
+
+    ASSERT_TRUE(response.IsPending());
+    EXPECT_EQ(response.GetMessage(), "Operation is running in background");
+
+    const auto& task_id = response.GetDataObject().at("task_id").get_ref<const std::string&>();
+    EXPECT_EQ(task_id.size(), 36);
+    EXPECT_EQ(task_id[14], '4');
+    EXPECT_EQ(task_id[8], '-');
+    EXPECT_EQ(task_id[13], '-');
+    EXPECT_EQ(task_id[18], '-');
+    EXPECT_EQ(task_id[23], '-');
 }
 
 TEST(ServerPipelineTest, UnknownActionsAreRejected) {
