@@ -1,42 +1,48 @@
 #include <qdb/server/router.h>
+
+#include <qdb/core/tcp_client.h>
 #include <qdb/server/analyzer.h>
 
-#include <algorithm>
 #include <utility>
 
 namespace qdb::server {
 
+namespace {
+
+auto Error(std::string message, nlohmann::json data = nlohmann::json::object()) -> qdb::core::Response {
+    return qdb::core::ResponseBuilder::Error()
+        .Message(std::move(message))
+        .Data(std::move(data))
+        .Build();
+}
+
+}  // namespace
+
 Router::Router(std::shared_ptr<Registry> registry)
         : registry_(std::move(registry)) {}
 
+auto Router::New(std::shared_ptr<Registry> registry) -> std::unique_ptr<Router> {
+    return std::make_unique<Router>(std::move(registry));
+}
+
 auto Router::Route(const Statement& statement) -> qdb::core::Response {
     if (const auto* create = dynamic_cast<const CreateTableStmt*>(&statement)) {
-        StorageId id { create->Table };
+        StorageId id {TableKey(create->Table)};
 
         if (!registry_->CreateNode(id)) {
-            return qdb::core::ResponseBuilder::Error()
-                .Message("[ERROR in qdb::server::Router] Can`t create node in registry!")
-                .Build();
+            return Error("Failed to create storage node in registry");
         }
 
-        return SendToNode(id, statement);
+        return SendToStorage(id, statement);
     }
 
-    if (const auto *drop = dynamic_cast<const DropTableStmt *>(&statement)) {
-        StorageId id { drop->Table };
+    if (const auto* drop = dynamic_cast<const DropTableStmt*>(&statement)) {
+        StorageId id {TableKey(drop->Table)};
 
-        if (!registry_->HasNode(id)) {
-            return qdb::core::ResponseBuilder::Error()
-                .Message("[ERROR in qdb::server::Router] Can`t find node in registry!")
-                .Build();
-        }
+        auto response = SendToStorage(id, statement);
 
-        auto response = SendToNode(id, statement);
-
-        if (!registry_->DropNode(id)) {
-            return qdb::core::ResponseBuilder::Error()
-                .Message("[ERROR in qdb::server::Router] Can`t drop node in registry!")
-                .Build();
+        if (response.IsSuccess()) {
+            registry_->DropNode(id);
         }
 
         return response;
@@ -45,49 +51,49 @@ auto Router::Route(const Statement& statement) -> qdb::core::Response {
     auto table = Analyzer::TableFromStatement(statement);
 
     if (!table.has_value()) {
-        return qdb::core::ResponseBuilder::Error()
-            .Message("Cannot determine table from statement")
-            .Build();
+        return Error("Cannot determine table from statement");
     }
 
-    StorageId id { table };
+    StorageId id {TableKey(table.value())};
 
     return SendToStorage(id, statement);
 }
 
-auto Router::SendToStorage(const StorageId &id, const Statement &statement) -> qdb::core::Response {
-    if (!registry_->HasNode(id)) {
-        return qdb::core::ResponseBuilder::Error()
-            .Message("Failed to connect to storage node")
-            .Build();
+auto Router::SendToStorage(const StorageId& id, const Statement& statement) -> qdb::core::Response {
+    auto node = registry_->GetNode(id);
+
+    if (!node.has_value()) {
+        return Error("Storage node is not registered",
+            {{"storage_id", id.table}});
     }
 
-    if (!node.client) {
-        node.client = qdb::core::TcpClient::New(node.host, node.port);
+    if (node->state == StorageState::Down) {
+        return Error("Storage node is down",
+            {{"storage_id", id.table}, {"host", node->host}, {"port", node->port}});
     }
 
-    if (!node.client->IsConnected() && !node.client->Connect()) {
-        node.alive = false;
-        return qdb::core::ResponseBuilder::Error().Message("Failed to connect to storage node").Build();
+    auto client = qdb::core::TcpClient::New(node->host, node->port);
+
+    if (!client || !client->Connect()) {
+        return Error("Failed to connect to storage node",
+                     {{"storage_id", id.table}, {"host", node->host}, {"port", node->port}});
     }
 
-    nlohmann::json request = {
+    const nlohmann::json request = {
         {"action", "execute_ast"},
-        {"data", {
-            {"ast_root", SerializeAst(statement)}
-        }}
+        {"data", {{"ast_root", SerializeAst(statement)}}}
     };
 
-    if (!node.client->Send(request)) {
-        node.alive = false;
-        return qdb::core::ResponseBuilder::Error().Message("Failed to send request to storage").Build();
+    if (!client->Send(request)) {
+        return Error("Failed to send request to storage", {{"storage_id", id.table}});
     }
 
-    auto response = node.client->Receive();
+    auto response = client->Receive();
+
+    client->Disconnect();
 
     if (!response.has_value()) {
-        node.alive = false;
-        return qdb::core::ResponseBuilder::Error().Message("Failed to receive response from storage").Build();
+        return Error("Failed to receive response from storage", {{"storage_id", id.table}});
     }
 
     return qdb::core::Response::FromJsonObject(response.value());

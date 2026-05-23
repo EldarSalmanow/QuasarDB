@@ -1,6 +1,7 @@
 #ifndef QUASARDB_ROUTER_H
 #define QUASARDB_ROUTER_H
 
+#include <qdb/core/response.h>
 #include <qdb/server/ast.h>
 #include <qdb/server/registry.h>
 
@@ -21,7 +22,7 @@ public:
     auto Route(const Statement& statement) -> qdb::core::Response;
 
 private:
-    auto Resolve(const Statement &statement) -> std::optional<StorageId>;
+    auto SendToStorage(const StorageId& id, const Statement& statement) -> qdb::core::Response;
 
     static auto TableKey(const TableRef& table) -> std::string;
 

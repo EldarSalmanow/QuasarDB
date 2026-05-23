@@ -1,6 +1,7 @@
 #include "../include/qdb/storage/table.h"
 #include <gtest/gtest.h>
 #include <sstream>
+#include <thread>
 
 namespace qdb::storage::test {
 

@@ -80,6 +80,10 @@ auto Application::ProcessRequest(const nlohmann::json& request) -> std::optional
         return ExecuteAst(request["data"]["ast_root"]);
     }
 
+    if (action == "ping") {
+        return qdb::core::ResponseBuilder::Success().Message("pong").Build().ToJsonObject();
+    }
+
     return qdb::core::ResponseBuilder::Error().Message("Unknown action").Build().ToJsonObject();
 }
 
