@@ -210,6 +210,17 @@ std::optional<Record> Table::read_record(RecordAddress record_address, void* mem
     return record;
 }
 
+std::vector<Record> Table::records() {
+    std::vector<Record> result;
+    for (uint32_t id = 0; id < _schema.record_id_count(); ++id) {
+        auto addresses = _id_to_addr.search(id);
+        if (!addresses.empty()) {
+            result.push_back(*read_record(addresses.back()));
+        }
+    }
+    return result;
+}
+
 RecordAddress Table::update_record(Record& record) {
     // Note: this method update record.address in-place
     if (DEBUG) {

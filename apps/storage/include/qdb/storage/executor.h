@@ -37,6 +37,11 @@ public:
     void Visit(const qdb::server::SelectStmt& node) override;
 
 private:
+    auto CurrentDb(const qdb::server::TableRef& table) -> Database*;
+
+    auto AggregateSelect(const qdb::server::SelectStmt& node, Database& db, Table& table) -> nlohmann::json;
+
+private:
     DatabaseManager& db_manager_;
     Database* current_db_ = nullptr;
     std::optional<nlohmann::json> result_;

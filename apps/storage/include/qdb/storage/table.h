@@ -115,6 +115,8 @@ public:
 
     std::optional<Record> read_record(RecordAddress record_address, void* mem_ptr = nullptr);
 
+    std::vector<Record> records();
+
     RecordAddress update_record(Record& record);
 
     std::vector<std::pair<int, std::string>> update_multiple(std::vector<Record>& records);
