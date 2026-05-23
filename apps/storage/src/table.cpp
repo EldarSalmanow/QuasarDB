@@ -1,5 +1,7 @@
 #include "../include/qdb/storage/table.h"
 
+#include <iostream>
+
 namespace qdb::storage {
 
 Table::FastStr::FastStr(const std::string& value, int32_t record_id) : _record_id(record_id) {

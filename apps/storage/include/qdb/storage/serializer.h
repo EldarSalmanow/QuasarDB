@@ -1,12 +1,11 @@
 #ifndef QUASARDB_SERIALIZER_H
 #define QUASARDB_SERIALIZER_H
 
-#include <cassert>
-#include <string_view>
-#include <utility>
 #include "interner.h"
 #include "string_storage.h"
-#include "value.h"
+
+#include <vector>
+
 
 namespace qdb::storage {
 

@@ -1,24 +1,19 @@
-//
-// Created by eldar on 09.04.2026.
-//
-
 #ifndef QUASARDB_B_STAR_PLUS_TREE_H
 #define QUASARDB_B_STAR_PLUS_TREE_H
 
+#include "node.h"
+#include "pager.h"
+
 #include <algorithm>
 #include <cassert>
-#include <concepts>
-#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <memory>
-#include <optional>
 #include <stack>
 #include <string>
 #include <string_view>
 #include <vector>
-#include "node.h"
-#include "pager.h"
+
 
 namespace qdb::storage {
 

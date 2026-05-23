@@ -1,33 +1,26 @@
-// This file contains the declaration and implementation of the B*+ tree node.
-
 #ifndef QUASARBD_B_STAR_PLUS_TREE_NODE_H
 #define QUASARBD_B_STAR_PLUS_TREE_NODE_H
 
+#include "pager.h"
+
 #include <algorithm>
 #include <concepts>
-#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <string>
-#include "pager.h"
+
 
 namespace qdb::storage {
 
 template <typename T, typename K>
 concept HasSearchCmp = requires(const T& a, const K& b) {
-    {
-        a.SearchCmp(b)
-        } -> std::convertible_to<int>;
+    { a.SearchCmp(b) } -> std::convertible_to<int>;
 };
 
 template <typename T>
 concept BTreeKey = requires(const T a, const T b) {
-    {
-        a < b
-        } -> std::convertible_to<bool>;
-    {
-        a == b
-        } -> std::convertible_to<bool>;
+    { a < b } -> std::convertible_to<bool>;
+    { a == b } -> std::convertible_to<bool>;
     requires std::is_trivially_copyable_v<T>;
     requires sizeof(T) > 0;
 };

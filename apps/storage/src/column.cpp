@@ -1,5 +1,7 @@
 #include "../include/qdb/storage/column.h"
 
+#include <iostream>
+
 namespace qdb::storage {
 
 Column::Column(std::string name, ColumnType type, uint8_t flags)

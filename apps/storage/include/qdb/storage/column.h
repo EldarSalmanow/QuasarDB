@@ -1,14 +1,11 @@
 #ifndef QUASARDB_COLUMN_H
 #define QUASARDB_COLUMN_H
 
-#include <cassert>
-#include <cstdint>
-#include <iostream>
-#include <optional>
-#include <stdexcept>
-#include <string>
-#include <utility>
 #include "interner.h"
+
+#include <cstdint>
+#include <optional>
+#include <string>
 
 namespace qdb::storage {
 
