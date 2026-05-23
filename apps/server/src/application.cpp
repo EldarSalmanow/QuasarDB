@@ -28,6 +28,21 @@ auto Error(std::string message, nlohmann::json data = nlohmann::json::object()) 
         .Build();
 }
 
+auto HasAggregate(const SelectStmt& select) -> bool {
+    return std::any_of(select.SelectItems.begin(), select.SelectItems.end(), [](const SelectItem& item) {
+        return dynamic_cast<const AggregateExpr*>(item.Expr.get()) != nullptr;
+    });
+}
+
+auto IsLongRunning(const Statement& statement) -> bool {
+    if (dynamic_cast<const RevertStmt*>(&statement) != nullptr) {
+        return true;
+    }
+
+    const auto* select = dynamic_cast<const SelectStmt*>(&statement);
+    return select != nullptr && HasAggregate(*select);
+}
+
 }  // namespace
 
 Application::Application(Config config)
@@ -37,7 +52,8 @@ Application::Application(Config config)
       jwt_(config_.JwtSecret()),
       registry_(Registry::New()),
       router_(registry_),
-      monitor_(registry_) {}
+      monitor_(registry_),
+      tasks_([this](const Statement& statement) { return router_.Route(statement); }) {}
 
 auto Application::New(Config config) -> std::unique_ptr<Application> {
     return std::make_unique<Application>(std::move(config));
@@ -139,6 +155,15 @@ auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core:
 
     Analyzer::ValidateStatement(*statement);
 
+    if (IsLongRunning(*statement)) {
+        auto task_id = tasks_.Submit(std::move(statement));
+
+        return qdb::core::ResponseBuilder::Pending()
+            .Message("Operation is running in background")
+            .Data({{"task_id", std::move(task_id)}})
+            .Build();
+    }
+
     return router_.Route(*statement);
 }
 
@@ -151,7 +176,13 @@ auto Application::HandleCheckTask(const qdb::core::Request& request) -> qdb::cor
         return Error("check_task requires data.task_id");
     }
 
-    return Error("Task not found", {{"task_id", request.TaskId().value()}});
+    auto task = tasks_.Get(request.TaskId().value());
+
+    if (!task.has_value()) {
+        return Error("Task not found", {{"task_id", request.TaskId().value()}});
+    }
+
+    return task.value();
 }
 
 auto Application::Authenticate(const qdb::core::Request& request) const -> std::optional<std::string> {
