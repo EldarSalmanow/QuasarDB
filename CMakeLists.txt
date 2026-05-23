@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+option(ENABLE_CLANG_TIDY "Enable clang-tidy checks" OFF)
 
 add_compile_options(
 	$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wall>
@@ -29,6 +30,12 @@ if(ENABLE_UBSAN)
 	add_link_options(-fsanitize=undefined)
 	
 	message(STATUS "UndefinedBehaviorSanitizer enabled")
+endif()
+
+if(ENABLE_CLANG_TIDY)
+	find_program(CLANG_TIDY_EXE NAMES clang-tidy REQUIRED)
+	set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
+	message(STATUS "clang-tidy enabled: ${CLANG_TIDY_EXE}")
 endif()
 
 include(CTest)

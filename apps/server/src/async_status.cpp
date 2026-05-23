@@ -33,9 +33,15 @@ auto TaskTracker::Submit(std::unique_ptr<Statement> statement) -> std::string {
 auto TaskTracker::GetStatus(const std::string& guid) -> std::optional<TaskResult> {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        auto it = results_.find(guid);
+        if (it != results_.end() &&
+            (it->second.status == TaskStatus::Completed || it->second.status == TaskStatus::Failed))
+        {
+            return it->second;
+        }
+
         auto base_result = queue_.Get(guid);
         if (!base_result.has_value()) {
-            auto it = results_.find(guid);
             if (it != results_.end()) {
                 if (it->second.status == TaskStatus::Pending) {
                     it->second.status = TaskStatus::Running;
@@ -45,7 +51,6 @@ auto TaskTracker::GetStatus(const std::string& guid) -> std::optional<TaskResult
             return std::nullopt;
         }
 
-        auto it = results_.find(guid);
         if (it == results_.end()) {
             TaskResult entry;
             entry.guid = guid;

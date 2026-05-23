@@ -69,6 +69,7 @@ Table::Table(std::string name, fs::path root, Interner* interner)
     } else {
         throw std::runtime_error("Can not read schema for table with name " + _name + ".");
     }
+    open_indexes();
 }
 
 Table::Table(std::string name, fs::path root, Schema schema, Interner* interner)
@@ -99,6 +100,11 @@ Table::Table(std::string name, fs::path root, Schema schema, Interner* interner)
 
     save_schema();
 
+    open_indexes();
+}
+
+void Table::open_indexes() {
+    _indexes.clear();
     for (size_t i = 0; i < _schema.size(); ++i) {
         if (_schema[i].indexed()) {
             const std::string& column_name = _schema[i].name();
@@ -221,6 +227,54 @@ std::vector<Record> Table::records() {
     return result;
 }
 
+std::optional<std::vector<Record>> Table::find_by_index(const std::string& column_name, const Value& value) {
+    const auto column_idx = _schema.get_column_idx(column_name);
+    if (column_idx < 0) {
+        throw std::runtime_error("Unknown column: " + column_name);
+    }
+
+    const auto& column = _schema[column_idx];
+    if (!column.indexed() || value.is_null()) {
+        return std::nullopt;
+    }
+    if ((column.is_int() && !value.is_int()) || (column.is_string() && !value.is_string())) {
+        return std::nullopt;
+    }
+
+    auto index = _indexes.find(column_name);
+    if (index == _indexes.end()) {
+        throw std::runtime_error("Index not found for column " + column_name + ".");
+    }
+
+    std::vector<Record> result;
+    auto page_buf = std::make_unique<uint8_t[]>(PAGE_SIZE);
+    auto add_records = [&](const std::vector<RecordAddress>& addresses) {
+        for (auto address : addresses) {
+            auto record = read_record(address, page_buf.get());
+            if (record && (*record)[column_idx].StrictEq(value)) {
+                result.push_back(std::move(*record));
+            }
+        }
+    };
+
+    std::visit(
+        [&](auto& tree) {
+            using KeyType = typename std::decay_t<decltype(tree)>::key_type;
+            if constexpr (std::is_same_v<KeyType, int32_t>) {
+                if (value.is_int()) {
+                    add_records(tree.search(value.as_int()));
+                }
+            } else if constexpr (std::is_same_v<KeyType, FastStr>) {
+                if (value.is_string()) {
+                    add_records(tree.search(FastStr(value.as_string().intern_view, 0)));
+                }
+            }
+        },
+        index->second
+    );
+    return result;
+}
+
 RecordAddress Table::update_record(Record& record) {
     // Note: this method update record.address in-place
     if (DEBUG) {
@@ -232,10 +286,8 @@ RecordAddress Table::update_record(Record& record) {
     auto table_page = TablePage(record.address().page_idx, &_pager, &_str_storage, &_serializer);
     table_page.delete_record(record.address().slot_idx);
     auto new_record_addr = write_record_to_disk(record, old_record_addr.page_idx);
-    if (old_record_addr != new_record_addr) {
-        update_indexes_after_update(record);
-        _id_to_addr.update(record.id(), record.address());
-    }
+    update_indexes_after_update(old_record, record);
+    _id_to_addr.update(record.id(), record.address());
     _journal.save_updation(old_record, _schema, &_serializer);
     return new_record_addr;
 }
@@ -291,14 +343,13 @@ void Table::revert(const std::string& time) {
         } else if (revert_data.type == Journal::Track::Type::UPDATE) {
             assert(_id_to_addr.search(record.id()).size() == 1);
             auto current_record_addr = _id_to_addr.search(record.id()).back();
+            auto current_record = *read_record(current_record_addr);
             record.set_address(current_record_addr);
             auto table_page = TablePage(record.address().page_idx, &_pager, &_str_storage, &_serializer);
             table_page.delete_record(record.address().slot_idx);
-            auto new_record_addr = write_record_to_disk(record, record.address().page_idx);
-            if (current_record_addr != new_record_addr) {
-                update_indexes_after_update(record);
-                _id_to_addr.update(record.id(), record.address());
-            }
+            write_record_to_disk(record, record.address().page_idx);
+            update_indexes_after_update(current_record, record);
+            _id_to_addr.update(record.id(), record.address());
         } else if (revert_data.type == Journal::Track::Type::DELETE) {
             assert(_id_to_addr.search(record.id()).size() == 1);
             auto address = _id_to_addr.search(record.id()).back();
@@ -556,14 +607,17 @@ void Table::update_indexes_after_delete(const Record& record) {
     }
 }
 
-void Table::update_indexes_after_update(const Record& record) {
+void Table::update_indexes_after_update(const Record& old_record, const Record& new_record) {
     if (DEBUG) {
         std::cout << "Table::update_indexes_after_update" << std::endl;
     }
     for (size_t i = 0; i < _schema.size(); ++i) {
         const auto& column = _schema[i];
-        if (column.indexed()) {
-            const auto& value = record[i];
+        if (column.indexed() &&
+            (!old_record[i].StrictEq(new_record[i]) || old_record.address() != new_record.address()))
+        {
+            const auto& old_value = old_record[i];
+            const auto& new_value = new_record[i];
             auto it = _indexes.find(column.name());
             if (it == _indexes.end()) {
                 throw std::runtime_error("Index not found for column " + column.name() + ".");
@@ -572,9 +626,11 @@ void Table::update_indexes_after_update(const Record& record) {
                 [&](auto& tree) {
                     using KeyType = typename std::decay_t<decltype(tree)>::key_type;
                     if constexpr (std::is_same_v<KeyType, int32_t>) {
-                        tree.update(value.as_int(), record.address());
+                        tree.remove(old_value.as_int());
+                        tree.insert(new_value.as_int(), new_record.address());
                     } else if constexpr (std::is_same_v<KeyType, FastStr>) {
-                        tree.update(FastStr(value.as_string().intern_view, record.id()), record.address());
+                        tree.remove(FastStr(old_value.as_string().intern_view, old_record.id()));
+                        tree.insert(FastStr(new_value.as_string().intern_view, new_record.id()), new_record.address());
                     }
                 },
                 it->second

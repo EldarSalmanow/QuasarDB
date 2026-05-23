@@ -6,9 +6,13 @@
 #include <qdb/core/tcp_server.h>
 #include <qdb/server/async_status.h>
 #include <qdb/server/config.h>
+#include <qdb/server/catalog.h>
+#include <qdb/server/logger.h>
 #include <qdb/server/monitor.h>
+#include <qdb/server/rbac.h>
 #include <qdb/server/router.h>
 #include <qdb/server/security.h>
+#include <qdb/server/telemetry.h>
 
 #include <memory>
 #include <optional>
@@ -38,6 +42,8 @@ private:
 
     auto Authenticate(const qdb::core::Request& request) const -> std::optional<std::string>;
 
+    auto CheckAccess(const std::string& user, const Statement& statement) const -> bool;
+
 private:
     Config config_;
 
@@ -46,6 +52,14 @@ private:
     AccountStore accounts_;
 
     JwtHandler jwt_;
+
+    RBACManager rbac_;
+
+    Logger logger_;
+
+    Telemetry telemetry_;
+
+    Catalog catalog_;
 
     std::shared_ptr<Registry> registry_;
 

@@ -5,8 +5,10 @@
 
 #include <qdb/core/tcp_server.h>
 #include <qdb/core/tcp_client.h>
+#include <qdb/server/ast.h>
 #include <qdb/storage/config.h>
-#include <qdb/storage/db_manager.h>
+#include <qdb/storage/interner.h>
+#include <qdb/storage/table.h>
 
 #include <memory>
 #include <optional>
@@ -31,6 +33,12 @@ private:
 
     auto ExecuteAst(const nlohmann::json& ast) -> std::optional<nlohmann::json>;
 
+    auto CreateTable(const qdb::server::CreateTableStmt& statement) -> nlohmann::json;
+
+    auto DropTable(const qdb::server::DropTableStmt& statement) -> nlohmann::json;
+
+    auto OpenExistingTable() -> void;
+
 private:
     Config config_;
 
@@ -38,7 +46,9 @@ private:
 
     std::unique_ptr<qdb::core::TcpClient> connection_;
 
-    DatabaseManager db_manager_;
+    Interner interner_;
+
+    std::unique_ptr<Table> table_;
 };
 
 }  // namespace qdb::storage

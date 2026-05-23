@@ -2,7 +2,8 @@
 #define QUASARDB_EXECUTOR_H
 
 #include <qdb/server/ast.h>
-#include <qdb/storage/db_manager.h>
+#include <qdb/storage/interner.h>
+#include <qdb/storage/table.h>
 
 #include <nlohmann/json.hpp>
 
@@ -12,7 +13,7 @@ namespace qdb::storage {
 
 class Executor : public qdb::server::AstVisitor {
 public:
-    explicit Executor(DatabaseManager& db_manager);
+    Executor(Table& table, Interner& interner);
 
     auto Result() -> std::optional<nlohmann::json>;
 
@@ -37,13 +38,27 @@ public:
     void Visit(const qdb::server::SelectStmt& node) override;
 
 private:
-    auto CurrentDb(const qdb::server::TableRef& table) -> Database*;
+    auto CurrentTable(const qdb::server::TableRef& table) -> Table*;
 
-    auto AggregateSelect(const qdb::server::SelectStmt& node, Database& db, Table& table) -> nlohmann::json;
+    auto ValueOf(const qdb::server::Literal& literal, Interner& interner) -> Value;
+
+    auto ValueOf(const qdb::server::Expression& expression, const Record& record, const Schema& schema,
+                 Interner& interner) -> Value;
+
+    auto RecordsFor(Table& table, Interner& interner, const qdb::server::Condition* where) -> std::vector<Record>;
+
+    auto IndexedRecords(Table& table, Interner& interner, const qdb::server::Condition& condition)
+        -> std::optional<std::vector<Record>>;
+
+    auto CurrentInterner(const qdb::server::TableRef& table) -> Interner*;
+
+    auto SelectRows(const qdb::server::SelectStmt& node, Interner& interner, Table& table) -> nlohmann::json;
+
+    auto AggregateSelect(const qdb::server::SelectStmt& node, Interner& interner, Table& table) -> nlohmann::json;
 
 private:
-    DatabaseManager& db_manager_;
-    Database* current_db_ = nullptr;
+    Table& table_;
+    Interner& interner_;
     std::optional<nlohmann::json> result_;
 };
 

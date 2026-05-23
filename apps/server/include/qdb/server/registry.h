@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <optional>
+#include <filesystem>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
@@ -49,10 +50,16 @@ struct StorageNode {
 
 class Registry {
 public:
-    Registry();
+    explicit Registry(bool auto_start_storage = true,
+                      std::string storage_binary = "",
+                      std::string storage_root = "data/storage");
+
+    ~Registry();
 
 public:
-    static auto New() -> std::shared_ptr<Registry>;
+    static auto New(bool auto_start_storage = true,
+                    std::string storage_binary = "",
+                    std::string storage_root = "data/storage") -> std::shared_ptr<Registry>;
 
 public:
     auto CreateNode(const StorageId &id) -> bool;
@@ -70,12 +77,30 @@ public:
 private:
     auto HasNodeNonSync(const StorageId &id) const -> bool;
 
+    auto StartProcessNonSync(const StorageId& id, const StorageNode& node) -> bool;
+
+    auto StopProcessNonSync(const StorageId& id) -> void;
+
+    auto DataDirFor(const StorageId& id) const -> std::filesystem::path;
+
+    auto ResolveStorageBinary() const -> std::filesystem::path;
+
+    static auto WaitUntilReady(const StorageNode& node) -> bool;
+
 private:
     std::unordered_map<StorageId, StorageNode> nodes_;
+
+    std::unordered_map<StorageId, int> processes_;
 
     mutable std::shared_mutex nodes_mutex_;
 
     std::uint32_t next_port_;
+
+    bool auto_start_storage_;
+
+    std::string storage_binary_;
+
+    std::filesystem::path storage_root_;
 };
 
 }  // namespace qdb::server

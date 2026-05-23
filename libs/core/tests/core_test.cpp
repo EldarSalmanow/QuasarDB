@@ -3,8 +3,6 @@
 #include <qdb/core/request.h>
 #include <qdb/core/response.h>
 
-TEST(CoreBasic, AlwaysPasses) { EXPECT_TRUE(true); }
-
 TEST(RequestEnvelope, QueryUsesActionTokenAndData) {
     auto request = qdb::core::RequestBuilder::Query("SELECT * FROM users;")
                        .Token("jwt")

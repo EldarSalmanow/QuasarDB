@@ -1,9 +1,12 @@
 #include <qdb/server/lexer.h>
+#include <qdb/server/catalog.h>
 #include <qdb/server/monitor.h>
 #include <qdb/server/parser.h>
 #include <qdb/server/router.h>
 
 #include <gtest/gtest.h>
+
+#include <filesystem>
 
 namespace qdb::server {
 
@@ -18,7 +21,7 @@ auto Parse(const std::string& sql) -> std::unique_ptr<Statement> {
 }  // namespace
 
 TEST(MonitorTest, ProbeOnceMarksNodeDownAfterMisses) {
-    auto registry = Registry::New();
+    auto registry = Registry::New(false);
     StorageId id{"users"};
     ASSERT_TRUE(registry->CreateNode(id));
 
@@ -37,12 +40,18 @@ TEST(MonitorTest, ProbeOnceMarksNodeDownAfterMisses) {
 }
 
 TEST(RouterTest, ReturnsErrorForDeadStorageNode) {
-    auto registry = Registry::New();
+    auto registry = Registry::New(false);
     StorageId id{"users"};
     ASSERT_TRUE(registry->CreateNode(id));
     ASSERT_TRUE(registry->UpdateNode(id, StorageState::Down));
 
-    Router router(registry);
+    const auto catalog_path = std::filesystem::temp_directory_path() / "qdb_router_catalog.json";
+    std::filesystem::remove(catalog_path);
+    Catalog catalog(catalog_path);
+    auto create = Parse("CREATE TABLE users (id INT);");
+    ASSERT_TRUE(catalog.CreateTable(*dynamic_cast<CreateTableStmt*>(create.get())));
+
+    Router router(registry, catalog);
     auto statement = Parse("INSERT INTO users (id) VALUE (1);");
     auto response = router.Route(*statement);
 

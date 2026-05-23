@@ -28,25 +28,17 @@ TEST(ExecutorAggregateTest, SelectAggregatesWithWhere) {
     std::filesystem::remove_all(root);
     std::filesystem::create_directories(root);
 
-    DatabaseManager manager(root.string());
-    manager.CreateDatabase("test");
-
-    auto* db = manager.UseDatabase("test");
-    ASSERT_NE(db, nullptr);
-
-    db->CreateTable("users", Schema({
+    Interner interner;
+    Table table("users", root, Schema({
         Column("id", Column::ColumnType::INT),
         Column("age", Column::ColumnType::INT),
         Column("name", Column::ColumnType::STRING),
-    }));
+    }), &interner);
+    table.insert_record({Value(1), Value(17), interner.str_to_value("Ann")});
+    table.insert_record({Value(2), Value(18), interner.str_to_value("Bob")});
+    table.insert_record({Value(3), Value(30), interner.str_to_value("Cara")});
 
-    auto& table = db->tables_.at("users");
-    table.insert_record({Value(1), Value(17), db->interner_.str_to_value("Ann")});
-    table.insert_record({Value(2), Value(18), db->interner_.str_to_value("Bob")});
-    table.insert_record({Value(3), Value(30), db->interner_.str_to_value("Cara")});
-
-    Executor executor(manager);
-    UseDatabaseStmt("test").Accept(executor);
+    Executor executor(table, interner);
 
     std::vector<SelectItem> items;
     items.push_back(Agg(AggregateExpr::Function::Count, "id", "count_id"));

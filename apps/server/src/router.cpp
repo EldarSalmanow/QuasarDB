@@ -18,30 +18,69 @@ auto Error(std::string message, nlohmann::json data = nlohmann::json::object()) 
 
 }  // namespace
 
-Router::Router(std::shared_ptr<Registry> registry)
-        : registry_(std::move(registry)) {}
+Router::Router(std::shared_ptr<Registry> registry, Catalog& catalog)
+        : registry_(std::move(registry)),
+          catalog_(catalog) {}
 
-auto Router::New(std::shared_ptr<Registry> registry) -> std::unique_ptr<Router> {
-    return std::make_unique<Router>(std::move(registry));
+auto Router::New(std::shared_ptr<Registry> registry, Catalog& catalog) -> std::unique_ptr<Router> {
+    return std::make_unique<Router>(std::move(registry), catalog);
 }
 
 auto Router::Route(const Statement& statement) -> qdb::core::Response {
+    if (const auto* create_db = dynamic_cast<const CreateDatabaseStmt*>(&statement)) {
+        if (!catalog_.CreateDatabase(create_db->DatabaseName)) {
+            return Error("Database already exists: " + create_db->DatabaseName);
+        }
+        return qdb::core::ResponseBuilder::Success().Message("Database created").Build();
+    }
+
+    if (const auto* drop_db = dynamic_cast<const DropDatabaseStmt*>(&statement)) {
+        for (const auto& table : catalog_.DropDatabase(drop_db->DatabaseName)) {
+            const StorageId id{TableKey(table)};
+            DropTableStmt drop_table(table);
+            SendToStorage(id, drop_table);
+            registry_->DropNode(id);
+        }
+        return qdb::core::ResponseBuilder::Success().Message("Database dropped").Build();
+    }
+
+    if (const auto* use_db = dynamic_cast<const UseDatabaseStmt*>(&statement)) {
+        if (!catalog_.HasDatabase(use_db->DatabaseName)) {
+            return Error("Database not found: " + use_db->DatabaseName);
+        }
+        return qdb::core::ResponseBuilder::Success().Message("Database selected").Build();
+    }
+
     if (const auto* create = dynamic_cast<const CreateTableStmt*>(&statement)) {
         StorageId id {TableKey(create->Table)};
 
+        if (!catalog_.CreateTable(*create)) {
+            return Error("Table already exists or database not found");
+        }
+
         if (!registry_->CreateNode(id)) {
+            catalog_.DropTable(create->Table);
             return Error("Failed to create storage node in registry");
         }
 
-        return SendToStorage(id, statement);
+        auto response = SendToStorage(id, statement);
+        if (response.IsError()) {
+            registry_->DropNode(id);
+            catalog_.DropTable(create->Table);
+        }
+        return response;
     }
 
     if (const auto* drop = dynamic_cast<const DropTableStmt*>(&statement)) {
         StorageId id {TableKey(drop->Table)};
+        if (!catalog_.HasTable(drop->Table)) {
+            return Error("Table not found: " + TableKey(drop->Table));
+        }
 
         auto response = SendToStorage(id, statement);
 
         if (response.IsSuccess()) {
+            catalog_.DropTable(drop->Table);
             registry_->DropNode(id);
         }
 
@@ -55,6 +94,9 @@ auto Router::Route(const Statement& statement) -> qdb::core::Response {
     }
 
     StorageId id {TableKey(table.value())};
+    if (!catalog_.HasTable(table.value())) {
+        return Error("Table not found: " + TableKey(table.value()));
+    }
 
     return SendToStorage(id, statement);
 }

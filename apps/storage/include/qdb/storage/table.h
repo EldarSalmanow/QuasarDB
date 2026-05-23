@@ -99,6 +99,8 @@ private:
 
     fs::path index_path(const std::string& column_name);
 
+    void open_indexes();
+
 public:
     void drop();
 
@@ -116,6 +118,8 @@ public:
     std::optional<Record> read_record(RecordAddress record_address, void* mem_ptr = nullptr);
 
     std::vector<Record> records();
+
+    std::optional<std::vector<Record>> find_by_index(const std::string& column_name, const Value& value);
 
     RecordAddress update_record(Record& record);
 
@@ -149,7 +153,7 @@ private:
 
     void update_indexes_after_delete(const Record& record);
 
-    void update_indexes_after_update(const Record& record);
+    void update_indexes_after_update(const Record& old_record, const Record& new_record);
 
 public:
     std::string name() const;

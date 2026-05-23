@@ -94,6 +94,7 @@ graph LR
 ## Подсистемы сервера Entrypoint
 - Сетевой слой: принятие TCP соединений и обмен JSON сообщениями.
 - Маршрутизатор: распределение запросов по Storage узлам (шардирование).
+- Registry: локально запускает процесс `qdb-storage` для каждой создаваемой таблицы.
 - Очередь задач: обработка долгих запросов асинхронно.
 - Наблюдаемость: логирование, телеметрия, мониторинг.
 - Безопасность: аутентификация и RBAC.
@@ -106,10 +107,10 @@ graph LR
 
 ## Подсистемы Storage
 - Connection: входящие запросы от Entrypoint.
-- Executor: выполнение планов над таблицами и индексами.
+- Executor: выполнение DML/SELECT/REVERT только над локальным shard одной таблицы.
 - Evaluator: вычисление условий WHERE.
 - Aggregator: вычисление SUM/COUNT/AVG.
-- Database/Table: управление метаданными и файлами.
+- Table: управление физическими файлами одной таблицы.
 - Pager: страничный IO.
 - Index: B*+ дерево.
 - Interner: дедупликация строк.
@@ -135,7 +136,6 @@ graph TD
     StorageApp --> Executor[storage/executor]
     StorageApp --> Evaluator[storage/evaluator]
     StorageApp --> Aggregator[storage/agregator]
-    StorageApp --> Database[storage/database]
     StorageApp --> Table[storage/table]
     StorageApp --> Pager[storage/pager]
     StorageApp --> Index[storage/b_star_plus_tree]
@@ -183,13 +183,11 @@ graph TD
 - Ссылки на строки в interner вместо копий.
 
 ## Дисковый формат (план)
-- Корень: каталог системы.
-- Каждая БД: отдельная папка.
-- Метаданные: описание таблиц и схемы.
-- Табличные файлы: постраничные бинарные файлы.
-- Индексы: отдельные файлы B*+-деревьев.
-- Undo log: журнал обратных операций с временными метками.
-- Пул строк: единичное хранение строковых значений.
+- Server catalog: `catalog.json`, логическая структура `database -> tables -> schema`.
+- Storage shard root: отдельный каталог одного процесса Storage и одной таблицы: `data/storage/<database>/<table>/`.
+- Внутри shard root: `<table>.schema`, `<table>.data`, `<table>.bin`, `<table>.journal`, `<table>_id_to_addr.idx`, `<table>_<column>.idx`.
+- Индексы хранят только ключи и адреса записей, данные остаются в `<table>.data`.
+- Undo log относится к одной таблице и используется командой `REVERT`.
 
 ## Страничный IO
 - Размер страницы: 4 КБ.
@@ -197,9 +195,10 @@ graph TD
 - Все операции записи синхронно сбрасываются на диск.
 
 ## Управление схемой
-- CREATE DATABASE / DROP DATABASE меняют структуру папок.
-- CREATE TABLE сохраняет схему в метаданные.
-- DROP TABLE удаляет данные и индексы.
+- CREATE DATABASE / DROP DATABASE изменяют только server catalog.
+- CREATE TABLE регистрирует таблицу и схему в server catalog, запускает `qdb-storage` и инициализирует отдельный Storage shard.
+- DROP TABLE удаляет запись из server catalog, очищает файлы соответствующего Storage shard и останавливает его процесс.
+- Storage не управляет базами данных и не содержит каталог нескольких таблиц.
 
 ## Индексация и поиск
 - Поиск по индексу: $O(\log N)$.

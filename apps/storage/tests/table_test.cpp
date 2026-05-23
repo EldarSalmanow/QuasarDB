@@ -62,6 +62,37 @@ TEST_F(TableTest, TestDropTable) {
     EXPECT_TRUE(fs::is_empty(table_root));
 }
 
+TEST_F(TableTest, IndexLookupSurvivesUpdateAndReopen) {
+    auto schema = Schema({
+        Column("id", Column::ColumnType::INT, Column::INDEXED_FLAG),
+        Column("code", Column::ColumnType::STRING, Column::INDEXED_FLAG),
+    });
+
+    {
+        auto table = Table("indexed", table_root, schema, &interner);
+        auto first = table.insert_record({Value(1), interner.str_to_value("abcdefgh1")});
+        auto second = table.insert_record({Value(2), interner.str_to_value("abcdefgh2")});
+
+        auto by_string = table.find_by_index("code", interner.str_to_value("abcdefgh2"));
+        ASSERT_TRUE(by_string.has_value());
+        ASSERT_EQ(by_string->size(), 1);
+        EXPECT_EQ((*by_string)[0][0].as_int(), 2);
+
+        second[0] = Value(3);
+        table.update_record(second);
+        EXPECT_TRUE(table.find_by_index("id", Value(2))->empty());
+        EXPECT_EQ(table.find_by_index("id", Value(3))->at(0)[1].to_string(), "abcdefgh2");
+        (void)first;
+    }
+
+    Interner reopened_interner;
+    auto reopened = Table("indexed", table_root, &reopened_interner);
+    auto found = reopened.find_by_index("id", Value(3));
+    ASSERT_TRUE(found.has_value());
+    ASSERT_EQ(found->size(), 1);
+    EXPECT_EQ(found->at(0)[1].to_string(), "abcdefgh2");
+}
+
 TEST_F(TableTest, InsertNullValidation) {
     std::vector<Column> columns;
     columns.push_back(Column("int", Column::ColumnType::INT));

@@ -3,6 +3,7 @@
 
 #include <qdb/core/response.h>
 #include <qdb/server/ast.h>
+#include <qdb/server/catalog.h>
 #include <qdb/server/registry.h>
 
 #include <memory>
@@ -13,10 +14,10 @@ namespace qdb::server {
 
 class Router {
 public:
-    explicit Router(std::shared_ptr<Registry> registry);
+    Router(std::shared_ptr<Registry> registry, Catalog& catalog);
 
 public:
-    static auto New(std::shared_ptr<Registry> registry) -> std::unique_ptr<Router>;
+    static auto New(std::shared_ptr<Registry> registry, Catalog& catalog) -> std::unique_ptr<Router>;
 
 public:
     auto Route(const Statement& statement) -> qdb::core::Response;
@@ -28,6 +29,8 @@ private:
 
 private:
     std::shared_ptr<Registry> registry_;
+
+    Catalog& catalog_;
 };
 
 }  // namespace qdb::server

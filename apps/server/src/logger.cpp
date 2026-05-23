@@ -1,5 +1,6 @@
 #include <qdb/server/logger.h>
 
+#include <filesystem>
 #include <iomanip>
 #include <sstream>
 
@@ -8,6 +9,7 @@ namespace qdb::server {
 Logger::Logger(std::string log_dir, std::uint64_t max_file_size)
     : log_dir_(std::move(log_dir)), max_file_size_(max_file_size)
     , writer_thread_([this] { WriteLoop(); }) {
+    std::filesystem::create_directories(log_dir_);
 }
 
 Logger::~Logger() {
@@ -46,7 +48,7 @@ void Logger::Flush() {
 }
 
 void Logger::WriteLoop() {
-    while (running_.load(std::memory_order_relaxed)) {
+    while (running_.load(std::memory_order_relaxed) || pending_writes_.load(std::memory_order_relaxed) > 0) {
         std::unique_lock<std::mutex> lock(mutex_);
         cv_.wait(lock, [this] {
             return !queue_.empty() || !running_.load(std::memory_order_relaxed);

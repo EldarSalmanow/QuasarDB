@@ -6,7 +6,9 @@
 
 #include <algorithm>
 #include <exception>
+#include <filesystem>
 #include <optional>
+#include <sstream>
 #include <thread>
 #include <utility>
 
@@ -43,6 +45,29 @@ auto IsLongRunning(const Statement& statement) -> bool {
     return select != nullptr && HasAggregate(*select);
 }
 
+auto DatabaseName(const TableRef& table) -> std::string {
+    return table.Database.empty() ? "default" : table.Database;
+}
+
+auto PermissionFor(const Statement& statement) -> Permission {
+    if (dynamic_cast<const SelectStmt*>(&statement) != nullptr) return Permission::READ;
+    if (dynamic_cast<const InsertStmt*>(&statement) != nullptr) return Permission::WRITE;
+    if (dynamic_cast<const UpdateStmt*>(&statement) != nullptr) return Permission::WRITE;
+    if (dynamic_cast<const DeleteStmt*>(&statement) != nullptr) return Permission::WRITE;
+    if (dynamic_cast<const RevertStmt*>(&statement) != nullptr) return Permission::WRITE;
+    if (dynamic_cast<const CreateDatabaseStmt*>(&statement) != nullptr) return Permission::CREATE;
+    if (dynamic_cast<const CreateTableStmt*>(&statement) != nullptr) return Permission::CREATE;
+    if (dynamic_cast<const DropDatabaseStmt*>(&statement) != nullptr) return Permission::DELETE;
+    if (dynamic_cast<const DropTableStmt*>(&statement) != nullptr) return Permission::DELETE;
+    return Permission::READ;
+}
+
+auto HandlerId() -> std::string {
+    std::ostringstream output;
+    output << std::this_thread::get_id();
+    return output.str();
+}
+
 }  // namespace
 
 Application::Application(Config config)
@@ -50,8 +75,11 @@ Application::Application(Config config)
       server_(qdb::core::TcpServer::New(config_.Host(), config_.Port())),
       accounts_(config_.AccountPath()),
       jwt_(config_.JwtSecret()),
-      registry_(Registry::New()),
-      router_(registry_),
+      rbac_(config_.RbacPath()),
+      logger_((std::filesystem::path(config_.RbacPath()).parent_path() / "logs").string()),
+      catalog_(std::filesystem::path(config_.RbacPath()).parent_path() / "catalog.json"),
+      registry_(Registry::New(config_.AutoStartStorage(), config_.StorageBinary(), config_.StorageRoot())),
+      router_(registry_, catalog_),
       monitor_(registry_),
       tasks_([this](const Statement& statement) { return router_.Route(statement); }) {}
 
@@ -91,27 +119,36 @@ auto Application::Run() -> std::int32_t {
 }
 
 auto Application::Process(const qdb::core::Request& request) -> qdb::core::Response {
+    const auto started = std::chrono::steady_clock::now();
+    const auto user = Authenticate(request).value_or("anonymous");
+    qdb::core::Response response = Error("Unsupported action: " + request.Action());
+
     if (request.Action().empty()) {
-        return Error("Request must contain string field 'action'");
+        response = Error("Request must contain string field 'action'");
+    } else {
+        try {
+            if (request.Action() == "login") {
+                response = HandleLogin(request);
+            } else if (request.Action() == "query") {
+                response = HandleExecute(request);
+            } else if (request.Action() == "check_task") {
+                response = HandleCheckTask(request);
+            } else {
+                response = Error("Unsupported action: " + request.Action());
+            }
+        } catch (const std::exception& exception) {
+            response = Error(exception.what());
+        }
     }
 
-    try {
-        if (request.Action() == "login") {
-            return HandleLogin(request);
-        }
-
-        if (request.Action() == "query") {
-            return HandleExecute(request);
-        }
-
-        if (request.Action() == "check_task") {
-            return HandleCheckTask(request);
-        }
-
-        return Error("Unsupported action: " + request.Action());
-    } catch (const std::exception& exception) {
-        return Error(exception.what());
-    }
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - started
+    ).count();
+    telemetry_.RecordRequest(static_cast<std::uint64_t>(elapsed), response.IsSuccess() || response.IsPending());
+    const auto status = response.IsSuccess() ? "success" : (response.IsPending() ? "pending" : "error");
+    logger_.LogQuery(user, HandlerId(), request.Query().empty() ? request.Action() : request.Query(),
+                     static_cast<std::uint64_t>(elapsed), status);
+    return response;
 }
 
 auto Application::HandleLogin(const qdb::core::Request& request) -> qdb::core::Response {
@@ -135,7 +172,8 @@ auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core:
         return Error("query requires data.query");
     }
 
-    if (config_.AuthRequired() && !Authenticate(request).has_value()) {
+    const auto user = Authenticate(request);
+    if (config_.AuthRequired() && !user.has_value()) {
         return Error("Valid token is required");
     }
 
@@ -154,6 +192,9 @@ auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core:
     auto statement = parser.ParseStatement();
 
     Analyzer::ValidateStatement(*statement);
+    if (config_.AuthRequired() && !CheckAccess(user.value(), *statement)) {
+        return Error("Permission denied");
+    }
 
     if (IsLongRunning(*statement)) {
         auto task_id = tasks_.Submit(std::move(statement));
@@ -176,7 +217,7 @@ auto Application::HandleCheckTask(const qdb::core::Request& request) -> qdb::cor
         return Error("check_task requires data.task_id");
     }
 
-    auto task = tasks_.Get(request.TaskId().value());
+    auto task = tasks_.GetStatus(request.TaskId().value());
 
     if (!task.has_value()) {
         return Error("Task not found", {{"task_id", request.TaskId().value()}});
@@ -198,6 +239,22 @@ auto Application::Authenticate(const qdb::core::Request& request) const -> std::
     }
 
     return jwt_.ValidateToken(request.Token());
+}
+
+auto Application::CheckAccess(const std::string& user, const Statement& statement) const -> bool {
+    const auto permission = PermissionFor(statement);
+    if (const auto* create_db = dynamic_cast<const CreateDatabaseStmt*>(&statement)) {
+        return rbac_.CheckPermission(user, create_db->DatabaseName, "*", permission);
+    }
+    if (const auto* drop_db = dynamic_cast<const DropDatabaseStmt*>(&statement)) {
+        return rbac_.CheckPermission(user, drop_db->DatabaseName, "*", permission);
+    }
+
+    auto table = Analyzer::TableFromStatement(statement);
+    if (!table.has_value()) {
+        return true;
+    }
+    return rbac_.CheckPermission(user, DatabaseName(table.value()), table->Table, permission);
 }
 
 }  // namespace qdb::server

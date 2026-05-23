@@ -81,7 +81,7 @@ private:
 inline auto FindFreePort() -> std::uint32_t {
     const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
-        throw std::runtime_error("Failed to create socket for free-port discovery");
+        return 0;
     }
 
     sockaddr_in addr{};
@@ -91,13 +91,13 @@ inline auto FindFreePort() -> std::uint32_t {
 
     if (::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
         ::close(fd);
-        throw std::runtime_error("Failed to bind ephemeral port");
+        return 0;
     }
 
     socklen_t len = sizeof(addr);
     if (::getsockname(fd, reinterpret_cast<sockaddr*>(&addr), &len) < 0) {
         ::close(fd);
-        throw std::runtime_error("Failed to get ephemeral port");
+        return 0;
     }
 
     ::close(fd);
@@ -109,4 +109,3 @@ inline auto Contains(const std::string& haystack, const std::string& needle) -> 
 }
 
 }  // namespace qdb::client::test
-

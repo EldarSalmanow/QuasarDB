@@ -15,8 +15,6 @@ Config Config::New(std::string host, std::uint32_t port, std::string root) {
 }
 
 auto Config::FromArguments(int argc, char **argv) -> Config {
-    // TODO: refactor to using taywee-args
-
     std::string host = "127.0.0.1";
     std::uint32_t port = 7000;
     std::string data_root = "data/storage";

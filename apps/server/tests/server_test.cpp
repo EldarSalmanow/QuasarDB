@@ -15,7 +15,7 @@ auto TestConfig(const std::string& name) -> Config {
     std::filesystem::create_directories(base);
 
     return Config::New("127.0.0.1", 9000, false, "test-secret", (base / "accounts.json").string(),
-                       (base / "rbac.json").string());
+                       (base / "rbac.json").string(), false);
 }
 
 }  // namespace

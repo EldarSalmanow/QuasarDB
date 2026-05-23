@@ -188,8 +188,8 @@ public:
             std::cout << "BStarPlusTree::search: key=" << key << std::endl;
         }
         std::vector<V_t> result;
-        std::stack<std::pair<node_size_t, int>> stub;
-        auto leaf = findLeaf(key, stub);
+        std::stack<std::pair<node_size_t, int>> parentStack;
+        auto leaf = findLeaf(key, parentStack);
         if (!leaf) {
             return result;
         }
@@ -260,8 +260,8 @@ public:
             std::cout << "BStarPlusTree::update: key=" << key << ", value=" << value << std::endl;
         }
         std::vector<V_t> result;
-        std::stack<std::pair<node_size_t, int>> stub;
-        auto leaf = findLeaf(key, stub);
+        std::stack<std::pair<node_size_t, int>> parentStack;
+        auto leaf = findLeaf(key, parentStack);
         if (!leaf) {
             throw std::runtime_error("Key not found in b*+-tree.");
         }
@@ -273,8 +273,8 @@ public:
             std::cout << "BStarPlusTree::update_or_insert: key=" << key << ", value=" << value << std::endl;
         }
         std::vector<V_t> result;
-        std::stack<std::pair<node_size_t, int>> stub;
-        auto leaf = findLeaf(key, stub);
+        std::stack<std::pair<node_size_t, int>> parentStack;
+        auto leaf = findLeaf(key, parentStack);
         if (!leaf) {
             insert(key, value);
         } else {
