@@ -40,6 +40,16 @@ void Renderer::RenderError(const std::string& message) const {
     std::cout << RED << "Error: " << message << RESET << std::endl;
 }
 
+void Renderer::RenderAsyncSubmitted(const std::string& task_id) const {
+    std::cout << CYAN << "Async query submitted" << RESET << std::endl;
+    std::cout << "Task ID: " << task_id << std::endl;
+    std::cout << "Polling for completion..." << std::endl;
+}
+
+void Renderer::RenderPollingProgress(char spinner_char, std::size_t attempt) const {
+    std::cout << "\r  [" << spinner_char << "] Waiting... (attempt " << attempt << ")" << std::flush;
+}
+
 void Renderer::RenderTable(const std::string& json_data) const {
     try {
         nlohmann::json parsed;

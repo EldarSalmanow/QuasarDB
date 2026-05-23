@@ -16,6 +16,10 @@ public:
 
     void RenderError(const std::string &message) const;
 
+    void RenderAsyncSubmitted(const std::string &task_id) const;
+
+    void RenderPollingProgress(char spinner_char, std::size_t attempt) const;
+
 private:
     void RenderTable(const std::string &json_data) const;
 };
