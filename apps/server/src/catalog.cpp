@@ -6,8 +6,6 @@ namespace qdb::server {
 
 namespace {
 
-constexpr std::string_view DEFAULT_DB = "default";
-
 auto TableName(const TableRef& table) -> const std::string& {
     return table.Table;
 }
@@ -16,7 +14,6 @@ auto TableName(const TableRef& table) -> const std::string& {
 
 Catalog::Catalog(std::filesystem::path path) : path_(std::move(path)) {
     Load();
-    CreateDatabase(std::string(DEFAULT_DB));
 }
 
 auto Catalog::CreateDatabase(const std::string& name) -> bool {
@@ -93,7 +90,7 @@ auto Catalog::ResolveTable(const TableRef& table) const -> std::optional<TableRe
 }
 
 auto Catalog::DatabaseName(const TableRef& table) -> std::string {
-    return table.Database.empty() ? std::string(DEFAULT_DB) : table.Database;
+    return table.Database;
 }
 
 auto Catalog::Load() -> void {

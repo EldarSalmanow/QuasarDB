@@ -63,6 +63,15 @@ DropDatabaseStmt::DropDatabaseStmt(std::string name)
 UseDatabaseStmt::UseDatabaseStmt(std::string name)
         : DatabaseName(std::move(name)) {}
 
+CreateUserStmt::CreateUserStmt(std::string username, std::string password)
+        : Username(std::move(username)), Password(std::move(password)) {}
+
+GrantStmt::GrantStmt(std::vector<std::string> permissions, TableRef scope, std::string username)
+        : Permissions(std::move(permissions)), Scope(std::move(scope)), Username(std::move(username)) {}
+
+RevokeStmt::RevokeStmt(std::vector<std::string> permissions, TableRef scope, std::string username)
+        : Permissions(std::move(permissions)), Scope(std::move(scope)), Username(std::move(username)) {}
+
 RevertStmt::RevertStmt(TableRef table, std::string timestamp)
         : Table(std::move(table)), Timestamp(std::move(timestamp)) {}
 
@@ -111,6 +120,12 @@ auto CreateDatabaseStmt::Accept(AstVisitor& visitor) const -> void { visitor.Vis
 auto DropDatabaseStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
 
 auto UseDatabaseStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+
+auto CreateUserStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+
+auto GrantStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+
+auto RevokeStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
 
 auto RevertStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
 
@@ -429,6 +444,17 @@ auto SerializeAst(const Statement& statement) -> nlohmann::json {
     if (const auto* use_db = dynamic_cast<const UseDatabaseStmt*>(&statement)) {
         return {{"node_type", "UseDatabaseStatement"}, {"database", use_db->DatabaseName}};
     }
+    if (const auto* create_user = dynamic_cast<const CreateUserStmt*>(&statement)) {
+        return {{"node_type", "CreateUserStatement"}, {"username", create_user->Username}};
+    }
+    if (const auto* grant = dynamic_cast<const GrantStmt*>(&statement)) {
+        return {{"node_type", "GrantStatement"}, {"permissions", grant->Permissions},
+                {"scope", TableToString(grant->Scope)}, {"username", grant->Username}};
+    }
+    if (const auto* revoke = dynamic_cast<const RevokeStmt*>(&statement)) {
+        return {{"node_type", "RevokeStatement"}, {"permissions", revoke->Permissions},
+                {"scope", TableToString(revoke->Scope)}, {"username", revoke->Username}};
+    }
     if (const auto* create = dynamic_cast<const CreateTableStmt*>(&statement)) {
         nlohmann::json columns = nlohmann::json::array();
         for (const auto& column : create->Columns) {
@@ -516,6 +542,19 @@ auto DeserializeAst(const nlohmann::json& json) -> std::unique_ptr<Statement> {
     }
     if (type == "UseDatabaseStatement") {
         return std::make_unique<UseDatabaseStmt>(json.value("database", ""));
+    }
+    if (type == "CreateUserStatement") {
+        return std::make_unique<CreateUserStmt>(json.value("username", ""), "");
+    }
+    if (type == "GrantStatement") {
+        return std::make_unique<GrantStmt>(json.value("permissions", std::vector<std::string>{}),
+                                           TableFromString(json.value("scope", "*.*")),
+                                           json.value("username", ""));
+    }
+    if (type == "RevokeStatement") {
+        return std::make_unique<RevokeStmt>(json.value("permissions", std::vector<std::string>{}),
+                                            TableFromString(json.value("scope", "*.*")),
+                                            json.value("username", ""));
     }
     if (type == "CreateTableStatement") {
         std::vector<ColumnDef> columns;

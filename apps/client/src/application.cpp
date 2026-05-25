@@ -4,10 +4,22 @@
 #include <qdb/core/request.h>
 
 #include <chrono>
+#include <cctype>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <thread>
 
 namespace qdb::client {
+
+namespace {
+
+auto IsSetupRequired(const qdb::core::Response& response) -> bool {
+    const auto& data = response.GetDataObject();
+    return response.IsError() && data.is_object() && data.value("setup_required", false);
+}
+
+}  // namespace
 
 Application::Application(Config config)
     : config_(std::move(config)), client_(qdb::core::TcpClient::New(config_.Host(), config_.Port())) {}
@@ -49,7 +61,7 @@ auto Application::Run() -> std::int32_t {
             continue;
         }
 
-        auto request = qdb::core::RequestBuilder::Query(command.value()).Build();
+        auto request = BuildRequest(command.value());
 
         if (!client_->SendRequest(request)) {
             renderer_.RenderError("Failed to send request");
@@ -65,7 +77,13 @@ auto Application::Run() -> std::int32_t {
             continue;
         }
 
-        if (response->IsPending()) {
+        if (IsSetupRequired(response.value()) && config_.File().empty()) {
+            if (!CreateSuperuserInteractively()) {
+                return 1;
+            }
+        } else if (request.Action() == "login") {
+            HandleLoginResponse(response.value());
+        } else if (response->IsPending()) {
             HandleAsyncResponse(response.value());
         } else {
             renderer_.RenderResponse(response.value());
@@ -105,6 +123,10 @@ auto Application::PollTask(const std::string& task_id) -> std::optional<qdb::cor
 
     for (std::size_t attempt = 0; attempt < max_attempts; ++attempt) {
         auto request = qdb::core::RequestBuilder::CheckTask(task_id).Build();
+        if (!token_.empty()) {
+            qdb::core::RequestBuilder builder = qdb::core::RequestBuilder::CheckTask(task_id);
+            request = builder.Token(token_).Build();
+        }
 
         if (!client_->SendRequest(request)) {
             return std::nullopt;
@@ -129,5 +151,74 @@ auto Application::PollTask(const std::string& task_id) -> std::optional<qdb::cor
     return std::nullopt;
 }
 
-}  // namespace qdb::client
+auto Application::BuildRequest(const std::string& command) -> qdb::core::Request {
+    std::istringstream input(command);
+    std::string action;
+    input >> action;
 
+    for (auto& ch : action) {
+        ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    }
+
+    if (action == "LOGIN") {
+        std::string username;
+        std::string password;
+        input >> username >> password;
+        if (!password.empty() && password.back() == ';') {
+            password.pop_back();
+        }
+        if (password.size() >= 2 && password.front() == '"' && password.back() == '"') {
+            password = password.substr(1, password.size() - 2);
+        }
+        return qdb::core::RequestBuilder::Login(std::move(username), std::move(password)).Build();
+    }
+
+    auto builder = qdb::core::RequestBuilder::Query(command);
+    if (!token_.empty()) {
+        builder.Token(token_);
+    }
+    return builder.Build();
+}
+
+void Application::HandleLoginResponse(const qdb::core::Response& response) {
+    if (response.IsSuccess()) {
+        const auto& data = response.GetDataObject();
+        if (data.contains("token") && data["token"].is_string()) {
+            token_ = data["token"].get<std::string>();
+        }
+    }
+    renderer_.RenderResponse(response);
+}
+
+auto Application::CreateSuperuserInteractively() -> bool {
+    std::string username;
+    std::string password;
+
+    std::cout << "Create superuser" << std::endl;
+    std::cout << "login: " << std::flush;
+    if (!std::getline(std::cin, username)) {
+        return false;
+    }
+
+    std::cout << "password: " << std::flush;
+    if (!std::getline(std::cin, password)) {
+        return false;
+    }
+
+    auto request = qdb::core::RequestBuilder::CreateSuperuser(std::move(username), std::move(password)).Build();
+    if (!client_->SendRequest(request)) {
+        renderer_.RenderError("Failed to send superuser setup request");
+        return false;
+    }
+
+    auto response = client_->ReceiveResponse();
+    if (!response.has_value()) {
+        renderer_.RenderError("Failed to receive superuser setup response");
+        return false;
+    }
+
+    HandleLoginResponse(response.value());
+    return response->IsSuccess();
+}
+
+}  // namespace qdb::client

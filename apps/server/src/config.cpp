@@ -34,7 +34,7 @@ auto Config::FromArguments(int argc, char** argv) -> std::optional<Config> {
     args::HelpFlag help(parser, "help", "Display this help", {'?', "help"});
     args::ValueFlag<std::string> host(parser, "host", "Bind host (default: 127.0.0.1)", {'H', "host"}, "127.0.0.1");
     args::ValueFlag<int> port(parser, "port", "Bind port (default: 9000)", {'p', "port"}, 9000);
-    args::Flag auth(parser, "auth", "Require JWT authentication", {'a', "auth"});
+    args::Flag no_auth(parser, "no-auth", "Disable JWT authentication", {"no-auth"});
     args::ValueFlag<std::string> secret(parser, "secret", "JWT secret", {'s', "secret"}, "quasardb-dev-secret");
     args::ValueFlag<std::string> accounts(parser, "accounts", "Accounts file", {'A', "accounts"}, "qdb_accounts.json");
     args::ValueFlag<std::string> rbac(parser, "rbac", "RBAC rules file", {'R', "rbac"}, "qdb_rbac.json");
@@ -55,7 +55,7 @@ auto Config::FromArguments(int argc, char** argv) -> std::optional<Config> {
         throw std::runtime_error("Invalid port number");
     }
 
-    return Config::New(host.Get(), static_cast<std::uint32_t>(port.Get()), auth.Get(), secret.Get(), accounts.Get(),
+    return Config::New(host.Get(), static_cast<std::uint32_t>(port.Get()), !no_auth.Get(), secret.Get(), accounts.Get(),
                        rbac.Get(), !no_storage.Get(), storage_bin.Get(), storage_root.Get());
 }
 

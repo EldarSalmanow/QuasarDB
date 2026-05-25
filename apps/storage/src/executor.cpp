@@ -82,6 +82,27 @@ void Executor::Visit(const qdb::server::UseDatabaseStmt& node) {
         .ToJsonObject();
 }
 
+void Executor::Visit(const qdb::server::CreateUserStmt&) {
+    result_ = qdb::core::ResponseBuilder::Error()
+        .Message("Storage shard does not manage users")
+        .Build()
+        .ToJsonObject();
+}
+
+void Executor::Visit(const qdb::server::GrantStmt&) {
+    result_ = qdb::core::ResponseBuilder::Error()
+        .Message("Storage shard does not manage permissions")
+        .Build()
+        .ToJsonObject();
+}
+
+void Executor::Visit(const qdb::server::RevokeStmt&) {
+    result_ = qdb::core::ResponseBuilder::Error()
+        .Message("Storage shard does not manage permissions")
+        .Build()
+        .ToJsonObject();
+}
+
 void Executor::Visit(const qdb::server::RevertStmt& node) {
     auto* table = CurrentTable(node.Table);
     if (table == nullptr) {

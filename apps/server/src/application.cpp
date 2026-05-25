@@ -46,7 +46,7 @@ auto IsLongRunning(const Statement& statement) -> bool {
 }
 
 auto DatabaseName(const TableRef& table) -> std::string {
-    return table.Database.empty() ? "default" : table.Database;
+    return table.Database;
 }
 
 auto PermissionFor(const Statement& statement) -> Permission {
@@ -66,6 +66,46 @@ auto HandlerId() -> std::string {
     std::ostringstream output;
     output << std::this_thread::get_id();
     return output.str();
+}
+
+auto PermissionFromString(const std::string& value) -> Permission {
+    if (value == "READ") return Permission::READ;
+    if (value == "WRITE") return Permission::WRITE;
+    if (value == "CREATE") return Permission::CREATE;
+    if (value == "DELETE") return Permission::DELETE;
+    return Permission::INVALID;
+}
+
+auto SetupRequired() -> qdb::core::Response {
+    return Error("Superuser account setup required", {{"setup_required", true}});
+}
+
+auto GrantAll(RBACManager& rbac, const std::string& username) -> void {
+    for (const auto permission : {Permission::READ, Permission::WRITE, Permission::CREATE, Permission::DELETE}) {
+        rbac.GrantPermission(username, "*", "*", permission);
+    }
+}
+
+auto ApplyDatabase(TableRef& table, const Session& session) -> bool {
+    if (!table.Database.empty()) {
+        return true;
+    }
+    if (!session.database.has_value()) {
+        return false;
+    }
+    table.Database = session.database.value();
+    return true;
+}
+
+auto ApplyDatabase(Statement& statement, const Session& session) -> bool {
+    if (auto* create = dynamic_cast<CreateTableStmt*>(&statement)) return ApplyDatabase(create->Table, session);
+    if (auto* drop = dynamic_cast<DropTableStmt*>(&statement)) return ApplyDatabase(drop->Table, session);
+    if (auto* insert = dynamic_cast<InsertStmt*>(&statement)) return ApplyDatabase(insert->Table, session);
+    if (auto* update = dynamic_cast<UpdateStmt*>(&statement)) return ApplyDatabase(update->Table, session);
+    if (auto* del = dynamic_cast<DeleteStmt*>(&statement)) return ApplyDatabase(del->Table, session);
+    if (auto* select = dynamic_cast<SelectStmt*>(&statement)) return ApplyDatabase(select->Table, session);
+    if (auto* revert = dynamic_cast<RevertStmt*>(&statement)) return ApplyDatabase(revert->Table, session);
+    return true;
 }
 
 }  // namespace
@@ -101,6 +141,7 @@ auto Application::Run() -> std::int32_t {
         }
 
         std::thread([this, client = std::move(client)]() mutable {
+            Session session;
             while (client->IsConnected()) {
                 auto request = client->ReceiveRequest();
 
@@ -108,7 +149,7 @@ auto Application::Run() -> std::int32_t {
                     break;
                 }
 
-                client->SendResponse(Process(request.value()));
+                client->SendResponse(Process(request.value(), session));
             }
         }).detach();
     }
@@ -119,6 +160,11 @@ auto Application::Run() -> std::int32_t {
 }
 
 auto Application::Process(const qdb::core::Request& request) -> qdb::core::Response {
+    Session session;
+    return Process(request, session);
+}
+
+auto Application::Process(const qdb::core::Request& request, Session& session) -> qdb::core::Response {
     const auto started = std::chrono::steady_clock::now();
     const auto user = Authenticate(request).value_or("anonymous");
     qdb::core::Response response = Error("Unsupported action: " + request.Action());
@@ -127,10 +173,12 @@ auto Application::Process(const qdb::core::Request& request) -> qdb::core::Respo
         response = Error("Request must contain string field 'action'");
     } else {
         try {
-            if (request.Action() == "login") {
+            if (config_.AuthRequired() && accounts_.Empty() && request.Action() != "login") {
+                response = SetupRequired();
+            } else if (request.Action() == "login") {
                 response = HandleLogin(request);
             } else if (request.Action() == "query") {
-                response = HandleExecute(request);
+                response = HandleExecute(request, session);
             } else if (request.Action() == "check_task") {
                 response = HandleCheckTask(request);
             } else {
@@ -155,9 +203,25 @@ auto Application::HandleLogin(const qdb::core::Request& request) -> qdb::core::R
     const auto data = request.Data();
     const auto username = data.value("username", "");
     const auto password = data.value("password", "");
+    const auto create = data.value("create", false);
 
     if (username.empty() || password.empty()) {
         return Error("Login requires username and password");
+    }
+
+    if (accounts_.Empty()) {
+        if (!create) {
+            return SetupRequired();
+        }
+        if (!accounts_.CreateAccount(username, password)) {
+            return Error("Invalid superuser credentials");
+        }
+        GrantAll(rbac_, username);
+        return Ok("Superuser account created", {{"token", jwt_.GenerateToken(username)}});
+    }
+
+    if (create) {
+        return Error("Superuser setup is already complete");
     }
 
     if (!accounts_.Authenticate(username, password)) {
@@ -167,12 +231,15 @@ auto Application::HandleLogin(const qdb::core::Request& request) -> qdb::core::R
     return Ok("Login successful", {{"token", jwt_.GenerateToken(username)}});
 }
 
-auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core::Response {
+auto Application::HandleExecute(const qdb::core::Request& request, Session& session) -> qdb::core::Response {
     if (request.Query().empty()) {
         return Error("query requires data.query");
     }
 
     const auto user = Authenticate(request);
+    if (config_.AuthRequired() && accounts_.Empty()) {
+        return SetupRequired();
+    }
     if (config_.AuthRequired() && !user.has_value()) {
         return Error("Valid token is required");
     }
@@ -192,6 +259,24 @@ auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core:
     auto statement = parser.ParseStatement();
 
     Analyzer::ValidateStatement(*statement);
+    const auto effective_user = user.value_or("");
+
+    if (auto security_response = HandleSecurityStatement(effective_user, *statement)) {
+        return security_response.value();
+    }
+
+    if (!ApplyDatabase(*statement, session)) {
+        return Error("No database selected; run USE <database> or qualify the table as <database>.<table>");
+    }
+
+    if (const auto* use_db = dynamic_cast<const UseDatabaseStmt*>(statement.get())) {
+        auto response = router_.Route(*statement);
+        if (response.IsSuccess()) {
+            session.database = use_db->DatabaseName;
+        }
+        return response;
+    }
+
     if (config_.AuthRequired() && !CheckAccess(user.value(), *statement)) {
         return Error("Permission denied");
     }
@@ -209,6 +294,10 @@ auto Application::HandleExecute(const qdb::core::Request& request) -> qdb::core:
 }
 
 auto Application::HandleCheckTask(const qdb::core::Request& request) -> qdb::core::Response {
+    if (config_.AuthRequired() && accounts_.Empty()) {
+        return SetupRequired();
+    }
+
     if (config_.AuthRequired() && !Authenticate(request).has_value()) {
         return Error("Valid token is required");
     }
@@ -238,7 +327,11 @@ auto Application::Authenticate(const qdb::core::Request& request) const -> std::
         return std::nullopt;
     }
 
-    return jwt_.ValidateToken(request.Token());
+    auto user = jwt_.ValidateToken(request.Token());
+    if (!user.has_value() || !accounts_.HasAccount(user.value())) {
+        return std::nullopt;
+    }
+    return user;
 }
 
 auto Application::CheckAccess(const std::string& user, const Statement& statement) const -> bool {
@@ -255,6 +348,48 @@ auto Application::CheckAccess(const std::string& user, const Statement& statemen
         return true;
     }
     return rbac_.CheckPermission(user, DatabaseName(table.value()), table->Table, permission);
+}
+
+auto Application::HandleSecurityStatement(const std::string& user, const Statement& statement)
+    -> std::optional<qdb::core::Response> {
+    if (const auto* create_user = dynamic_cast<const CreateUserStmt*>(&statement)) {
+        if (config_.AuthRequired() && !rbac_.CheckPermission(user, "*", "*", Permission::CREATE)) {
+            return Error("Permission denied");
+        }
+        if (!accounts_.CreateAccount(create_user->Username, create_user->Password)) {
+            return Error("User already exists or invalid credentials");
+        }
+        return Ok("User created");
+    }
+
+    const auto apply = [&](const auto& stmt, bool grant) -> qdb::core::Response {
+        if (config_.AuthRequired() && !rbac_.CheckPermission(user, stmt.Scope.Database, stmt.Scope.Table, Permission::CREATE)) {
+            return Error("Permission denied");
+        }
+        if (!accounts_.HasAccount(stmt.Username)) {
+            return Error("User not found: " + stmt.Username);
+        }
+        for (const auto& permission_name : stmt.Permissions) {
+            const auto permission = PermissionFromString(permission_name);
+            if (permission == Permission::INVALID) {
+                return Error("Invalid permission: " + permission_name);
+            }
+            if (grant) {
+                rbac_.GrantPermission(stmt.Username, stmt.Scope.Database, stmt.Scope.Table, permission);
+            } else {
+                rbac_.RevokePermission(stmt.Username, stmt.Scope.Database, stmt.Scope.Table, permission);
+            }
+        }
+        return Ok(grant ? "Permission granted" : "Permission revoked");
+    };
+
+    if (const auto* grant = dynamic_cast<const GrantStmt*>(&statement)) {
+        return apply(*grant, true);
+    }
+    if (const auto* revoke = dynamic_cast<const RevokeStmt*>(&statement)) {
+        return apply(*revoke, false);
+    }
+    return std::nullopt;
 }
 
 }  // namespace qdb::server

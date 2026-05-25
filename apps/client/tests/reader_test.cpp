@@ -30,6 +30,18 @@ TEST(ConsoleReaderTest, EmptyLineReturnsEmptyCommand) {
     EXPECT_EQ(command.value(), "");
 }
 
+TEST(ConsoleReaderTest, ReadsMultilineCommandUntilSemicolon) {
+    InputRedirect input("SELECT *\nFROM users\nWHERE id == 1;\n");
+    OutputCapture capture(std::cout);
+
+    ConsoleReader reader;
+    auto command = reader.ReadCommand();
+
+    ASSERT_TRUE(command.has_value());
+    EXPECT_EQ(command.value(), "SELECT *\nFROM users\nWHERE id == 1;");
+    EXPECT_EQ(capture.Str(), "qdb> ...> ...> ");
+}
+
 TEST(FileReaderTest, ReadsTrimmedLinesOneByOne) {
     ScopedTempFile file("  SELECT * FROM users;  \n\n   INSERT INTO users VALUES (1);\n");
 
@@ -47,6 +59,19 @@ TEST(FileReaderTest, ReadsTrimmedLinesOneByOne) {
 
     auto third = reader.ReadCommand();
     EXPECT_FALSE(third.has_value());
+}
+
+TEST(FileReaderTest, ReadsMultilineStatements) {
+    ScopedTempFile file("CREATE TABLE users (\n  id INT,\n  name STRING\n);\nSELECT * FROM users;\n");
+    FileReader reader(file.Path().string());
+
+    auto first = reader.ReadCommand();
+    ASSERT_TRUE(first.has_value());
+    EXPECT_EQ(first.value(), "CREATE TABLE users (\n  id INT,\n  name STRING\n);");
+
+    auto second = reader.ReadCommand();
+    ASSERT_TRUE(second.has_value());
+    EXPECT_EQ(second.value(), "SELECT * FROM users;");
 }
 
 TEST(FileReaderTest, MissingFileHasNoCommands) {

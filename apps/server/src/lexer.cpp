@@ -54,8 +54,9 @@ auto Lexer::Tokenize() -> std::vector<Token> {
 auto Lexer::GetKeywords() -> const std::unordered_set<std::string>& {
     static const std::unordered_set<std::string> keywords = {
         "SELECT", "FROM", "WHERE", "INSERT", "INTO", "VALUE", "UPDATE", "SET",     "DELETE",
-        "CREATE", "DROP", "TABLE", "DATABASE", "USE",   "REVERT", "INT",    "STRING", "NOT_NULL",
-        "INDEXED", "DEFAULT", "NULL", "AND", "OR", "BETWEEN", "LIKE", "AS", "SUM", "COUNT", "AVG"};
+        "CREATE", "DROP", "TABLE", "DATABASE", "USER", "PASSWORD", "USE", "REVERT", "INT", "STRING",
+        "NOT_NULL", "INDEXED", "DEFAULT", "NULL", "AND", "OR", "BETWEEN", "LIKE", "AS", "SUM",
+        "COUNT", "AVG", "GRANT", "REVOKE", "ON", "TO", "READ", "WRITE"};
     return keywords;
 }
 

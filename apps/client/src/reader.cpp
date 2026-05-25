@@ -1,9 +1,36 @@
 #include <qdb/client/reader.h>
 
 #include <iostream>
+#include <string_view>
 
 
 namespace qdb::client {
+
+namespace {
+
+auto Trim(std::string_view value) -> std::string {
+    const auto start = value.find_first_not_of(" \t\r\n");
+    if (start == std::string_view::npos) {
+        return {};
+    }
+    const auto end = value.find_last_not_of(" \t\r\n");
+    return std::string(value.substr(start, end - start + 1));
+}
+
+auto EndsStatement(std::string_view value) -> bool {
+    bool in_string = false;
+    for (std::size_t i = 0; i < value.size(); ++i) {
+        if (value[i] == '"' && (i == 0 || value[i - 1] != '\\')) {
+            in_string = !in_string;
+        }
+        if (!in_string && value[i] == ';') {
+            return true;
+        }
+    }
+    return false;
+}
+
+}  // namespace
 
 IReader::~IReader() = default;
 
@@ -11,20 +38,27 @@ ConsoleReader::ConsoleReader() = default;
 
 std::optional<std::string> ConsoleReader::ReadCommand() {
     std::string line;
+    std::string command;
 
-    std::cout << "qdb> " << std::flush;
-    if (!std::getline(std::cin, line)) {
-        return std::nullopt;
+    while (true) {
+        std::cout << (command.empty() ? "qdb> " : "...> ") << std::flush;
+        if (!std::getline(std::cin, line)) {
+            return command.empty() ? std::nullopt : std::optional<std::string>(Trim(command));
+        }
+
+        if (Trim(line).empty() && command.empty()) {
+            return std::string("");
+        }
+
+        if (!command.empty()) {
+            command += '\n';
+        }
+        command += line;
+
+        if (EndsStatement(command)) {
+            return Trim(command);
+        }
     }
-
-    size_t start = line.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) {
-        return std::string("");
-    }
-
-    size_t end = line.find_last_not_of(" \t\r\n");
-
-    return line.substr(start, end - start + 1);
 }
 
 bool ConsoleReader::HasMore() const {
@@ -48,18 +82,23 @@ std::optional<std::string> FileReader::ReadCommand() {
     }
 
     std::string line;
+    std::string command;
 
     while (std::getline(file_stream_, line)) {
-        size_t start = line.find_first_not_of(" \t\r\n");
-
-        if (start != std::string::npos) {
-            size_t end = line.find_last_not_of(" \t\r\n");
-
-            return line.substr(start, end - start + 1);
+        if (Trim(line).empty() && command.empty()) {
+            continue;
+        }
+        if (!command.empty()) {
+            command += '\n';
+        }
+        command += line;
+        if (EndsStatement(command)) {
+            return Trim(command);
         }
     }
 
-    return std::nullopt;
+    const auto trimmed = Trim(command);
+    return trimmed.empty() ? std::nullopt : std::optional<std::string>(trimmed);
 }
 
 bool FileReader::HasMore() const {

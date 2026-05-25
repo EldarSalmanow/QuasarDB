@@ -21,6 +21,10 @@
 
 namespace qdb::server {
 
+struct Session {
+    std::optional<std::string> database;
+};
+
 class Application {
 public:
     explicit Application(Config config);
@@ -32,17 +36,20 @@ public:
     auto Run() -> std::int32_t;
 
     auto Process(const qdb::core::Request& request) -> qdb::core::Response;
+    auto Process(const qdb::core::Request& request, Session& session) -> qdb::core::Response;
 
 private:
     auto HandleLogin(const qdb::core::Request& request) -> qdb::core::Response;
 
-    auto HandleExecute(const qdb::core::Request& request) -> qdb::core::Response;
+    auto HandleExecute(const qdb::core::Request& request, Session& session) -> qdb::core::Response;
 
     auto HandleCheckTask(const qdb::core::Request& request) -> qdb::core::Response;
 
     auto Authenticate(const qdb::core::Request& request) const -> std::optional<std::string>;
 
     auto CheckAccess(const std::string& user, const Statement& statement) const -> bool;
+
+    auto HandleSecurityStatement(const std::string& user, const Statement& statement) -> std::optional<qdb::core::Response>;
 
 private:
     Config config_;

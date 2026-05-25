@@ -29,6 +29,7 @@ public:
     auto CreateAccount(const std::string& username, const std::string& password) -> bool;
     auto Authenticate(const std::string& username, const std::string& password) const -> bool;
     auto HasAccount(const std::string& username) const -> bool;
+    auto Empty() const -> bool;
 
 private:
     auto Load() -> bool;

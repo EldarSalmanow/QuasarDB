@@ -67,6 +67,10 @@ auto AccountStore::HasAccount(const std::string& username) const -> bool {
     return accounts_.find(username) != accounts_.end();
 }
 
+auto AccountStore::Empty() const -> bool {
+    return accounts_.empty();
+}
+
 auto AccountStore::Load() -> bool {
     std::ifstream file(storage_path_);
     if (!file.is_open()) {

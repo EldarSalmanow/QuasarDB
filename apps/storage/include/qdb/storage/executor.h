@@ -29,6 +29,9 @@ public:
     void Visit(const qdb::server::CreateDatabaseStmt& node) override;
     void Visit(const qdb::server::DropDatabaseStmt& node) override;
     void Visit(const qdb::server::UseDatabaseStmt& node) override;
+    void Visit(const qdb::server::CreateUserStmt& node) override;
+    void Visit(const qdb::server::GrantStmt& node) override;
+    void Visit(const qdb::server::RevokeStmt& node) override;
     void Visit(const qdb::server::RevertStmt& node) override;
     void Visit(const qdb::server::CreateTableStmt& node) override;
     void Visit(const qdb::server::DropTableStmt& node) override;

@@ -47,6 +47,10 @@ private:
 
     auto ParseTableRef() -> TableRef;
 
+    auto ParseAccessScope() -> TableRef;
+
+    auto ParsePermissions() -> std::vector<std::string>;
+
     auto ParseTimestampPart(const std::string& name, std::size_t expected_length) -> std::string;
 
     auto ParseTimestamp() -> std::string;
@@ -72,6 +76,10 @@ private:
     auto ParseColumnDefinition() -> ColumnDef;
 
     auto ParseCreateStatement() -> std::unique_ptr<Statement>;
+
+    auto ParseGrantStatement() -> std::unique_ptr<Statement>;
+
+    auto ParseRevokeStatement() -> std::unique_ptr<Statement>;
 
     auto ParseDropStatement() -> std::unique_ptr<Statement>;
 

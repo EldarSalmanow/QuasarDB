@@ -14,7 +14,7 @@ public:
            std::string storage_binary, std::string storage_root);
 
 public:
-    static auto New(std::string host, std::uint32_t port, bool auth_required = false,
+    static auto New(std::string host, std::uint32_t port, bool auth_required = true,
                     std::string jwt_secret = "quasardb-dev-secret",
                     std::string account_path = "qdb_accounts.json",
                     std::string rbac_path = "qdb_rbac.json",

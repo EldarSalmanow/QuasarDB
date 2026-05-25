@@ -22,7 +22,7 @@ auto Parse(const std::string& sql) -> std::unique_ptr<Statement> {
 
 TEST(MonitorTest, ProbeOnceMarksNodeDownAfterMisses) {
     auto registry = Registry::New(false);
-    StorageId id{"users"};
+    StorageId id{"shop.users"};
     ASSERT_TRUE(registry->CreateNode(id));
 
     Monitor monitor(registry, std::chrono::milliseconds(1), 3);
@@ -41,18 +41,19 @@ TEST(MonitorTest, ProbeOnceMarksNodeDownAfterMisses) {
 
 TEST(RouterTest, ReturnsErrorForDeadStorageNode) {
     auto registry = Registry::New(false);
-    StorageId id{"users"};
+    StorageId id{"shop.users"};
     ASSERT_TRUE(registry->CreateNode(id));
     ASSERT_TRUE(registry->UpdateNode(id, StorageState::Down));
 
     const auto catalog_path = std::filesystem::temp_directory_path() / "qdb_router_catalog.json";
     std::filesystem::remove(catalog_path);
     Catalog catalog(catalog_path);
-    auto create = Parse("CREATE TABLE users (id INT);");
+    ASSERT_TRUE(catalog.CreateDatabase("shop"));
+    auto create = Parse("CREATE TABLE shop.users (id INT);");
     ASSERT_TRUE(catalog.CreateTable(*dynamic_cast<CreateTableStmt*>(create.get())));
 
     Router router(registry, catalog);
-    auto statement = Parse("INSERT INTO users (id) VALUE (1);");
+    auto statement = Parse("INSERT INTO shop.users (id) VALUE (1);");
     auto response = router.Route(*statement);
 
     ASSERT_TRUE(response.IsError());

@@ -25,6 +25,8 @@ auto Parser::ParseStatement() -> std::unique_ptr<Statement> {
     if (keyword == "CREATE") stmt = ParseCreateStatement();
     else if (keyword == "DROP") stmt = ParseDropStatement();
     else if (keyword == "USE") stmt = ParseUseStatement();
+    else if (keyword == "GRANT") stmt = ParseGrantStatement();
+    else if (keyword == "REVOKE") stmt = ParseRevokeStatement();
     else if (keyword == "REVERT") stmt = ParseRevertStatement();
     else if (keyword == "INSERT") stmt = ParseInsertStatement();
     else if (keyword == "UPDATE") stmt = ParseUpdateStatement();
@@ -121,6 +123,38 @@ auto Parser::ParseTableRef() -> TableRef {
     }
 
     return TableRef(std::move(first));
+}
+
+auto Parser::ParseAccessScope() -> TableRef {
+    auto parse_part = [&]() -> std::string {
+        if (Match(TokenType::Operator, "*")) {
+            Advance();
+            return "*";
+        }
+        return ParseIdentifier();
+    };
+
+    std::string first = parse_part();
+    if (Match(TokenType::Punctuation, ".")) {
+        Advance();
+        return TableRef(std::move(first), parse_part());
+    }
+    return TableRef(std::move(first), "*");
+}
+
+auto Parser::ParsePermissions() -> std::vector<std::string> {
+    std::vector<std::string> permissions;
+    while (true) {
+        if (!Match(TokenType::Keyword, "READ") && !Match(TokenType::Keyword, "WRITE") &&
+            !Match(TokenType::Keyword, "CREATE") && !Match(TokenType::Keyword, "DELETE")) {
+            throw ParseError("Expected permission READ, WRITE, CREATE, or DELETE");
+        }
+        permissions.push_back(Advance().value);
+        if (!Match(TokenType::Punctuation, ",")) {
+            return permissions;
+        }
+        Advance();
+    }
 }
 
 auto Parser::ParseTimestampPart(const std::string& name, std::size_t expected_length) -> std::string {
@@ -327,6 +361,16 @@ auto Parser::ParseCreateStatement() -> std::unique_ptr<Statement> {
         return std::make_unique<CreateDatabaseStmt>(std::move(db_name));
     }
 
+    if (Match(TokenType::Keyword, "USER")) {
+        Advance();
+        std::string username = ParseIdentifier();
+        ExpectKeyword("PASSWORD");
+        if (!Match(TokenType::StringLiteral)) {
+            throw ParseError("Expected password string literal");
+        }
+        return std::make_unique<CreateUserStmt>(std::move(username), Advance().value);
+    }
+
     if (Match(TokenType::Keyword, "TABLE")) {
         Advance();
         TableRef table = ParseTableRef();
@@ -346,6 +390,26 @@ auto Parser::ParseCreateStatement() -> std::unique_ptr<Statement> {
     }
 
     throw ParseError("Expected DATABASE or TABLE after CREATE");
+}
+
+auto Parser::ParseGrantStatement() -> std::unique_ptr<Statement> {
+    ExpectKeyword("GRANT");
+    auto permissions = ParsePermissions();
+    ExpectKeyword("ON");
+    auto scope = ParseAccessScope();
+    ExpectKeyword("TO");
+    auto username = ParseIdentifier();
+    return std::make_unique<GrantStmt>(std::move(permissions), std::move(scope), std::move(username));
+}
+
+auto Parser::ParseRevokeStatement() -> std::unique_ptr<Statement> {
+    ExpectKeyword("REVOKE");
+    auto permissions = ParsePermissions();
+    ExpectKeyword("ON");
+    auto scope = ParseAccessScope();
+    ExpectKeyword("FROM");
+    auto username = ParseIdentifier();
+    return std::make_unique<RevokeStmt>(std::move(permissions), std::move(scope), std::move(username));
 }
 
 auto Parser::ParseDropStatement() -> std::unique_ptr<Statement> {

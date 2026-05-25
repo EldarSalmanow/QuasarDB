@@ -184,6 +184,35 @@ struct UseDatabaseStmt : Statement {
     auto Accept(AstVisitor& visitor) const -> void override;
 };
 
+struct CreateUserStmt : Statement {
+    std::string Username;
+    std::string Password;
+
+    CreateUserStmt(std::string username, std::string password);
+
+    auto Accept(AstVisitor& visitor) const -> void override;
+};
+
+struct GrantStmt : Statement {
+    std::vector<std::string> Permissions;
+    TableRef Scope;
+    std::string Username;
+
+    GrantStmt(std::vector<std::string> permissions, TableRef scope, std::string username);
+
+    auto Accept(AstVisitor& visitor) const -> void override;
+};
+
+struct RevokeStmt : Statement {
+    std::vector<std::string> Permissions;
+    TableRef Scope;
+    std::string Username;
+
+    RevokeStmt(std::vector<std::string> permissions, TableRef scope, std::string username);
+
+    auto Accept(AstVisitor& visitor) const -> void override;
+};
+
 struct RevertStmt : Statement {
     TableRef Table;
     std::string Timestamp;
@@ -281,6 +310,12 @@ struct AstVisitor {
     virtual void Visit(const DropDatabaseStmt& node) = 0;
 
     virtual void Visit(const UseDatabaseStmt& node) = 0;
+
+    virtual void Visit(const CreateUserStmt& node) = 0;
+
+    virtual void Visit(const GrantStmt& node) = 0;
+
+    virtual void Visit(const RevokeStmt& node) = 0;
 
     virtual void Visit(const RevertStmt& node) = 0;
 

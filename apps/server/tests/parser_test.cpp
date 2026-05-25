@@ -36,6 +36,36 @@ TEST(ParserTest, UseDatabase) {
     EXPECT_EQ(use_db->DatabaseName, "shop");
 }
 
+TEST(ParserTest, CreateUser) {
+    auto stmt = parseSQL("CREATE USER alice PASSWORD \"secret\";");
+    auto* create_user = dynamic_cast<CreateUserStmt*>(stmt.get());
+    ASSERT_NE(create_user, nullptr);
+    EXPECT_EQ(create_user->Username, "alice");
+    EXPECT_EQ(create_user->Password, "secret");
+}
+
+TEST(ParserTest, GrantPermissions) {
+    auto stmt = parseSQL("GRANT READ, WRITE ON shop.products TO alice;");
+    auto* grant = dynamic_cast<GrantStmt*>(stmt.get());
+    ASSERT_NE(grant, nullptr);
+    ASSERT_EQ(grant->Permissions.size(), 2);
+    EXPECT_EQ(grant->Permissions[0], "READ");
+    EXPECT_EQ(grant->Permissions[1], "WRITE");
+    EXPECT_EQ(grant->Scope.Database, "shop");
+    EXPECT_EQ(grant->Scope.Table, "products");
+    EXPECT_EQ(grant->Username, "alice");
+}
+
+TEST(ParserTest, RevokePermissionsWithWildcardScope) {
+    auto stmt = parseSQL("REVOKE CREATE, DELETE ON shop.* FROM alice;");
+    auto* revoke = dynamic_cast<RevokeStmt*>(stmt.get());
+    ASSERT_NE(revoke, nullptr);
+    ASSERT_EQ(revoke->Permissions.size(), 2);
+    EXPECT_EQ(revoke->Scope.Database, "shop");
+    EXPECT_EQ(revoke->Scope.Table, "*");
+    EXPECT_EQ(revoke->Username, "alice");
+}
+
 TEST(ParserTest, RevertStatement) {
     auto stmt = parseSQL("REVERT products 2026.05.02-14:30:45.123;");
     auto* revert = dynamic_cast<RevertStmt*>(stmt.get());
