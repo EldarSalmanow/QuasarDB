@@ -18,8 +18,8 @@ auto Config::New(std::string host, std::uint32_t port, std::string file) -> Conf
 auto Config::FromArguments(int argc, char** argv) -> std::optional<Config> {
     args::ArgumentParser parser("QuasarDB client");
     args::HelpFlag help(parser, "help", "Display this help", {'?', "help"});
-    args::ValueFlag<std::string> host(parser, "host", "Server host (default: localhost)", {'H', "host"}, "localhost");
-    args::ValueFlag<int> port(parser, "port", "Server port (default: 4567)", {'p', "port"}, 4567);
+    args::ValueFlag<std::string> host(parser, "host", "Server host (default: 127.0.0.1)", {'H', "host"}, "127.0.0.1");
+    args::ValueFlag<int> port(parser, "port", "Server port (default: 9000)", {'p', "port"}, 9000);
     args::ValueFlag<std::string> file(parser, "file", "Execute commands from file", {'f', "file"}, "");
 
     try {

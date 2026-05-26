@@ -7,42 +7,33 @@
 #include <algorithm>
 #include <exception>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <sstream>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 
 namespace qdb::server {
 
-namespace {
-
 auto Ok(std::string message, nlohmann::json data = nlohmann::json::object()) -> qdb::core::Response {
-    return qdb::core::ResponseBuilder::Success()
-        .Message(std::move(message))
-        .Data(std::move(data))
-        .Build();
+    return qdb::core::Success(std::move(message), std::move(data));
 }
 
 auto Error(std::string message, nlohmann::json data = nlohmann::json::object()) -> qdb::core::Response {
-    return qdb::core::ResponseBuilder::Error()
-        .Message(std::move(message))
-        .Data(data.is_null() ? nlohmann::json::object() : std::move(data))
-        .Build();
+    return qdb::core::Error(std::move(message), data.is_null() ? nlohmann::json::object() : std::move(data));
 }
 
 auto HasAggregate(const SelectStmt& select) -> bool {
     return std::any_of(select.SelectItems.begin(), select.SelectItems.end(), [](const SelectItem& item) {
-        return dynamic_cast<const AggregateExpr*>(item.Expr.get()) != nullptr;
+        return item.Expr->KindOf() == Expression::Kind::Aggregate;
     });
 }
 
 auto IsLongRunning(const Statement& statement) -> bool {
-    if (dynamic_cast<const RevertStmt*>(&statement) != nullptr) {
-        return true;
-    }
-
-    const auto* select = dynamic_cast<const SelectStmt*>(&statement);
-    return select != nullptr && HasAggregate(*select);
+    if (statement.KindOf() == Statement::Kind::Revert) return true;
+    if (statement.KindOf() != Statement::Kind::Select) return false;
+    return HasAggregate(static_cast<const SelectStmt&>(statement));
 }
 
 auto DatabaseName(const TableRef& table) -> std::string {
@@ -50,16 +41,21 @@ auto DatabaseName(const TableRef& table) -> std::string {
 }
 
 auto PermissionFor(const Statement& statement) -> Permission {
-    if (dynamic_cast<const SelectStmt*>(&statement) != nullptr) return Permission::READ;
-    if (dynamic_cast<const InsertStmt*>(&statement) != nullptr) return Permission::WRITE;
-    if (dynamic_cast<const UpdateStmt*>(&statement) != nullptr) return Permission::WRITE;
-    if (dynamic_cast<const DeleteStmt*>(&statement) != nullptr) return Permission::WRITE;
-    if (dynamic_cast<const RevertStmt*>(&statement) != nullptr) return Permission::WRITE;
-    if (dynamic_cast<const CreateDatabaseStmt*>(&statement) != nullptr) return Permission::CREATE;
-    if (dynamic_cast<const CreateTableStmt*>(&statement) != nullptr) return Permission::CREATE;
-    if (dynamic_cast<const DropDatabaseStmt*>(&statement) != nullptr) return Permission::DELETE;
-    if (dynamic_cast<const DropTableStmt*>(&statement) != nullptr) return Permission::DELETE;
-    return Permission::READ;
+    switch (statement.KindOf()) {
+        case Statement::Kind::Insert:
+        case Statement::Kind::Update:
+        case Statement::Kind::Delete:
+        case Statement::Kind::Revert:
+            return Permission::WRITE;
+        case Statement::Kind::CreateDatabase:
+        case Statement::Kind::CreateTable:
+            return Permission::CREATE;
+        case Statement::Kind::DropDatabase:
+        case Statement::Kind::DropTable:
+            return Permission::DELETE;
+        default:
+            return Permission::READ;
+    }
 }
 
 auto HandlerId() -> std::string {
@@ -98,17 +94,17 @@ auto ApplyDatabase(TableRef& table, const Session& session) -> bool {
 }
 
 auto ApplyDatabase(Statement& statement, const Session& session) -> bool {
-    if (auto* create = dynamic_cast<CreateTableStmt*>(&statement)) return ApplyDatabase(create->Table, session);
-    if (auto* drop = dynamic_cast<DropTableStmt*>(&statement)) return ApplyDatabase(drop->Table, session);
-    if (auto* insert = dynamic_cast<InsertStmt*>(&statement)) return ApplyDatabase(insert->Table, session);
-    if (auto* update = dynamic_cast<UpdateStmt*>(&statement)) return ApplyDatabase(update->Table, session);
-    if (auto* del = dynamic_cast<DeleteStmt*>(&statement)) return ApplyDatabase(del->Table, session);
-    if (auto* select = dynamic_cast<SelectStmt*>(&statement)) return ApplyDatabase(select->Table, session);
-    if (auto* revert = dynamic_cast<RevertStmt*>(&statement)) return ApplyDatabase(revert->Table, session);
-    return true;
+    switch (statement.KindOf()) {
+        case Statement::Kind::CreateTable: return ApplyDatabase(static_cast<CreateTableStmt&>(statement).Table, session);
+        case Statement::Kind::DropTable: return ApplyDatabase(static_cast<DropTableStmt&>(statement).Table, session);
+        case Statement::Kind::Insert: return ApplyDatabase(static_cast<InsertStmt&>(statement).Table, session);
+        case Statement::Kind::Update: return ApplyDatabase(static_cast<UpdateStmt&>(statement).Table, session);
+        case Statement::Kind::Delete: return ApplyDatabase(static_cast<DeleteStmt&>(statement).Table, session);
+        case Statement::Kind::Select: return ApplyDatabase(static_cast<SelectStmt&>(statement).Table, session);
+        case Statement::Kind::Revert: return ApplyDatabase(static_cast<RevertStmt&>(statement).Table, session);
+        default: return true;
+    }
 }
-
-}  // namespace
 
 Application::Application(Config config)
     : config_(std::move(config)),
@@ -169,24 +165,26 @@ auto Application::Process(const qdb::core::Request& request, Session& session) -
     const auto user = Authenticate(request).value_or("anonymous");
     qdb::core::Response response = Error("Unsupported action: " + request.Action());
 
-    if (request.Action().empty()) {
-        response = Error("Request must contain string field 'action'");
-    } else {
-        try {
-            if (config_.AuthRequired() && accounts_.Empty() && request.Action() != "login") {
-                response = SetupRequired();
-            } else if (request.Action() == "login") {
-                response = HandleLogin(request);
-            } else if (request.Action() == "query") {
-                response = HandleExecute(request, session);
-            } else if (request.Action() == "check_task") {
-                response = HandleCheckTask(request);
-            } else {
-                response = Error("Unsupported action: " + request.Action());
-            }
-        } catch (const std::exception& exception) {
-            response = Error(exception.what());
+    try {
+        const std::unordered_map<std::string, std::function<qdb::core::Response()>> handlers = {
+            {"handshake", [this] { return HandleHandshake(); }},
+            {"login", [this, &request] { return HandleLogin(request); }},
+            {"query", [this, &request, &session] { return HandleExecute(request, session); }},
+            {"check_task", [this, &request] { return HandleCheckTask(request); }}
+        };
+
+        if (request.Action().empty()) {
+            response = Error("Request must contain string field 'action'");
+        } else if (config_.AuthRequired() && accounts_.Empty() && request.Action() != "login" &&
+                   request.Action() != "handshake") {
+            response = SetupRequired();
+        } else if (auto handler = handlers.find(request.Action()); handler != handlers.end()) {
+            response = handler->second();
+        } else {
+            response = Error("Unsupported action: " + request.Action());
         }
+    } catch (const std::exception& exception) {
+        response = Error(exception.what());
     }
 
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -197,6 +195,13 @@ auto Application::Process(const qdb::core::Request& request, Session& session) -
     logger_.LogQuery(user, HandlerId(), request.Query().empty() ? request.Action() : request.Query(),
                      static_cast<std::uint64_t>(elapsed), status);
     return response;
+}
+
+auto Application::HandleHandshake() const -> qdb::core::Response {
+    return Ok("Handshake complete", {
+        {"auth_required", config_.AuthRequired()},
+        {"setup_required", config_.AuthRequired() && accounts_.Empty()}
+    });
 }
 
 auto Application::HandleLogin(const qdb::core::Request& request) -> qdb::core::Response {
@@ -269,10 +274,11 @@ auto Application::HandleExecute(const qdb::core::Request& request, Session& sess
         return Error("No database selected; run USE <database> or qualify the table as <database>.<table>");
     }
 
-    if (const auto* use_db = dynamic_cast<const UseDatabaseStmt*>(statement.get())) {
+    if (statement->KindOf() == Statement::Kind::UseDatabase) {
+        const auto& use_db = static_cast<const UseDatabaseStmt&>(*statement);
         auto response = router_.Route(*statement);
         if (response.IsSuccess()) {
-            session.database = use_db->DatabaseName;
+            session.database = use_db.DatabaseName;
         }
         return response;
     }
@@ -284,10 +290,7 @@ auto Application::HandleExecute(const qdb::core::Request& request, Session& sess
     if (IsLongRunning(*statement)) {
         auto task_id = tasks_.Submit(std::move(statement));
 
-        return qdb::core::ResponseBuilder::Pending()
-            .Message("Operation is running in background")
-            .Data({{"task_id", std::move(task_id)}})
-            .Build();
+        return qdb::core::Pending("Operation is running in background", {{"task_id", std::move(task_id)}});
     }
 
     return router_.Route(*statement);
@@ -316,10 +319,10 @@ auto Application::HandleCheckTask(const qdb::core::Request& request) -> qdb::cor
         return task->result.value();
     }
 
-    return qdb::core::ResponseBuilder::Pending()
-        .Message(task->status == TaskStatus::Running ? "Operation is still running" : "Operation is pending")
-        .Data({{"task_id", request.TaskId().value()}, {"status", task->status == TaskStatus::Running ? "running" : "pending"}})
-        .Build();
+    return qdb::core::Pending(
+        task->status == TaskStatus::Running ? "Operation is still running" : "Operation is pending",
+        {{"task_id", request.TaskId().value()}, {"status", task->status == TaskStatus::Running ? "running" : "pending"}}
+    );
 }
 
 auto Application::Authenticate(const qdb::core::Request& request) const -> std::optional<std::string> {
@@ -336,11 +339,11 @@ auto Application::Authenticate(const qdb::core::Request& request) const -> std::
 
 auto Application::CheckAccess(const std::string& user, const Statement& statement) const -> bool {
     const auto permission = PermissionFor(statement);
-    if (const auto* create_db = dynamic_cast<const CreateDatabaseStmt*>(&statement)) {
-        return rbac_.CheckPermission(user, create_db->DatabaseName, "*", permission);
+    if (statement.KindOf() == Statement::Kind::CreateDatabase) {
+        return rbac_.CheckPermission(user, static_cast<const CreateDatabaseStmt&>(statement).DatabaseName, "*", permission);
     }
-    if (const auto* drop_db = dynamic_cast<const DropDatabaseStmt*>(&statement)) {
-        return rbac_.CheckPermission(user, drop_db->DatabaseName, "*", permission);
+    if (statement.KindOf() == Statement::Kind::DropDatabase) {
+        return rbac_.CheckPermission(user, static_cast<const DropDatabaseStmt&>(statement).DatabaseName, "*", permission);
     }
 
     auto table = Analyzer::TableFromStatement(statement);
@@ -352,11 +355,12 @@ auto Application::CheckAccess(const std::string& user, const Statement& statemen
 
 auto Application::HandleSecurityStatement(const std::string& user, const Statement& statement)
     -> std::optional<qdb::core::Response> {
-    if (const auto* create_user = dynamic_cast<const CreateUserStmt*>(&statement)) {
+    if (statement.KindOf() == Statement::Kind::CreateUser) {
+        const auto& create_user = static_cast<const CreateUserStmt&>(statement);
         if (config_.AuthRequired() && !rbac_.CheckPermission(user, "*", "*", Permission::CREATE)) {
             return Error("Permission denied");
         }
-        if (!accounts_.CreateAccount(create_user->Username, create_user->Password)) {
+        if (!accounts_.CreateAccount(create_user.Username, create_user.Password)) {
             return Error("User already exists or invalid credentials");
         }
         return Ok("User created");
@@ -383,11 +387,11 @@ auto Application::HandleSecurityStatement(const std::string& user, const Stateme
         return Ok(grant ? "Permission granted" : "Permission revoked");
     };
 
-    if (const auto* grant = dynamic_cast<const GrantStmt*>(&statement)) {
-        return apply(*grant, true);
+    if (statement.KindOf() == Statement::Kind::Grant) {
+        return apply(static_cast<const GrantStmt&>(statement), true);
     }
-    if (const auto* revoke = dynamic_cast<const RevokeStmt*>(&statement)) {
-        return apply(*revoke, false);
+    if (statement.KindOf() == Statement::Kind::Revoke) {
+        return apply(static_cast<const RevokeStmt&>(statement), false);
     }
     return std::nullopt;
 }

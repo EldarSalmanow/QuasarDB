@@ -7,9 +7,9 @@
 namespace qdb::server {
 
 Logger::Logger(std::string log_dir, std::uint64_t max_file_size)
-    : log_dir_(std::move(log_dir)), max_file_size_(max_file_size)
-    , writer_thread_([this] { WriteLoop(); }) {
+    : log_dir_(std::move(log_dir)), max_file_size_(max_file_size) {
     std::filesystem::create_directories(log_dir_);
+    writer_thread_ = std::thread([this] { WriteLoop(); });
 }
 
 Logger::~Logger() {

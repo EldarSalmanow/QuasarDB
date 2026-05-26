@@ -8,6 +8,7 @@
 #include <fstream>
 #include <string>
 
+namespace fs = std::filesystem;
 
 namespace qdb::storage {
 class Journal final {
@@ -52,7 +53,7 @@ public:
         std::vector<uint8_t> _serialized_record;
 
     public:
-        InsertTrack(const Record& record, const Schema& schema, Serializer* serializer);
+        explicit InsertTrack(const Record& record);
 
         uint32_t write(std::fstream& os) override;
     };
@@ -61,7 +62,7 @@ public:
         std::vector<uint8_t> _serialized_record;
 
     public:
-        UpdateTrack(const Record& record, const Schema& schema, Serializer* serializer);
+        explicit UpdateTrack(const Record& record);
 
         uint32_t write(std::fstream& os) override;
     };
@@ -95,16 +96,11 @@ public:
 
     std::string save_insertion(const Record& record);
 
-    std::string save_updation(const Record& old_record, const Schema& schema, Serializer* serializer);
+    std::string save_updation(const Record& old_record);
 
-    std::string save_deletion(const Record& record, const Schema& schema, Serializer* serializer);
+    std::string save_deletion(const Record& record);
 
-    RevertResult revert_last(
-        const std::string& time,
-        const Schema& schema,
-        StringStorage* str_storage,
-        Serializer* serializer
-    );
+    RevertResult revert_last(const std::string& time, const Schema& schema, Interner& interner);
 
 private:
     void truncate_to_last();

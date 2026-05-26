@@ -112,4 +112,28 @@ auto ResponseBuilder::Build() const -> Response {
     return response_;
 }
 
+auto Success(std::string message, nlohmann::json data) -> Response {
+    return ResponseBuilder::Success().Message(std::move(message)).Data(std::move(data)).Build();
+}
+
+auto Pending(std::string message, nlohmann::json data) -> Response {
+    return ResponseBuilder::Pending().Message(std::move(message)).Data(std::move(data)).Build();
+}
+
+auto Error(std::string message, nlohmann::json data) -> Response {
+    return ResponseBuilder::Error().Message(std::move(message)).Data(std::move(data)).Build();
+}
+
+auto SuccessJson(std::string message, nlohmann::json data) -> nlohmann::json {
+    return Success(std::move(message), std::move(data)).ToJsonObject();
+}
+
+auto PendingJson(std::string message, nlohmann::json data) -> nlohmann::json {
+    return Pending(std::move(message), std::move(data)).ToJsonObject();
+}
+
+auto ErrorJson(std::string message, nlohmann::json data) -> nlohmann::json {
+    return Error(std::move(message), std::move(data)).ToJsonObject();
+}
+
 }  // namespace qdb::core

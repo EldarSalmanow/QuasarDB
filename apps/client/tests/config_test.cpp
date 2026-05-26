@@ -29,8 +29,8 @@ auto Parse(std::initializer_list<const char*> args) -> std::optional<Config> {
 TEST(ConfigTest, ParsesDefaults) {
     auto config = Parse({"qdb-client"});
     ASSERT_TRUE(config.has_value());
-    EXPECT_EQ(config->Host(), "localhost");
-    EXPECT_EQ(config->Port(), 4567u);
+    EXPECT_EQ(config->Host(), "127.0.0.1");
+    EXPECT_EQ(config->Port(), 9000u);
     EXPECT_EQ(config->File(), "");
 }
 

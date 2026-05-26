@@ -3,6 +3,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <qdb/core/request.h>
+#include <qdb/core/response.h>
 #include <qdb/core/tcp_server.h>
 #include <qdb/core/tcp_client.h>
 #include <qdb/server/ast.h>
@@ -29,13 +31,13 @@ public:
 private:
     auto AcceptConnection() -> std::unique_ptr<qdb::core::TcpClient>;
 
-    auto ProcessRequest(const nlohmann::json& request) -> std::optional<nlohmann::json>;
+    auto ProcessRequest(const qdb::core::Request& request) -> qdb::core::Response;
 
-    auto ExecuteAst(const nlohmann::json& ast) -> std::optional<nlohmann::json>;
+    auto ExecuteAst(const nlohmann::json& ast) -> qdb::core::Response;
 
-    auto CreateTable(const qdb::server::CreateTableStmt& statement) -> nlohmann::json;
+    auto CreateTable(const qdb::server::CreateTableStmt& statement) -> qdb::core::Response;
 
-    auto DropTable(const qdb::server::DropTableStmt& statement) -> nlohmann::json;
+    auto DropTable(const qdb::server::DropTableStmt& statement) -> qdb::core::Response;
 
     auto OpenExistingTable() -> void;
 

@@ -2,13 +2,10 @@
 
 #include <filesystem>
 #include <iostream>
-#include <qdb/core/response.h>
 #include <qdb/storage/executor.h>
 #include <qdb/server/ast.h>
 
 namespace qdb::storage {
-
-namespace {
 
 auto ToSchema(const std::vector<qdb::server::ColumnDef>& source) -> Schema {
     std::vector<Column> columns;
@@ -37,8 +34,6 @@ auto ToSchema(const std::vector<qdb::server::ColumnDef>& source) -> Schema {
     return Schema(std::move(columns));
 }
 
-}  // namespace
-
 Application::Application(Config config)
     : config_(std::move(config)),
       server_(qdb::core::TcpServer::New(config_.Host(), config_.Port())) {
@@ -65,17 +60,12 @@ auto Application::Run() -> std::int32_t {
 
         connection_ = std::move(client);
         while (true) {
-            auto request = connection_->Receive();
+            auto request = connection_->ReceiveRequest();
             if (!request.has_value()) {
                 break;
             }
 
-            auto response = ProcessRequest(request.value());
-            if (!response.has_value()) {
-                break;
-            }
-
-            if (!connection_->Send(response.value())) {
+            if (!connection_->SendResponse(ProcessRequest(request.value()))) {
                 break;
             }
         }
@@ -92,96 +82,66 @@ auto Application::AcceptConnection() -> std::unique_ptr<qdb::core::TcpClient> {
     return server_->Accept();
 }
 
-auto Application::ProcessRequest(const nlohmann::json& request) -> std::optional<nlohmann::json> {
-    if (!request.is_object()) {
-        return qdb::core::ResponseBuilder::Error()
-            .Message("Request must be a JSON object")
-            .Build()
-            .ToJsonObject();
+auto Application::ProcessRequest(const qdb::core::Request& request) -> qdb::core::Response {
+    if (request.Action() == "ping") {
+        return qdb::core::Success("pong");
     }
-
-    const std::string action = request.value("action", "");
-    if (action.empty()) {
-        return qdb::core::ResponseBuilder::Error().Message("Missing action").Build().ToJsonObject();
+    if (request.Action() != "execute_ast") {
+        return qdb::core::Error("Unknown action");
     }
-
-    if (action == "execute_ast") {
-        if (!request.contains("data") || !request["data"].contains("ast_root")) {
-            return qdb::core::ResponseBuilder::Error().Message("Missing ast_root").Build().ToJsonObject();
-        }
-
-        return ExecuteAst(request["data"]["ast_root"]);
+    if (!request.Data().contains("ast_root")) {
+        return qdb::core::Error("Missing ast_root");
     }
-
-    if (action == "ping") {
-        return qdb::core::ResponseBuilder::Success().Message("pong").Build().ToJsonObject();
-    }
-
-    return qdb::core::ResponseBuilder::Error().Message("Unknown action").Build().ToJsonObject();
+    return ExecuteAst(request.Data()["ast_root"]);
 }
 
-auto Application::ExecuteAst(const nlohmann::json& ast) -> std::optional<nlohmann::json> {
+auto Application::ExecuteAst(const nlohmann::json& ast) -> qdb::core::Response {
     try {
         auto stmt = qdb::server::DeserializeAst(ast);
         if (!stmt) {
-            return qdb::core::ResponseBuilder::Error()
-                .Message("Invalid or unsupported AST")
-                .Build()
-                .ToJsonObject();
+            return qdb::core::Error("Invalid or unsupported AST");
         }
 
-        if (const auto* create = dynamic_cast<const qdb::server::CreateTableStmt*>(stmt.get())) {
-            return CreateTable(*create);
+        if (stmt->KindOf() == qdb::server::Statement::Kind::CreateTable) {
+            return CreateTable(static_cast<const qdb::server::CreateTableStmt&>(*stmt));
         }
-        if (const auto* drop = dynamic_cast<const qdb::server::DropTableStmt*>(stmt.get())) {
-            return DropTable(*drop);
+        if (stmt->KindOf() == qdb::server::Statement::Kind::DropTable) {
+            return DropTable(static_cast<const qdb::server::DropTableStmt&>(*stmt));
         }
-        if (dynamic_cast<const qdb::server::CreateDatabaseStmt*>(stmt.get()) != nullptr ||
-            dynamic_cast<const qdb::server::DropDatabaseStmt*>(stmt.get()) != nullptr ||
-            dynamic_cast<const qdb::server::UseDatabaseStmt*>(stmt.get()) != nullptr) {
-            return qdb::core::ResponseBuilder::Error()
-                .Message("Storage shard does not manage databases")
-                .Build()
-                .ToJsonObject();
+        if (stmt->KindOf() == qdb::server::Statement::Kind::CreateDatabase ||
+            stmt->KindOf() == qdb::server::Statement::Kind::DropDatabase ||
+            stmt->KindOf() == qdb::server::Statement::Kind::UseDatabase) {
+            return qdb::core::Error("Storage shard does not manage databases");
         }
         if (!table_) {
-            return qdb::core::ResponseBuilder::Error().Message("Table shard is not initialized").Build().ToJsonObject();
+            return qdb::core::Error("Table shard is not initialized");
         }
 
         Executor exec(*table_, interner_);
-        stmt->Accept(exec);
-        return exec.Result();
+        return qdb::core::Response::FromJsonObject(exec.Execute(*stmt));
     } catch (const std::exception& ex) {
-        return qdb::core::ResponseBuilder::Error().Message(ex.what()).Build().ToJsonObject();
+        return qdb::core::Error(ex.what());
     }
 }
 
-auto Application::CreateTable(const qdb::server::CreateTableStmt& statement) -> nlohmann::json {
+auto Application::CreateTable(const qdb::server::CreateTableStmt& statement) -> qdb::core::Response {
     if (table_) {
-        return qdb::core::ResponseBuilder::Error().Message("Table shard is already initialized").Build().ToJsonObject();
+        return qdb::core::Error("Table shard is already initialized");
     }
 
     std::filesystem::create_directories(config_.Root());
     table_ = std::make_unique<Table>(statement.Table.Table, config_.Root(), ToSchema(statement.Columns), &interner_);
-    return qdb::core::ResponseBuilder::Success()
-        .Message("Table shard created")
-        .Data({{"rows_affected", 0}})
-        .Build()
-        .ToJsonObject();
+    return qdb::core::Success("Table shard created", {{"rows_affected", 0}});
 }
 
-auto Application::DropTable(const qdb::server::DropTableStmt& statement) -> nlohmann::json {
+auto Application::DropTable(const qdb::server::DropTableStmt& statement) -> qdb::core::Response {
     if (!table_ || table_->name() != statement.Table.Table) {
-        return qdb::core::ResponseBuilder::Error().Message("Table not found: " + statement.Table.Table).Build().ToJsonObject();
+        return qdb::core::Error("Table not found: " + statement.Table.Table);
     }
 
     table_->drop();
     table_.reset();
-    return qdb::core::ResponseBuilder::Success()
-        .Message("Table shard dropped")
-        .Data({{"rows_affected", 0}})
-        .Build()
-        .ToJsonObject();
+    return qdb::core::Success("Table shard dropped", {{"rows_affected", 0}});
 }
 
 auto Application::OpenExistingTable() -> void {

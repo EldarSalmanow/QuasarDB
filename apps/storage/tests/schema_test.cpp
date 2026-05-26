@@ -6,9 +6,8 @@ namespace qdb::storage::test {
 
 TEST(SchemaTest, DefaultConstructor) {
     Schema schema;
-    EXPECT_EQ(schema.size(), 0);
-    EXPECT_EQ(schema.record_id_count(), 0);
-    EXPECT_EQ(schema.null_bitmap_size(), 0);
+    EXPECT_EQ(schema.Size(), 0);
+    EXPECT_EQ(schema.RecordIdCount(), 0);
 }
 
 TEST(SchemaTest, ConstructorWithColumns) {
@@ -19,12 +18,7 @@ TEST(SchemaTest, ConstructorWithColumns) {
 
     Schema schema(columns, 100);
 
-    EXPECT_EQ(schema.size(), 3);
-    EXPECT_EQ(schema.null_bitmap_size(), 1);
-
-    EXPECT_THROW(schema.get_bitmap_idx(0), std::runtime_error);
-    EXPECT_EQ(schema.get_bitmap_idx(1), 0);
-    EXPECT_THROW(schema.get_bitmap_idx(2), std::runtime_error);
+    EXPECT_EQ(schema.Size(), 3);
 }
 
 TEST(SchemaTest, DuplicateColumnNames) {
@@ -32,28 +26,11 @@ TEST(SchemaTest, DuplicateColumnNames) {
     EXPECT_THROW({ Schema s(columns); }, std::runtime_error);
 }
 
-TEST(SchemaTest, NullBitmapSizeCalculation) {
-    Schema schema_0({{"c1", Column::ColumnType::INT, Column::NOT_NULL_FLAG}});
-    EXPECT_EQ(schema_0.null_bitmap_size(), 0);
-
-    std::vector<Column> columns;
-    for (int i = 0; i < 8; ++i) {
-        columns.push_back({std::to_string(i), Column::ColumnType::INT});
-    }
-
-    Schema schema_1(columns);
-    EXPECT_EQ(schema_1.null_bitmap_size(), 1);
-
-    columns.push_back({"9", Column::ColumnType::INT});
-    Schema schema_2(columns);
-    EXPECT_EQ(schema_2.null_bitmap_size(), 2);
-}
-
 TEST(SchemaTest, IncrementRecordId) {
     Schema schema;
-    uint32_t initial = schema.record_id_count();
-    schema.increment_record_id_count();
-    EXPECT_EQ(schema.record_id_count(), initial + 1);
+    uint32_t initial = schema.RecordIdCount();
+    schema.IncrementRecordIdCount();
+    EXPECT_EQ(schema.RecordIdCount(), initial + 1);
 }
 
 TEST(SchemaTest, FullCycleSerialization) {
@@ -62,17 +39,17 @@ TEST(SchemaTest, FullCycleSerialization) {
     Schema original(cols, 5);
 
     std::stringstream ss;
-    ASSERT_TRUE(original.to_binary(ss));
+    ASSERT_TRUE(original.ToBinary(ss));
 
     ss.seekg(0);
-    auto restored = Schema::from_binary(ss);
+    auto restored = Schema::FromBinary(ss);
 
     ASSERT_TRUE(restored.has_value());
     EXPECT_EQ(*restored, original);
-    EXPECT_EQ(restored->record_id_count(), 5);
+    EXPECT_EQ(restored->RecordIdCount(), 5);
 }
 
-TEST(SchemaTest, ReadsLegacySchemaWithoutDefaults) {
+TEST(SchemaTest, RejectsLegacySchemaWithoutDefaults) {
     std::stringstream ss;
     ss.write("SCHEMA", 6);
 
@@ -91,18 +68,15 @@ TEST(SchemaTest, ReadsLegacySchemaWithoutDefaults) {
     ss.write(reinterpret_cast<char*>(&flags), sizeof(flags));
 
     ss.seekg(0);
-    auto restored = Schema::from_binary(ss);
+    auto restored = Schema::FromBinary(ss);
 
-    ASSERT_TRUE(restored.has_value());
-    ASSERT_EQ(restored->size(), 1);
-    EXPECT_EQ(restored->record_id_count(), 3);
-    EXPECT_FALSE((*restored)[0].has_default());
+    EXPECT_FALSE(restored.has_value());
 }
 
 TEST(SchemaTest, FromBinaryInvalidHeader) {
     std::stringstream ss;
     ss << "WRONG_HEADER" << uint32_t(0) << uint32_t(0);
-    auto res = Schema::from_binary(ss);
+    auto res = Schema::FromBinary(ss);
     EXPECT_FALSE(res.has_value());
 }
 

@@ -15,8 +15,6 @@
 
 namespace qdb::server {
 
-namespace {
-
 auto SanitizedPath(std::string value) -> std::filesystem::path {
     std::filesystem::path path;
     std::string part;
@@ -40,8 +38,6 @@ auto ExistingExecutable(const std::vector<std::filesystem::path>& candidates) ->
     }
     return {};
 }
-
-}  // namespace
 
 StorageId::StorageId(std::string table)
         : table(std::move(table)) {}

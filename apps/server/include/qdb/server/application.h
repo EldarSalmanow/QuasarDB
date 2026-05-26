@@ -39,6 +39,8 @@ public:
     auto Process(const qdb::core::Request& request, Session& session) -> qdb::core::Response;
 
 private:
+    auto HandleHandshake() const -> qdb::core::Response;
+
     auto HandleLogin(const qdb::core::Request& request) -> qdb::core::Response;
 
     auto HandleExecute(const qdb::core::Request& request, Session& session) -> qdb::core::Response;

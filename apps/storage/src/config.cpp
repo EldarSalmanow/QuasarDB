@@ -1,5 +1,6 @@
 #include <qdb/storage/config.h>
 
+#include <args.hxx>
 
 namespace qdb::storage {
 
@@ -14,23 +15,28 @@ Config Config::New(std::string host, std::uint32_t port, std::string root) {
     };
 }
 
-auto Config::FromArguments(int argc, char **argv) -> Config {
-    std::string host = "127.0.0.1";
-    std::uint32_t port = 7000;
-    std::string data_root = "data/storage";
+auto Config::FromArguments(int argc, char **argv) -> std::optional<Config> {
+    args::ArgumentParser parser("QuasarDB storage");
+    args::HelpFlag help(parser, "help", "Display this help", {'?', "help"});
+    args::ValueFlag<std::string> host(parser, "host", "Bind host (default: 127.0.0.1)", {'H', "host"}, "127.0.0.1");
+    args::ValueFlag<int> port(parser, "port", "Bind port (default: 7000)", {'p', "port"}, 7000);
+    args::ValueFlag<std::string> root(parser, "root", "Storage shard root", {"root"}, "storage");
 
-    for (int i = 1; i < argc; ++i) {
-        const std::string arg = argv[i];
-        if (arg == "--host" && i + 1 < argc) {
-            host = argv[++i];
-        } else if (arg == "--port" && i + 1 < argc) {
-            port = static_cast<std::uint32_t>(std::stoi(argv[++i]));
-        } else if (arg == "--data-dir" && i + 1 < argc) {
-            data_root = argv[++i];
-        }
+    try {
+        parser.ParseCLI(argc, argv);
+    } catch (const args::Help&) {
+        std::cout << parser;
+
+        return std::nullopt;
+    } catch (const args::ParseError& exception) {
+        throw std::runtime_error(std::string("Argument parse error: ") + exception.what());
     }
 
-    return Config(std::move(host), port, std::move(data_root));
+    if (port.Get() <= 0) {
+        throw std::runtime_error("Invalid port number");
+    }
+
+    return Config::New(host.Get(), static_cast<std::uint32_t>(port.Get()), root.Get());
 }
 
 auto Config::Host() const -> const std::string & {

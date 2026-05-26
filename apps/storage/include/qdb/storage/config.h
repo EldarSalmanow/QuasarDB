@@ -2,8 +2,8 @@
 #define QUASARDB_CONFIG_H
 
 #include <cstdint>
+#include <optional>
 #include <string>
-
 
 namespace qdb::storage {
 
@@ -14,7 +14,7 @@ public:
 public:
     static auto New(std::string host, std::uint32_t port, std::string root) -> Config;
 
-    static auto FromArguments(int argc, char **argv) -> Config;
+    static auto FromArguments(int argc, char **argv) -> std::optional<Config>;
 
 public:
     auto Host() const -> const std::string &;

@@ -1,12 +1,10 @@
 #ifndef QUASARDB_VALUE_H
 #define QUASARDB_VALUE_H
 
-#include "string_storage.h"
-
-#include <cassert>
+#include <cstdint>
+#include <ostream>
 #include <string>
 #include <variant>
-
 
 namespace qdb::storage {
 
@@ -16,70 +14,86 @@ enum class SqlBool {
     UNKNOWN,
 };
 
-SqlBool operator&&(SqlBool a, SqlBool b);
+auto operator==(SqlBool first, SqlBool second) -> bool;
 
-SqlBool operator||(SqlBool a, SqlBool b);
+auto operator&&(SqlBool first, SqlBool second) -> SqlBool;
 
-SqlBool operator!(SqlBool a);
+auto operator||(SqlBool first, SqlBool second) -> SqlBool;
 
-bool operator==(SqlBool a, SqlBool b);
+auto operator!(SqlBool first) -> SqlBool;
 
-struct InternedString {
-    ExternalString ext_addr;
-    std::string_view intern_view;
-    bool has_ext_addr;
+struct StringId {
+    bool operator==(const StringId& other) const {
+        return value == other.value;
+    }
+
+    bool operator<(const StringId& other) const {
+        return value < other.value;
+    }
+
+    friend std::ostream& operator<<(std::ostream& ostream, const StringId& id) {
+        return ostream << id.value;
+    }
+
+    uint32_t value = 0;
 };
 
 class Value final {
-private:
-    std::variant<std::nullptr_t, int32_t, InternedString> _data;
-
 public:
-    friend class Interner;
     enum class Type {
         NULL_TYPE,
         INT,
         STRING,
     };
 
-    Value();
-    Value(int32_t val);
-
-private:
-    Value(InternedString val);
+public:
+    friend class Interner;
 
 public:
-    bool is_null() const;
+    Value();
 
-    bool is_int() const;
+    explicit Value(std::int32_t value);
 
-    bool is_string() const;
+private:
+    explicit Value(StringId value);
 
-    Type get_type() const;
+public:
+    auto IsNull() const -> bool;
 
-    std::string type_name() const;
+    auto IsInt() const -> bool;
 
-    int32_t as_int() const;
+    auto IsString() const -> bool;
 
-    InternedString as_string() const;
+    auto GetType() const -> Type;
 
-    std::string to_string() const;
+    auto GetTypeName() const -> std::string;
 
-    bool StrictEq(const Value& other) const;
+    auto AsInt() const -> std::int32_t;
 
-    SqlBool operator==(const Value& other) const;
+    auto AsString() const -> StringId;
 
-    SqlBool operator<(const Value& other) const;
+    auto ToString() const -> std::string;
 
-    SqlBool operator<=(const Value& other) const;
+    auto StrictEq(const Value& other) const -> bool;
 
-    SqlBool operator>(const Value& other) const;
+public:
+    auto operator==(const Value& other) const -> SqlBool;
 
-    SqlBool operator>=(const Value& other) const;
+    auto operator<(const Value& other) const -> SqlBool;
 
-    SqlBool operator!=(const Value& other) const;
+    auto operator<=(const Value& other) const -> SqlBool;
 
-    friend std::ostream& operator<<(std::ostream& os, const Value& value);
+    auto operator>(const Value& other) const -> SqlBool;
+
+    auto operator>=(const Value& other) const -> SqlBool;
+
+    auto operator!=(const Value& other) const -> SqlBool;
+
+public:
+    friend auto operator<<(std::ostream& ostream, const Value& value) -> std::ostream&;
+
+private:
+    std::variant<std::nullptr_t, std::int32_t, StringId> data_;
 };
 
 }  // namespace qdb::storage

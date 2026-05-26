@@ -26,6 +26,10 @@ public:
     auto Run() -> std::int32_t;
 
 private:
+    auto PrepareSession() -> bool;
+
+    auto SendAndReceive(const qdb::core::Request& request) -> std::optional<qdb::core::Response>;
+
     auto HandleAsyncResponse(const qdb::core::Response& response) -> void;
 
     auto PollTask(const std::string& task_id) -> std::optional<qdb::core::Response>;
@@ -35,6 +39,8 @@ private:
     auto HandleLoginResponse(const qdb::core::Response& response) -> void;
 
     auto CreateSuperuserInteractively() -> bool;
+
+    auto LoginInteractively() -> bool;
 
 private:
     Config config_;

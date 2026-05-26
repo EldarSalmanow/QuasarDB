@@ -113,6 +113,11 @@ TEST(ServerPipelineTest, UnknownActionsAreRejected) {
 TEST(ServerPipelineTest, AuthRequiresSuperuserSetupBeforeQueries) {
     Application application(AuthConfig("setup_required"));
 
+    auto handshake = application.Process(qdb::core::RequestBuilder::Handshake().Build());
+    ASSERT_TRUE(handshake.IsSuccess());
+    EXPECT_TRUE(handshake.GetDataObject().value("auth_required", false));
+    EXPECT_TRUE(handshake.GetDataObject().value("setup_required", false));
+
     auto response = application.Process(qdb::core::RequestBuilder::Query("CREATE DATABASE shop;").Build());
 
     ASSERT_TRUE(response.IsError());

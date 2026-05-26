@@ -15,6 +15,23 @@
 
 namespace qdb::server {
 
+auto ToHex(const unsigned char* data, size_t size) -> std::string {
+    std::ostringstream out;
+    for (size_t i = 0; i < size; ++i) {
+        out << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(data[i]);
+    }
+    return out.str();
+}
+
+auto ToHex(const std::vector<unsigned char>& data) -> std::string {
+    return ToHex(data.data(), data.size());
+}
+
+auto RemoveFile(const std::string& path) -> void {
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+}
+
 void to_json(nlohmann::json& j, const Account& a) {
     j = nlohmann::json{{"username", a.username}, {"password_hash", a.password_hash}, {"salt", a.salt}};
 }
@@ -96,34 +113,43 @@ auto AccountStore::Save() -> bool {
     nlohmann::json j = accounts_;
     std::ofstream file(tmp_path, std::ios::trunc);
     if (!file.is_open()) return false;
+
     std::error_code ec;
     std::filesystem::permissions(tmp_path, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
                                  std::filesystem::perm_options::replace, ec);
-    if (ec) { file.close(); std::filesystem::remove(tmp_path); return false; }
+    if (ec) {
+        file.close();
+        RemoveFile(tmp_path);
+        return false;
+    }
+
     file << j.dump(4);
-    if (!file.good()) { file.close(); std::filesystem::remove(tmp_path); return false; }
+    if (!file.good()) {
+        file.close();
+        RemoveFile(tmp_path);
+        return false;
+    }
+
     file.close();
-    if (file.fail()) { std::filesystem::remove(tmp_path); return false; }
+    if (file.fail()) {
+        RemoveFile(tmp_path);
+        return false;
+    }
+
     std::filesystem::rename(tmp_path, storage_path_, ec);
-    if (ec) { std::filesystem::remove(tmp_path); return false; }
+    if (ec) {
+        RemoveFile(tmp_path);
+        return false;
+    }
     return true;
 }
 
 auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t> {
-    std::vector<std::uint8_t> result(EVP_MAX_MD_SIZE);
-    unsigned int len = 0;
-
-    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    if (!ctx) return {};
-
-    if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1
-        || EVP_DigestUpdate(ctx, data.data(), data.size()) != 1
-        || EVP_DigestFinal_ex(ctx, result.data(), &len) != 1) {
-        EVP_MD_CTX_free(ctx);
+    std::vector<std::uint8_t> result(EVP_MD_size(EVP_sha256()));
+    std::size_t len = result.size();
+    if (EVP_Q_digest(nullptr, "SHA256", nullptr, data.data(), data.size(), result.data(), &len) != 1) {
         return {};
     }
-
-    EVP_MD_CTX_free(ctx);
     result.resize(len);
     return result;
 }
@@ -145,12 +171,7 @@ auto GenerateSalt(size_t byte_length) -> std::string {
     if (RAND_bytes(bytes.data(), static_cast<int>(byte_length)) != 1) {
         return {};
     }
-
-    std::ostringstream oss;
-    for (auto byte : bytes) {
-        oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
-    }
-    return oss.str();
+    return ToHex(bytes);
 }
 
 auto HashPassword(const std::string& password, const std::string& salt) -> std::string {
@@ -160,12 +181,7 @@ auto HashPassword(const std::string& password, const std::string& salt) -> std::
                                 static_cast<int>(salt.size()), 600000,
                                 EVP_sha256(), 32, hash.data());
     if (rc != 1) return {};
-
-    std::ostringstream oss;
-    for (auto byte : hash) {
-        oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
-    }
-    return oss.str();
+    return ToHex(hash);
 }
 
 auto Base64UrlEncode(const std::vector<std::uint8_t>& data) -> std::string {

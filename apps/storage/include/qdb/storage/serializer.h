@@ -1,30 +1,17 @@
 #ifndef QUASARDB_SERIALIZER_H
 #define QUASARDB_SERIALIZER_H
 
-#include "interner.h"
-#include "string_storage.h"
+#include <qdb/storage/interner.h>
 
 #include <vector>
 
-
 namespace qdb::storage {
 
-class Serializer final {
-public:
-    Serializer(Interner* interner, uint32_t max_small_str_size);
+auto SerializedSize(const Value& value) -> std::uint32_t;
 
-public:
-    uint32_t serialized_size(const Value& value) const;
+auto AppendValueToBuffer(const Value& value, std::vector<uint8_t>& buffer) -> void;
 
-    void append_value_to_buffer(const Value& value, std::vector<uint8_t>& buffer) const;
-
-    Value read_value(uint8_t*& data, Value::Type type, StringStorage* string_storage);
-
-private:
-    Interner* interner_;
-
-    uint32_t max_small_str_size_;
-};
+auto ReadValue(const uint8_t*& data, Interner& interner) -> Value;
 
 }  // namespace qdb::storage
 

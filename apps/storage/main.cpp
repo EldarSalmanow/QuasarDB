@@ -1,12 +1,21 @@
 #include <qdb/storage/application.h>
 
+#include <iostream>
 
 int main(int argc, char** argv) {
-    auto config = qdb::storage::Config::FromArguments(argc, argv);
+    try {
+        auto config = qdb::storage::Config::FromArguments(argc, argv);
 
-    auto application = qdb::storage::Application::New(config);
+        if (!config.has_value()) {
+            return 0;
+        }
 
-    auto result = application->Run();
+        auto application = qdb::storage::Application::New(config.value());
 
-    return result;
+        return application->Run();
+    } catch (const std::exception& exception) {
+        std::cerr << "[FATAL]: " << exception.what() << std::endl;
+
+        return 1;
+    }
 }

@@ -15,13 +15,9 @@ struct ASTNode;
 struct Statement;
 struct Expression;
 struct Condition;
-struct AstVisitor;
 
-// Base AST node
 struct ASTNode {
     virtual ~ASTNode();
-
-    virtual auto Accept(AstVisitor& visitor) const -> void = 0;
 };
 
 // Literals
@@ -32,13 +28,14 @@ struct Literal : ASTNode {
     std::string Value;
 
     Literal(Type type, std::string value);
-
-    auto Accept(AstVisitor& visitor) const -> void override;
 };
 
-// Expressions
 struct Expression : ASTNode {
+    enum class Kind { Identifier, Literal, Aggregate };
+
     ~Expression() override;
+
+    virtual auto KindOf() const -> Kind = 0;
 };
 
 struct IdentifierExpr : Expression {
@@ -46,7 +43,7 @@ struct IdentifierExpr : Expression {
 
     explicit IdentifierExpr(std::string name);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct LiteralExpr : Expression {
@@ -54,7 +51,7 @@ struct LiteralExpr : Expression {
 
     explicit LiteralExpr(std::unique_ptr<Literal> literal);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct AggregateExpr : Expression {
@@ -65,12 +62,15 @@ struct AggregateExpr : Expression {
 
     AggregateExpr(Function function, std::string column);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
-// Conditions
 struct Condition : ASTNode {
+    enum class Kind { Comparison, Between, Like, And, Or };
+
     ~Condition() override;
+
+    virtual auto KindOf() const -> Kind = 0;
 };
 
 struct ComparisonCondition : Condition {
@@ -82,7 +82,7 @@ struct ComparisonCondition : Condition {
 
     ComparisonCondition(std::unique_ptr<Expression> left, Operator op, std::unique_ptr<Expression> right);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct BetweenCondition : Condition {
@@ -93,7 +93,7 @@ struct BetweenCondition : Condition {
     BetweenCondition(std::unique_ptr<Expression> value, std::unique_ptr<Expression> lower,
                      std::unique_ptr<Expression> upper);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct LikeCondition : Condition {
@@ -102,7 +102,7 @@ struct LikeCondition : Condition {
 
     LikeCondition(std::unique_ptr<Expression> value, std::string pattern);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct AndCondition : Condition {
@@ -111,7 +111,7 @@ struct AndCondition : Condition {
 
     AndCondition(std::unique_ptr<Condition> left, std::unique_ptr<Condition> right);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct OrCondition : Condition {
@@ -120,7 +120,7 @@ struct OrCondition : Condition {
 
     OrCondition(std::unique_ptr<Condition> left, std::unique_ptr<Condition> right);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 // Table reference
@@ -154,9 +154,26 @@ struct SelectItem {
     explicit SelectItem(std::unique_ptr<Expression> expr, std::string alias = "");
 };
 
-// Statements
 struct Statement : ASTNode {
+    enum class Kind {
+        CreateDatabase,
+        DropDatabase,
+        UseDatabase,
+        CreateUser,
+        Grant,
+        Revoke,
+        Revert,
+        CreateTable,
+        DropTable,
+        Insert,
+        Update,
+        Delete,
+        Select
+    };
+
     ~Statement() override;
+
+    virtual auto KindOf() const -> Kind = 0;
 };
 
 // Database statements
@@ -165,7 +182,7 @@ struct CreateDatabaseStmt : Statement {
 
     explicit CreateDatabaseStmt(std::string name);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct DropDatabaseStmt : Statement {
@@ -173,7 +190,7 @@ struct DropDatabaseStmt : Statement {
 
     explicit DropDatabaseStmt(std::string name);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct UseDatabaseStmt : Statement {
@@ -181,7 +198,7 @@ struct UseDatabaseStmt : Statement {
 
     explicit UseDatabaseStmt(std::string name);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct CreateUserStmt : Statement {
@@ -190,7 +207,7 @@ struct CreateUserStmt : Statement {
 
     CreateUserStmt(std::string username, std::string password);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct GrantStmt : Statement {
@@ -200,7 +217,7 @@ struct GrantStmt : Statement {
 
     GrantStmt(std::vector<std::string> permissions, TableRef scope, std::string username);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct RevokeStmt : Statement {
@@ -210,7 +227,7 @@ struct RevokeStmt : Statement {
 
     RevokeStmt(std::vector<std::string> permissions, TableRef scope, std::string username);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct RevertStmt : Statement {
@@ -219,7 +236,7 @@ struct RevertStmt : Statement {
 
     RevertStmt(TableRef table, std::string timestamp);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 // DDL statements
@@ -229,7 +246,7 @@ struct CreateTableStmt : Statement {
 
     CreateTableStmt(TableRef table, std::vector<ColumnDef> columns);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct DropTableStmt : Statement {
@@ -237,7 +254,7 @@ struct DropTableStmt : Statement {
 
     explicit DropTableStmt(TableRef table);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 // DML statements
@@ -249,7 +266,7 @@ struct InsertStmt : Statement {
     InsertStmt(TableRef table, std::vector<std::string> columns,
                std::vector<std::vector<std::unique_ptr<Literal>>> values);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct UpdateStmt : Statement {
@@ -260,7 +277,7 @@ struct UpdateStmt : Statement {
     UpdateStmt(TableRef table, std::vector<std::pair<std::string, std::unique_ptr<Expression>>> assigns,
                std::unique_ptr<Condition> where);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct DeleteStmt : Statement {
@@ -269,7 +286,7 @@ struct DeleteStmt : Statement {
 
     DeleteStmt(TableRef table, std::unique_ptr<Condition> where);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
+    auto KindOf() const -> Kind override;
 };
 
 struct SelectStmt : Statement {
@@ -281,55 +298,7 @@ struct SelectStmt : Statement {
     SelectStmt(bool all, std::vector<SelectItem> items, TableRef table,
                std::unique_ptr<Condition> where = nullptr);
 
-    auto Accept(AstVisitor& visitor) const -> void override;
-};
-
-struct AstVisitor {
-    virtual ~AstVisitor() = default;
-
-    virtual void Visit(const Literal& node) = 0;
-
-    virtual void Visit(const IdentifierExpr& node) = 0;
-
-    virtual void Visit(const LiteralExpr& node) = 0;
-
-    virtual void Visit(const AggregateExpr& node) = 0;
-
-    virtual void Visit(const ComparisonCondition& node) = 0;
-
-    virtual void Visit(const BetweenCondition& node) = 0;
-
-    virtual void Visit(const LikeCondition& node) = 0;
-
-    virtual void Visit(const AndCondition& node) = 0;
-
-    virtual void Visit(const OrCondition& node) = 0;
-
-    virtual void Visit(const CreateDatabaseStmt& node) = 0;
-
-    virtual void Visit(const DropDatabaseStmt& node) = 0;
-
-    virtual void Visit(const UseDatabaseStmt& node) = 0;
-
-    virtual void Visit(const CreateUserStmt& node) = 0;
-
-    virtual void Visit(const GrantStmt& node) = 0;
-
-    virtual void Visit(const RevokeStmt& node) = 0;
-
-    virtual void Visit(const RevertStmt& node) = 0;
-
-    virtual void Visit(const CreateTableStmt& node) = 0;
-
-    virtual void Visit(const DropTableStmt& node) = 0;
-
-    virtual void Visit(const InsertStmt& node) = 0;
-
-    virtual void Visit(const UpdateStmt& node) = 0;
-
-    virtual void Visit(const DeleteStmt& node) = 0;
-
-    virtual void Visit(const SelectStmt& node) = 0;
+    auto KindOf() const -> Kind override;
 };
 
 auto SerializeAst(const Statement& statement) -> nlohmann::json;

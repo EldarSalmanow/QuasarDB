@@ -7,33 +7,33 @@ namespace qdb::storage::test {
 TEST(ColumnTest, ConstructorAndGetters) {
     Column column("username", Column::ColumnType::STRING, Column::NOT_NULL_FLAG);
 
-    EXPECT_EQ(column.name(), "username");
-    EXPECT_TRUE(column.is_string());
-    EXPECT_FALSE(column.is_int());
-    EXPECT_TRUE(column.not_null());
-    EXPECT_FALSE(column.indexed());
+    EXPECT_EQ(column.Name(), "username");
+    EXPECT_TRUE(column.IsString());
+    EXPECT_FALSE(column.IsInt());
+    EXPECT_TRUE(column.IsNotNull());
+    EXPECT_FALSE(column.IsIndexed());
 }
 
 TEST(ColumnTest, IndexedImplicitlyNotNull) {
     Column column("id", Column::ColumnType::INT, Column::INDEXED_FLAG);
-    EXPECT_TRUE(column.indexed());
-    EXPECT_TRUE(column.not_null());
+    EXPECT_TRUE(column.IsIndexed());
+    EXPECT_TRUE(column.IsNotNull());
 }
 
 TEST(ColumnTest, BinarySerialization) {
     Column original("price", Column::ColumnType::INT, Column::NOT_NULL_FLAG | Column::INDEXED_FLAG);
 
     std::stringstream ss;
-    ASSERT_TRUE(original.to_binary(ss));
+    ASSERT_TRUE(original.ToBinary(ss));
 
     ss.seekg(0);
-    auto restored = Column::from_binary(ss);
+    auto restored = Column::FromBinary(ss);
 
     ASSERT_TRUE(restored.has_value());
     EXPECT_EQ(original, *restored);
-    EXPECT_EQ(restored->name(), "price");
-    EXPECT_TRUE(restored->not_null());
-    EXPECT_TRUE(restored->indexed());
+    EXPECT_EQ(restored->Name(), "price");
+    EXPECT_TRUE(restored->IsNotNull());
+    EXPECT_TRUE(restored->IsIndexed());
 }
 
 TEST(ColumnTest, DefaultBinarySerialization) {
@@ -41,15 +41,15 @@ TEST(ColumnTest, DefaultBinarySerialization) {
                     Column::DefaultType::STRING, 0, "anon");
 
     std::stringstream ss;
-    ASSERT_TRUE(original.to_binary(ss));
+    ASSERT_TRUE(original.ToBinary(ss));
 
     ss.seekg(0);
-    auto restored = Column::from_binary(ss);
+    auto restored = Column::FromBinary(ss);
 
     ASSERT_TRUE(restored.has_value());
     EXPECT_EQ(original, *restored);
-    EXPECT_TRUE(restored->has_default());
-    EXPECT_EQ(restored->default_type(), Column::DefaultType::STRING);
+    EXPECT_TRUE(restored->HasDefault());
+    EXPECT_EQ(restored->GetDefaultType(), Column::DefaultType::STRING);
 }
 
 TEST(ColumnTest, RejectsInvalidDefault) {
@@ -64,7 +64,7 @@ TEST(ColumnTest, RejectsOversizedDefaultStringOnSerialization) {
     Column original("name", Column::ColumnType::STRING, 0, Column::DefaultType::STRING, 0, large_default);
 
     std::stringstream ss;
-    EXPECT_FALSE(original.to_binary(ss));
+    EXPECT_FALSE(original.ToBinary(ss));
 }
 
 TEST(ColumnTest, FromBinaryCorruptedData) {
@@ -72,7 +72,7 @@ TEST(ColumnTest, FromBinaryCorruptedData) {
     uint32_t fake_large_size = 2 * 1024 * 1024;
     ss.write(reinterpret_cast<char*>(&fake_large_size), sizeof(fake_large_size));
 
-    auto res = Column::from_binary(ss);
+    auto res = Column::FromBinary(ss);
     EXPECT_FALSE(res.has_value());
 }
 

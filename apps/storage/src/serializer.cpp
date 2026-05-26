@@ -1,143 +1,105 @@
-#include "../include/qdb/storage/serializer.h"
+#include <qdb/storage/serializer.h>
 
 #include <cstring>
 
 namespace qdb::storage {
 
-Serializer::Serializer(Interner* interner, uint32_t max_small_str_size)
-    : interner_(interner), max_small_str_size_(max_small_str_size) {}
+enum class StoredType : std::uint8_t {
+    Null = 0,
+    Int = 1,
+    String = 2,
+};
 
-uint32_t Serializer::serialized_size(const Value& value) const {
-    if (value.is_null()) {
+auto SerializedSize(const Value& value) -> std::uint32_t {
+    if (value.IsNull()) {
         return 1;
     }
 
-    if (value.is_int()) {
-        return sizeof(value.as_int());
+    if (value.IsInt()) {
+        return sizeof(StoredType) + sizeof(value.AsInt());
     }
 
-    if (value.is_string()) {
-        auto interned_str = value.as_string();
-
-        if (interned_str.has_ext_addr) {
-            return 1 + sizeof(ExternalString);
-        }
-
-        uint32_t len = static_cast<uint32_t>(interned_str.intern_view.size());
-
-        return 1 + sizeof(len) + len;
+    if (value.IsString()) {
+        return sizeof(StoredType) + sizeof(StringId);
     }
 
-    assert(false && "Unexpected type.");
-    __builtin_unreachable();
+    throw std::runtime_error("[ERROR in qdb::storage::SerializedSize]: Unexpected type!");
 }
 
-void Serializer::append_value_to_buffer(const Value& value, std::vector<uint8_t>& buffer) const {
+auto AppendValueToBuffer(const Value& value, std::vector<uint8_t>& buffer) -> void {
     size_t offset = buffer.size();
-    if (value.is_null()) {
-        throw std::runtime_error("Cannot write null as value.");
+
+    if (value.IsNull()) {
+        StoredType type = StoredType::Null;
+
+        buffer.resize(offset + sizeof(type));
+
+        std::memcpy(buffer.data() + offset, &type, sizeof(type));
+
+        return;
     }
 
-    if (value.is_int()) {
-        auto value_as_int = value.as_int();
-        auto required_size = offset + sizeof(value_as_int);
+    if (value.IsInt()) {
+        StoredType type = StoredType::Int;
+
+        auto value_as_int = value.AsInt();
+        auto required_size = offset + sizeof(type) + sizeof(value_as_int);
 
         if (buffer.size() < required_size) {
             buffer.resize(required_size);
         }
 
+        std::memcpy(buffer.data() + offset, &type, sizeof(type));
+
+        offset += sizeof(type);
+
         std::memcpy(buffer.data() + offset, &value_as_int, sizeof(value_as_int));
-    } else if (value.is_string()) {
-        auto value_as_string = value.as_string();
+    } else if (value.IsString()) {
+        StoredType type = StoredType::String;
 
-        if (value_as_string.has_ext_addr) {
-            bool flag_has_ext_addr = true;
-            auto required_size = offset + sizeof(flag_has_ext_addr) + sizeof(value_as_string.ext_addr);
+        auto id = value.AsString();
+        auto required_size = offset + sizeof(type) + sizeof(id);
 
-            if (buffer.size() < required_size) {
-                buffer.resize(required_size);
-            }
-
-            std::memcpy(buffer.data() + offset, &flag_has_ext_addr, sizeof(flag_has_ext_addr));
-
-            offset += sizeof(flag_has_ext_addr);
-
-            std::memcpy(buffer.data() + offset, &value_as_string.ext_addr, sizeof(value_as_string.ext_addr));
-        } else {
-            bool flag_has_ext_addr = false;
-            const auto& string = value_as_string.intern_view;
-
-            uint32_t len = static_cast<uint32_t>(string.size());
-            auto required_size = offset + sizeof(flag_has_ext_addr) + sizeof(len) + len;
-
-            if (buffer.size() < required_size) {
-                buffer.resize(required_size);
-            }
-
-            std::memcpy(buffer.data() + offset, &flag_has_ext_addr, sizeof(flag_has_ext_addr));
-
-            offset += sizeof(flag_has_ext_addr);
-
-            std::memcpy(buffer.data() + offset, &len, sizeof(len));
-
-            offset += sizeof(len);
-
-            std::memcpy(buffer.data() + offset, string.data(), len);
+        if (buffer.size() < required_size) {
+            buffer.resize(required_size);
         }
+
+        std::memcpy(buffer.data() + offset, &type, sizeof(type));
+
+        offset += sizeof(type);
+
+        std::memcpy(buffer.data() + offset, &id, sizeof(id));
     } else {
-        assert(false && "Unexpected type.");
+        throw std::runtime_error("[ERROR in qdb::storage::AppendValueToBuffer]: Unexpected type!");
     }
 }
 
-Value Serializer::read_value(uint8_t*& data, Value::Type type, StringStorage* string_storage) {
-    if (type == Value::Type::NULL_TYPE) {
-        throw std::runtime_error("[ERROR in qdb::storage::Serializer]: Can`t read null type of value!");
+auto ReadValue(const uint8_t*& data, Interner& interner) -> Value {
+    StoredType type;
+    std::memcpy(&type, data, sizeof(type));
+    data += sizeof(type);
+
+    if (type == StoredType::Null) {
+        return {};
     }
 
-    if (type == Value::Type::INT) {
+    if (type == StoredType::Int) {
         int32_t value;
         std::memcpy(&value, data, sizeof(value));
-
         data += sizeof(value);
 
         return Value(value);
     }
 
-    if (type == Value::Type::STRING) {
-        ExternalString str_ext_addr;
-        bool flag_has_ext_addr;
+    if (type == StoredType::String) {
+        StringId id;
+        std::memcpy(&id, data, sizeof(id));
+        data += sizeof(id);
 
-        std::memcpy(&flag_has_ext_addr, data, sizeof(flag_has_ext_addr));
-        data += sizeof(flag_has_ext_addr);
-
-        if (flag_has_ext_addr) {
-            std::memcpy(&str_ext_addr, data, sizeof(str_ext_addr));
-
-            data += sizeof(str_ext_addr);
-
-            if (string_storage == nullptr) {
-                throw std::
-                    runtime_error("[ERROR in qdb::storage::Serializer]: StringStorage* is needed for read large string."
-                    );
-            }
-
-            return interner_->str_to_value(string_storage->read(str_ext_addr), str_ext_addr);
-        } else {
-            uint32_t len;
-            std::memcpy(&len, data, sizeof(len));
-
-            data += sizeof(len);
-
-            auto view = std::string_view(reinterpret_cast<const char*>(data), len);
-
-            data += len;
-
-            return interner_->str_to_value(view);
-        }
+        return interner.Get(id);
     }
 
-    assert(false && "Unexpected type.");
-    __builtin_unreachable();
+    throw std::runtime_error("[ERROR in qdb::storage::ReadValue]: Unknown serialized value type!");
 }
 
 }  // namespace qdb::storage

@@ -1,165 +1,222 @@
-#include "../include/qdb/storage/value.h"
+#include <qdb/storage/value.h>
 
+#include <cassert>
 #include <iostream>
 
 namespace qdb::storage {
 
-SqlBool operator&&(SqlBool a, SqlBool b) {
-    if (a == SqlBool::FALSE || b == SqlBool::FALSE) return SqlBool::FALSE;
-    if (a == SqlBool::UNKNOWN || b == SqlBool::UNKNOWN) return SqlBool::UNKNOWN;
+auto operator==(SqlBool first, SqlBool second) -> bool {
+    return static_cast<int>(first) == static_cast<int>(second);
+}
+
+auto operator&&(SqlBool first, SqlBool second) -> SqlBool {
+    if (first == SqlBool::FALSE || second == SqlBool::FALSE) {
+        return SqlBool::FALSE;
+    }
+
+    if (first == SqlBool::UNKNOWN || second == SqlBool::UNKNOWN) {
+        return SqlBool::UNKNOWN;
+    }
+
     return SqlBool::TRUE;
 }
 
-SqlBool operator||(SqlBool a, SqlBool b) {
-    if (a == SqlBool::TRUE || b == SqlBool::TRUE) return SqlBool::TRUE;
-    if (a == SqlBool::UNKNOWN || b == SqlBool::UNKNOWN) return SqlBool::UNKNOWN;
+auto operator||(SqlBool first, SqlBool second) -> SqlBool {
+    if (first == SqlBool::TRUE || second == SqlBool::TRUE) {
+        return SqlBool::TRUE;
+    }
+
+    if (first == SqlBool::UNKNOWN || second == SqlBool::UNKNOWN) {
+        return SqlBool::UNKNOWN;
+    }
+
     return SqlBool::FALSE;
 }
 
-SqlBool operator!(SqlBool a) {
-    if (a == SqlBool::TRUE) return SqlBool::FALSE;
-    if (a == SqlBool::FALSE) return SqlBool::TRUE;
-    return SqlBool::UNKNOWN;
+auto operator!(SqlBool first) -> SqlBool {
+    switch (first) {
+        case SqlBool::TRUE:
+            return SqlBool::FALSE;
+        case SqlBool::FALSE:
+            return SqlBool::TRUE;
+        default:
+            return SqlBool::UNKNOWN;
+    }
 }
 
-bool operator==(SqlBool a, SqlBool b) { return static_cast<int>(a) == static_cast<int>(b); }
+Value::Value()
+        : data_(nullptr) {}
 
-Value::Value() : _data(nullptr) {}
+Value::Value(std::int32_t value)
+        : data_(value) {}
 
-Value::Value(int32_t val) : _data(val) {}
+Value::Value(StringId value)
+        : data_(value) {}
 
-Value::Value(InternedString val) : _data(val) {}
+auto Value::IsNull() const -> bool {
+    return std::holds_alternative<std::nullptr_t>(data_);
+}
 
-bool Value::is_null() const { return std::holds_alternative<std::nullptr_t>(_data); }
+auto Value::IsInt() const -> bool {
+    return std::holds_alternative<int32_t>(data_);
+}
 
-bool Value::is_int() const { return std::holds_alternative<int32_t>(_data); }
+auto Value::IsString() const -> bool {
+    return std::holds_alternative<StringId>(data_);
+}
 
-bool Value::is_string() const { return std::holds_alternative<InternedString>(_data); }
-
-Value::Type Value::get_type() const {
-    if (is_null()) {
+auto Value::GetType() const -> Type {
+    if (IsNull()) {
         return Type::NULL_TYPE;
     }
-    if (is_int()) {
+
+    if (IsInt()) {
         return Type::INT;
     }
-    if (is_string()) {
+
+    if (IsString()) {
         return Type::STRING;
     }
-    assert(false && "Unexpected type.");
-    __builtin_unreachable();
+
+    throw std::runtime_error("[FATAL in qdb::storage::Value]: Unexpected type!");
 }
 
-std::string Value::type_name() const {
-    if (is_null()) {
+auto Value::GetTypeName() const -> std::string {
+    if (IsNull()) {
         return "NULL";
     }
-    if (is_int()) {
+
+    if (IsInt()) {
         return "INT";
     }
-    if (is_string()) {
+
+    if (IsString()) {
         return "STRING";
     }
-    assert(false && "Unexpected type.");
-    __builtin_unreachable();
+
+    throw std::runtime_error("[FATAL in qdb::storage::Value]: Unexpected type!");
 }
 
-int32_t Value::as_int() const {
-    if (!is_int()) throw std::runtime_error("Value is not an int");
-    return std::get<int32_t>(_data);
+auto Value::AsInt() const -> std::int32_t {
+    if (!IsInt()) {
+        throw std::runtime_error("[FATAL in qdb::storage::Value]: Value is not an int!");
+    }
+
+    return std::get<int32_t>(data_);
 }
 
-InternedString Value::as_string() const {
-    if (!is_string()) throw std::runtime_error("Value is not a string");
-    return std::get<InternedString>(_data);
+auto Value::AsString() const -> StringId {
+    if (!IsString()) {
+        throw std::runtime_error("[FATAL in qdb::storage::Value]: Value is not a string!");
+    }
+
+    return std::get<StringId>(data_);
 }
 
-std::string Value::to_string() const {
-    if (is_null()) {
+auto Value::ToString() const -> std::string {
+    if (IsNull()) {
         return "NULL";
     }
-    if (is_int()) {
-        return std::to_string(as_int());
+
+    if (IsInt()) {
+        return std::to_string(AsInt());
     }
-    if (is_string()) {
-        return std::string(as_string().intern_view);
+
+    if (IsString()) {
+        return "#" + std::to_string(AsString().value);
     }
-    assert(false && "Unexpected type.");
-    __builtin_unreachable();
+
+    throw std::runtime_error("[FATAL in qdb::storage::Value]: Unexpected type!");
 }
 
-bool Value::StrictEq(const Value& other) const {
-    if (is_null() && other.is_null()) {
+auto Value::StrictEq(const Value& other) const -> bool {
+    if (IsNull() && other.IsNull()) {
         return true;
     }
-    if (get_type() != other.get_type()) {
+
+    if (GetType() != other.GetType()) {
         return false;
     }
-    if (is_int()) {
-        return as_int() == other.as_int();
+
+    if (IsInt()) {
+        return AsInt() == other.AsInt();
     }
-    if (is_string()) {
-        return as_string().intern_view == other.as_string().intern_view;
+
+    if (IsString()) {
+        return AsString() == other.AsString();
     }
-    assert(false && "Unexpected type.");
-    __builtin_unreachable();
+
+    throw std::runtime_error("[FATAL in qdb::storage::Value]: Unexpected type!");
 }
 
-SqlBool Value::operator==(const Value& other) const {
-    if (is_null() || other.is_null()) {
+auto Value::operator==(const Value& other) const -> SqlBool {
+    if (IsNull() || other.IsNull()) {
         return SqlBool::UNKNOWN;
     }
-    if (get_type() != other.get_type()) {
+
+    if (GetType() != other.GetType()) {
         throw std::runtime_error("Compare different type");
     }
-    if (is_int()) {
-        return as_int() == other.as_int() ? SqlBool::TRUE : SqlBool::FALSE;
+
+    if (IsInt()) {
+        return AsInt() == other.AsInt() ? SqlBool::TRUE : SqlBool::FALSE;
     }
-    if (is_string()) {
-        return as_string().intern_view == other.as_string().intern_view ? SqlBool::TRUE : SqlBool::FALSE;
+
+    if (IsString()) {
+        return AsString() == other.AsString() ? SqlBool::TRUE : SqlBool::FALSE;
     }
-    assert(false && "Unexpected type.");
-    __builtin_unreachable();
+
+    throw std::runtime_error("[FATAL in qdb::storage::Value]: Unexpected type!");
 }
 
-SqlBool Value::operator<(const Value& other) const {
-    if (is_null() || other.is_null()) {
+auto Value::operator<(const Value& other) const -> SqlBool {
+    if (IsNull() || other.IsNull()) {
         return SqlBool::UNKNOWN;
     }
-    if (get_type() != other.get_type()) {
-        throw std::runtime_error("Compare different type");
+
+    if (GetType() != other.GetType()) {
+        throw std::runtime_error("[FATAL in qdb::storage::Value]: Compare different type!");
     }
-    if (is_int()) {
-        return as_int() < other.as_int() ? SqlBool::TRUE : SqlBool::FALSE;
+
+    if (IsInt()) {
+        return AsInt() < other.AsInt() ? SqlBool::TRUE : SqlBool::FALSE;
     }
-    if (is_string()) {
-        return as_string().intern_view < other.as_string().intern_view ? SqlBool::TRUE : SqlBool::FALSE;
+
+    if (IsString()) {
+        return AsString() < other.AsString() ? SqlBool::TRUE : SqlBool::FALSE;
     }
-    assert(false && "Unexpected type.");
-    __builtin_unreachable();
+
+    throw std::runtime_error("[FATAL in qdb::storage::Value]: Unexpected type!");
 }
 
-SqlBool Value::operator<=(const Value& other) const { return (*this < other) || (*this == other); }
-
-SqlBool Value::operator>(const Value& other) const { return !(*this <= other); }
-
-SqlBool Value::operator>=(const Value& other) const { return !(*this < other); }
-
-SqlBool Value::operator!=(const Value& other) const { return !(*this == other); }
-
-std::ostream& operator<<(std::ostream& os, const Value& value) {
-    os << "V(" << value.type_name();
-    if (value.is_int()) {
-        os << "|" << value.as_int();
-    } else if (value.is_string()) {
-        os << "|has_ext_addr=" << value.as_string().has_ext_addr;
-        if (value.as_string().has_ext_addr) {
-            os << "|ext_addr=(offset=" << value.as_string().ext_addr.offset
-               << "|size=" << value.as_string().ext_addr.size;
-        }
-        os << "|string=" << value.as_string().intern_view;
-    }
-    os << ")";
-    return os;
+auto Value::operator<=(const Value& other) const -> SqlBool {
+    return (*this < other) || (*this == other);
 }
+
+auto Value::operator>(const Value& other) const -> SqlBool {
+    return !(*this <= other);
+}
+
+auto Value::operator>=(const Value& other) const -> SqlBool {
+    return !(*this < other);
+}
+
+auto Value::operator!=(const Value& other) const -> SqlBool {
+    return !(*this == other);
+}
+
+auto operator<<(std::ostream& ostream, const Value& value) -> std::ostream& {
+    ostream << "V(" << value.GetTypeName();
+
+    if (value.IsInt()) {
+        ostream << "|" << value.AsInt();
+    } else if (value.IsString()) {
+        ostream << "|string_id=" << value.AsString().value;
+    }
+
+    ostream << ")";
+
+    return ostream;
+}
+
 }  // namespace qdb::storage

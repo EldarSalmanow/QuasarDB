@@ -84,6 +84,10 @@ auto RequestBuilder::CreateSuperuser(std::string username, std::string password)
         .Data({{"username", std::move(username)}, {"password", std::move(password)}, {"create", true}});
 }
 
+auto RequestBuilder::Handshake() -> RequestBuilder {
+    return RequestBuilder{}.Action("handshake");
+}
+
 auto RequestBuilder::Query(std::string sql) -> RequestBuilder {
     return RequestBuilder{}.Action("query").Data({{"query", std::move(sql)}});
 }

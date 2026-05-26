@@ -4,13 +4,9 @@
 
 namespace qdb::server {
 
-namespace {
-
 auto TableName(const TableRef& table) -> const std::string& {
     return table.Table;
 }
-
-}  // namespace
 
 Catalog::Catalog(std::filesystem::path path) : path_(std::move(path)) {
     Load();

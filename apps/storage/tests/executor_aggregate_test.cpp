@@ -34,9 +34,9 @@ TEST(ExecutorAggregateTest, SelectAggregatesWithWhere) {
         Column("age", Column::ColumnType::INT),
         Column("name", Column::ColumnType::STRING),
     }), &interner);
-    table.insert_record({Value(1), Value(17), interner.str_to_value("Ann")});
-    table.insert_record({Value(2), Value(18), interner.str_to_value("Bob")});
-    table.insert_record({Value(3), Value(30), interner.str_to_value("Cara")});
+    table.insert_record({Value(1), Value(17), interner.Intern("Ann")});
+    table.insert_record({Value(2), Value(18), interner.Intern("Bob")});
+    table.insert_record({Value(3), Value(30), interner.Intern("Cara")});
 
     Executor executor(table, interner);
 
@@ -51,9 +51,8 @@ TEST(ExecutorAggregateTest, SelectAggregatesWithWhere) {
         Int(18)
     );
     SelectStmt select(false, std::move(items), TableRef("users"), std::move(where));
-    select.Accept(executor);
 
-    auto response = executor.Result().value();
+    auto response = executor.Execute(select);
     ASSERT_EQ(response["status"], "success");
 
     const auto& row = response["data"]["result"].at(0);

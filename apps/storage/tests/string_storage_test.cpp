@@ -2,13 +2,13 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include "../include/qdb/storage/table.h"
+#include "../include/qdb/storage/interner.h"
 
 namespace qdb::storage::test {
 
 namespace fs = std::filesystem;
 
-class StringStorageTest : public ::testing::Test {
+class InternerStorageTest : public ::testing::Test {
 protected:
     fs::path test_path = "test_strings.bin";
 
@@ -25,85 +25,87 @@ protected:
     }
 };
 
-TEST_F(StringStorageTest, FileCreation) {
-    StringStorage storage(test_path);
+TEST_F(InternerStorageTest, FileCreation) {
+    Interner interner;
+    interner.UseStorage(test_path);
     EXPECT_TRUE(fs::exists(test_path));
-    storage.delete_file();
+    interner.DeleteStorage();
 }
 
-TEST_F(StringStorageTest, AppendAndRead) {
-    StringStorage storage(test_path);
+TEST_F(InternerStorageTest, AppendAndRead) {
+    Interner interner;
+    interner.UseStorage(test_path);
     std::string original = "Hello, world!";
 
-    auto addr = storage.append(original);
+    auto id = interner.Intern(original).AsString();
 
-    EXPECT_EQ(addr.size, original.size());
-    EXPECT_EQ(storage.read(addr), original);
-    storage.delete_file();
+    EXPECT_EQ(interner.View(id), original);
+    interner.DeleteStorage();
 }
 
-TEST_F(StringStorageTest, MultipleAppends) {
-    StringStorage storage(test_path);
+TEST_F(InternerStorageTest, MultipleAppends) {
+    Interner interner;
+    interner.UseStorage(test_path);
     std::string s1 = "First";
     std::string s2 = "Second string";
     std::string s3 = "Third";
 
-    auto addr1 = storage.append(s1);
-    auto addr2 = storage.append(s2);
-    auto addr3 = storage.append(s3);
+    auto id1 = interner.Intern(s1).AsString();
+    auto id2 = interner.Intern(s2).AsString();
+    auto id3 = interner.Intern(s3).AsString();
 
-    EXPECT_EQ(storage.read(addr1), s1);
-    EXPECT_EQ(storage.read(addr2), s2);
-    EXPECT_EQ(storage.read(addr3), s3);
-    storage.delete_file();
+    EXPECT_EQ(interner.View(id1), s1);
+    EXPECT_EQ(interner.View(id2), s2);
+    EXPECT_EQ(interner.View(id3), s3);
+    interner.DeleteStorage();
 }
 
-TEST_F(StringStorageTest, Persistence) {
-    ExternalString addr;
+TEST_F(InternerStorageTest, Persistence) {
+    StringId id;
     std::string text = "Persistent Data";
     {
-        StringStorage storage(test_path);
-        addr = storage.append(text);
+        Interner interner;
+        interner.UseStorage(test_path);
+        id = interner.Intern(text).AsString();
     }
     {
-        StringStorage storage(test_path);
-        EXPECT_EQ(storage.read(addr), text);
-        storage.delete_file();
+        Interner interner;
+        interner.UseStorage(test_path);
+        EXPECT_EQ(interner.View(id), text);
+        interner.DeleteStorage();
     }
 }
 
-TEST_F(StringStorageTest, MoveOperations) {
-    StringStorage storage(test_path);
-    auto addr = storage.append("MoveMe");
+TEST_F(InternerStorageTest, MoveOperations) {
+    Interner interner;
+    interner.UseStorage(test_path);
+    auto id = interner.Intern("MoveMe").AsString();
 
-    StringStorage moved_storage(std::move(storage));
-    EXPECT_EQ(moved_storage.read(addr), "MoveMe");
+    Interner moved_interner(std::move(interner));
+    EXPECT_EQ(moved_interner.View(id), "MoveMe");
 
-    StringStorage another_storage(test_path.string() + ".extra");
-    another_storage = std::move(moved_storage);
-    EXPECT_EQ(another_storage.read(addr), "MoveMe");
+    Interner another_interner;
+    another_interner = std::move(moved_interner);
+    EXPECT_EQ(another_interner.View(id), "MoveMe");
 
-    if (fs::exists(test_path.string() + ".extra")) {
-        fs::remove(test_path.string() + ".extra");
-    }
-    another_storage.delete_file();
+    another_interner.DeleteStorage();
 }
 
-TEST_F(StringStorageTest, ReadSizeMismatch) {
-    StringStorage storage(test_path);
-    auto addr = storage.append("Short");
-    addr.size = 999;
-    EXPECT_THROW(storage.read(addr), std::runtime_error);
-    storage.delete_file();
+TEST_F(InternerStorageTest, MissingIdThrows) {
+    Interner interner;
+    interner.UseStorage(test_path);
+    interner.Intern("Short");
+    EXPECT_THROW(interner.View(StringId{999}), std::runtime_error);
+    interner.DeleteStorage();
 }
 
-TEST_F(StringStorageTest, EmptyString) {
-    StringStorage storage(test_path);
+TEST_F(InternerStorageTest, EmptyString) {
+    Interner interner;
+    interner.UseStorage(test_path);
     std::string empty = "";
-    auto addr = storage.append(empty);
-    EXPECT_EQ(addr.size, 0);
-    EXPECT_EQ(storage.read(addr), "");
-    storage.delete_file();
+    auto id = interner.Intern(empty).AsString();
+    EXPECT_EQ(interner.View(id), "");
+    interner.DeleteStorage();
 }
 
 }  // namespace qdb::storage::test

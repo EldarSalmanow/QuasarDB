@@ -21,9 +21,7 @@ protected:
     fs::path test_root;
     std::string table_name = "test_table";
     Schema test_schema;
-    StringStorage* str_storage = nullptr;
     Interner interner;
-    Serializer serializer = Serializer(&interner, 4096);
 
     void SetUp() override {
         const testing::TestInfo* const test_info = testing::UnitTest::GetInstance()->current_test_info();
@@ -53,31 +51,31 @@ TEST_F(JournalTest, RevertInsertion) {
     Journal journal(test_root, table_name);
     Record record(42, {Value(0)});
     auto target_time = journal.save_insertion(record);
-    auto revert_data = journal.revert_last(target_time, test_schema, str_storage, &serializer);
+    auto revert_data = journal.revert_last(target_time, test_schema, interner);
     EXPECT_FALSE(revert_data.time.empty());
     EXPECT_EQ(revert_data.type, Journal::Track::Type::DELETE);
-    EXPECT_EQ(revert_data.record.id(), 42);
+    EXPECT_EQ(revert_data.record.Id(), 42);
 }
 
 TEST_F(JournalTest, RevertDeletion) {
     Journal journal(test_root, table_name);
     Record record(100, {Value(0)});
-    auto target_time = journal.save_deletion(record, test_schema, &serializer);
-    auto revert_data = journal.revert_last(target_time, test_schema, str_storage, &serializer);
+    auto target_time = journal.save_deletion(record);
+    auto revert_data = journal.revert_last(target_time, test_schema, interner);
     EXPECT_FALSE(revert_data.time.empty());
     EXPECT_EQ(revert_data.type, Journal::Track::Type::INSERT);
-    EXPECT_EQ(revert_data.record.id(), 100);
+    EXPECT_EQ(revert_data.record.Id(), 100);
 }
 
 TEST_F(JournalTest, RevertUpdation) {
     Journal journal(test_root, table_name);
     Record old_record(77, {Value(0)});
     Record new_record(77, {Value(1)});
-    auto target_time = journal.save_updation(old_record, test_schema, &serializer);
-    auto revert_data = journal.revert_last(target_time, test_schema, str_storage, &serializer);
+    auto target_time = journal.save_updation(old_record);
+    auto revert_data = journal.revert_last(target_time, test_schema, interner);
     EXPECT_FALSE(revert_data.time.empty());
     EXPECT_EQ(revert_data.type, Journal::Track::Type::UPDATE);
-    EXPECT_EQ(revert_data.record.id(), 77);
+    EXPECT_EQ(revert_data.record.Id(), 77);
     EXPECT_EQ(revert_data.record[0] == Value(0), SqlBool::TRUE);
 }
 
@@ -87,7 +85,7 @@ TEST_F(JournalTest, RevertRespectsTargetTime) {
     journal.save_insertion(record);
     std::this_thread::sleep_for(std::chrono::seconds(1));
     std::string future_time = Journal::Track::get_now();
-    auto revert_data = journal.revert_last(future_time, test_schema, str_storage, &serializer);
+    auto revert_data = journal.revert_last(future_time, test_schema, interner);
     EXPECT_TRUE(revert_data.time.empty());
 }
 
@@ -102,11 +100,11 @@ TEST_F(JournalTest, AppendAfterReopen) {
     Record record_2(20, {Value(1)});
     EXPECT_NO_THROW(journal.save_insertion(record_2));
 
-    auto revert_2 = journal.revert_last(target_time, test_schema, str_storage, &serializer);
-    EXPECT_EQ(revert_2.record.id(), 20);
+    auto revert_2 = journal.revert_last(target_time, test_schema, interner);
+    EXPECT_EQ(revert_2.record.Id(), 20);
 
-    auto revert_1 = journal.revert_last(target_time, test_schema, str_storage, &serializer);
-    EXPECT_EQ(revert_1.record.id(), 10);
+    auto revert_1 = journal.revert_last(target_time, test_schema, interner);
+    EXPECT_EQ(revert_1.record.Id(), 10);
 }
 
 TEST_F(JournalTest, TruncateBranchAfterRevertAndNewWrite) {
@@ -115,14 +113,14 @@ TEST_F(JournalTest, TruncateBranchAfterRevertAndNewWrite) {
     Record record_2(20, {Value(0)});
     auto target_time = journal.save_insertion(record_1);
     journal.save_insertion(record_2);
-    auto revert_2 = journal.revert_last(target_time, test_schema, str_storage, &serializer);
-    EXPECT_EQ(revert_2.record.id(), 20);
+    auto revert_2 = journal.revert_last(target_time, test_schema, interner);
+    EXPECT_EQ(revert_2.record.Id(), 20);
     Record record_3(30, {Value(0)});
     EXPECT_NO_THROW(journal.save_insertion(record_3));
-    auto revert_3 = journal.revert_last(target_time, test_schema, str_storage, &serializer);
-    EXPECT_EQ(revert_3.record.id(), 30);
-    auto revert_1 = journal.revert_last(target_time, test_schema, str_storage, &serializer);
-    EXPECT_EQ(revert_1.record.id(), 10);
+    auto revert_3 = journal.revert_last(target_time, test_schema, interner);
+    EXPECT_EQ(revert_3.record.Id(), 30);
+    auto revert_1 = journal.revert_last(target_time, test_schema, interner);
+    EXPECT_EQ(revert_1.record.Id(), 10);
 }
 
 }  // namespace qdb::storage::test

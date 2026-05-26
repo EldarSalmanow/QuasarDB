@@ -1,9 +1,8 @@
 #ifndef QUASARDB_COLUMN_H
 #define QUASARDB_COLUMN_H
 
-#include "interner.h"
+#include <qdb/storage/interner.h>
 
-#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -25,47 +24,46 @@ public:
 
 public:
     static constexpr bool REQUIRE_NOTNULL_FOR_INDEXED = true;
-    static constexpr uint8_t NOT_NULL_FLAG = (1 << 0);
-    static constexpr uint8_t INDEXED_FLAG = (1 << 1);
+    static constexpr uint8_t NOT_NULL_FLAG = 1 << 0;
+    static constexpr uint8_t INDEXED_FLAG = 1 << 1;
+
+private:
+    static constexpr uint32_t MAX_SERIALIZED_STRING_SIZE = 1024 * 1024;
 
 public:
     Column(std::string name, ColumnType type, uint8_t flags = 0);
 
-    Column(
-        std::string name,
-        ColumnType type,
-        uint8_t flags,
-        DefaultType default_type,
-        int32_t default_int = 0,
-        std::string default_string = ""
-    );
+    Column(std::string name, ColumnType type, uint8_t flags,
+           DefaultType default_type, int32_t default_int = 0, std::string default_string = "");
 
 public:
-    static std::optional<Column> from_binary(std::istream& stream);
-
-    static std::optional<Column> from_binary(std::istream& stream, bool read_default_metadata);
+    static auto FromBinary(std::istream& stream) -> std::optional<Column>;
 
 public:
-    bool to_binary(std::ostream& stream) const;
-
-    std::string name() const;
-
-    bool is_int() const;
-
-    bool is_string() const;
-
-    bool not_null() const;
-
-    bool indexed() const;
-
-    bool has_default() const;
-
-    DefaultType default_type() const;
-
-    Value default_value(Interner& interner) const;
+    auto ToBinary(std::ostream& stream) const -> bool;
 
 public:
-    bool operator==(const Column& other) const = default;
+    auto Name() const -> std::string;
+
+    auto IsInt() const -> bool;
+
+    auto IsString() const -> bool;
+
+    auto IsNotNull() const -> bool;
+
+    auto IsIndexed() const -> bool;
+
+    auto HasDefault() const -> bool;
+
+    auto GetDefaultType() const -> DefaultType;
+
+    auto DefaultValue(Interner& interner) const -> Value;
+
+public:
+    auto operator==(const Column& other) const -> bool;
+
+private:
+    auto ValidateDefault() const -> void;
 
 private:
     std::string name_;
@@ -79,11 +77,6 @@ private:
     int32_t default_int_;
 
     std::string default_string_;
-
-    void validate_default() const;
-
-    static constexpr bool DEBUG = false;
-    static constexpr uint32_t MAX_SERIALIZED_STRING_SIZE = 1024 * 1024;
 };
 
 }  // namespace qdb::storage

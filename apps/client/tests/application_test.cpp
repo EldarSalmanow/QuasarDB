@@ -15,29 +15,12 @@ TEST(ApplicationTest, ReportsErrorWhenFileIsMissing) {
     if (port == 0) {
         GTEST_SKIP() << "Loopback TCP bind is unavailable";
     }
-    qdb::core::TcpServer server("127.0.0.1", port);
-    if (!server.Start()) {
-        GTEST_SKIP() << "Loopback TCP bind is unavailable";
-    }
-
-    std::thread server_thread([&server]() {
-        auto client = server.Accept();
-        if (client) {
-            client->Disconnect();
-        }
-        server.Stop();
-    });
 
     const auto config = Config::New("127.0.0.1", port, "missing_script.sql");
     auto application = Application::New(config);
 
     OutputCapture capture(std::cout);
     const auto result = application->Run();
-
-    server.Stop();
-    if (server_thread.joinable()) {
-        server_thread.join();
-    }
 
     EXPECT_EQ(result, 1);
     EXPECT_TRUE(Contains(capture.Str(), "Failed to open file: missing_script.sql"));
@@ -65,6 +48,14 @@ TEST(ApplicationTest, ExecutesFileAndReceivesResponse) {
         }
 
         auto request = client->ReceiveRequest();
+        ASSERT_TRUE(request.has_value());
+        ASSERT_EQ(request->Action(), "handshake");
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
+            .Message("Handshake complete")
+            .Data({{"auth_required", false}, {"setup_required", false}})
+            .Build()));
+
+        request = client->ReceiveRequest();
         if (request) {
             server_ok.store(server_ok.load() && request->Action() == "query");
             server_ok.store(server_ok.load() && request->Query() == "SELECT * FROM users;");
@@ -138,6 +129,14 @@ TEST(ApplicationTest, AsyncQueryPollingCompletes) {
         }
 
         auto request = client->ReceiveRequest();
+        ASSERT_TRUE(request.has_value());
+        ASSERT_EQ(request->Action(), "handshake");
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
+            .Message("Handshake complete")
+            .Data({{"auth_required", false}, {"setup_required", false}})
+            .Build()));
+
+        request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "query");
 
@@ -213,6 +212,14 @@ TEST(ApplicationTest, AsyncQueryPollingError) {
         }
 
         auto request = client->ReceiveRequest();
+        ASSERT_TRUE(request.has_value());
+        ASSERT_EQ(request->Action(), "handshake");
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
+            .Message("Handshake complete")
+            .Data({{"auth_required", false}, {"setup_required", false}})
+            .Build()));
+
+        request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "query");
 

@@ -1,10 +1,11 @@
 #ifndef QUASARDB_RECORD_H
 #define QUASARDB_RECORD_H
 
-#include "schema.h"
-#include "serializer.h"
-#include "value.h"
+#include <qdb/storage/schema.h>
+#include <qdb/storage/serializer.h>
+#include <qdb/storage/value.h>
 
+#include <optional>
 
 namespace qdb::storage {
 
@@ -12,9 +13,9 @@ struct RecordAddress {
     uint32_t page_idx;
     uint32_t slot_idx;
 
-    bool operator==(const RecordAddress& other) const;
+    auto operator==(const RecordAddress& other) const -> bool;
 
-    bool operator!=(const RecordAddress& other) const;
+    auto operator!=(const RecordAddress& other) const -> bool;
 
     friend std::ostream& operator<<(std::ostream& os, const RecordAddress& record_addr);
 };
@@ -22,8 +23,7 @@ struct RecordAddress {
 class Record final {
     uint32_t _id;
     std::vector<Value> _fields;
-    RecordAddress _addr;
-    bool _has_addr = false;
+    std::optional<RecordAddress> _address;
 
 public:
     Record(uint32_t id, uint32_t n);
@@ -32,34 +32,33 @@ public:
 
     Record(uint32_t id, std::vector<Value> values, RecordAddress addr);
 
-    bool operator==(const Record& other) const;
+    auto operator==(const Record& other) const -> bool;
 
-    uint32_t size() const;
+    auto Size() const -> uint32_t;
 
-    Value& operator[](int idx);
+    auto operator[](size_t index) -> Value&;
 
-    const Value& operator[](int idx) const;
+    auto operator[](size_t index) const -> const Value&;
 
-    uint32_t id() const;
+    auto Id() const -> uint32_t;
 
-    bool has_addr() const;
+    auto HasAddress() const -> bool;
 
-    RecordAddress address() const;
+    auto Address() const -> RecordAddress;
 
-    void set_address(RecordAddress addr);
+    auto SetAddress(RecordAddress address) -> void;
 
-    uint32_t serialized_values_size(const Schema& schema, Serializer* serializer) const;
+    auto SerializedSize() const -> uint32_t;
 
-    std::vector<uint8_t> serialized(const Schema& schema, Serializer* serializer) const;
+    auto Serialize() const -> std::vector<uint8_t>;
 
-    static Record from_binary(
-        uint8_t* data,
+    static auto FromBinary(
+        const uint8_t* data,
         uint32_t size,
         uint32_t record_id,
         const Schema& schema,
-        StringStorage* string_storage,
-        Serializer* serializer
-    );
+        Interner& interner
+    ) -> Record;
 
     friend std::ostream& operator<<(std::ostream& os, const Record& record);
 };

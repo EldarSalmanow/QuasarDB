@@ -1,5 +1,6 @@
 #include <qdb/server/monitor.h>
 
+#include <qdb/core/request.h>
 #include <qdb/core/tcp_client.h>
 
 #include <utility>
@@ -80,16 +81,15 @@ auto Monitor::PingStorage(const StorageNode& node) -> bool {
         return false;
     }
 
-    const nlohmann::json request = {{"action", "ping"}, {"data", nlohmann::json::object()}};
-    if (!client->Send(request)) {
+    if (!client->SendRequest(qdb::core::RequestBuilder().Action("ping").Build())) {
         client->Disconnect();
         return false;
     }
 
-    auto response = client->Receive();
+    auto response = client->ReceiveResponse();
     client->Disconnect();
 
-    return response.has_value() && response->value("status", "") == "success";
+    return response.has_value() && response->IsSuccess();
 }
 
 }  // namespace qdb::server

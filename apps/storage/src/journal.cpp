@@ -35,8 +35,8 @@ uint32_t Journal::DeleteTrack::write(std::fstream& os) {
     return size;
 }
 
-Journal::InsertTrack::InsertTrack(const Record& record, const Schema& schema, Serializer* serializer)
-    : Journal::Track(Track::Type::INSERT, record.id()), _serialized_record(record.serialized(schema, serializer)) {}
+Journal::InsertTrack::InsertTrack(const Record& record)
+    : Journal::Track(Track::Type::INSERT, record.Id()), _serialized_record(record.Serialize()) {}
 
 uint32_t Journal::InsertTrack::write(std::fstream& os) {
     uint32_t size = Track::write(os) + sizeof(uint32_t) + _serialized_record.size() + sizeof(uint32_t);
@@ -47,8 +47,8 @@ uint32_t Journal::InsertTrack::write(std::fstream& os) {
     return size;
 }
 
-Journal::UpdateTrack::UpdateTrack(const Record& record, const Schema& schema, Serializer* serializer)
-    : Track(Track::Type::UPDATE, record.id()), _serialized_record(record.serialized(schema, serializer)) {}
+Journal::UpdateTrack::UpdateTrack(const Record& record)
+    : Track(Track::Type::UPDATE, record.Id()), _serialized_record(record.Serialize()) {}
 
 uint32_t Journal::UpdateTrack::write(std::fstream& os) {
     uint32_t size = Track::write(os) + sizeof(uint32_t) + _serialized_record.size() + sizeof(uint32_t);
@@ -96,39 +96,38 @@ std::string Journal::save_insertion(const Record& record) {
     if (_pos != _file.tellp()) {
         truncate_to_last();
     }
-    DeleteTrack track(record.id());
+    DeleteTrack track(record.Id());
     track.write(_file);
     _pos = _file.seekp(0, std::ios::end).tellp();
     _file.flush();
     return track.time();
 }
 
-std::string Journal::save_updation(const Record& old_record, const Schema& schema, Serializer* serializer) {
+std::string Journal::save_updation(const Record& old_record) {
     _file.seekp(0, std::ios::end);
     if (_pos != _file.tellp()) {
         truncate_to_last();
     }
-    UpdateTrack track(old_record, schema, serializer);
+    UpdateTrack track(old_record);
     track.write(_file);
     _pos = _file.seekp(0, std::ios::end).tellp();
     _file.flush();
     return track.time();
 }
 
-std::string Journal::save_deletion(const Record& record, const Schema& schema, Serializer* serializer) {
+std::string Journal::save_deletion(const Record& record) {
     _file.seekp(0, std::ios::end);
     if (_pos != _file.tellp()) {
         truncate_to_last();
     }
-    InsertTrack track(record, schema, serializer);
+    InsertTrack track(record);
     track.write(_file);
     _pos = _file.seekp(0, std::ios::end).tellp();
     _file.flush();
     return track.time();
 }
 
-Journal::RevertResult Journal::
-    revert_last(const std::string& time, const Schema& schema, StringStorage* str_storage, Serializer* serializer) {
+Journal::RevertResult Journal::revert_last(const std::string& time, const Schema& schema, Interner& interner) {
     if (_pos <= 0) return {"", Track::Type::INSERT, Record(0, 1)};
     auto last_pos = _pos;
     _file.seekg(_pos - static_cast<std::streamoff>(sizeof(uint32_t)), std::ios::beg);
@@ -153,7 +152,7 @@ Journal::RevertResult Journal::
         _file.read(reinterpret_cast<char*>(&data_size), sizeof(data_size));
         std::vector<uint8_t> data(data_size);
         _file.read(reinterpret_cast<char*>(data.data()), data_size);
-        record = Record::from_binary(data.data(), data_size, record_id, schema, str_storage, serializer);
+        record = Record::FromBinary(data.data(), data_size, record_id, schema, interner);
     }
     return {writed_time, type, std::move(record)};
 }

@@ -45,12 +45,12 @@ private:
     std::queue<LogEntry> queue_;
     std::mutex mutex_;
     std::condition_variable cv_;
-    std::thread writer_thread_;
     std::atomic<bool> running_{true};
     std::atomic<size_t> pending_writes_{0};
 
     std::ofstream current_file_;
     int file_index_{0};
+    std::thread writer_thread_;
 };
 
 }  // namespace qdb::server

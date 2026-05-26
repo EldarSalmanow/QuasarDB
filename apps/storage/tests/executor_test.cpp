@@ -74,8 +74,7 @@ protected:
     }
 
     auto Exec(const Statement& statement) -> nlohmann::json {
-        statement.Accept(*executor);
-        return executor->Result().value();
+        return executor->Execute(statement);
     }
 };
 

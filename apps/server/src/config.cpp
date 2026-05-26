@@ -40,7 +40,7 @@ auto Config::FromArguments(int argc, char** argv) -> std::optional<Config> {
     args::ValueFlag<std::string> rbac(parser, "rbac", "RBAC rules file", {'R', "rbac"}, "qdb_rbac.json");
     args::Flag no_storage(parser, "no-storage-autostart", "Do not launch qdb-storage processes", {"no-storage-autostart"});
     args::ValueFlag<std::string> storage_bin(parser, "storage-bin", "qdb-storage executable", {"storage-bin"}, "");
-    args::ValueFlag<std::string> storage_root(parser, "storage-root", "Storage shards root", {"storage-root"}, "data/storage");
+    args::ValueFlag<std::string> storage_root(parser, "storage-root", "Storage shards root", {"storage-root"}, "data");
 
     try {
         parser.ParseCLI(argc, argv);

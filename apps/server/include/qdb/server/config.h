@@ -20,7 +20,7 @@ public:
                     std::string rbac_path = "qdb_rbac.json",
                     bool auto_start_storage = true,
                     std::string storage_binary = "",
-                    std::string storage_root = "data/storage") -> Config;
+                    std::string storage_root = "data") -> Config;
 
     static auto FromArguments(int argc, char** argv) -> std::optional<Config>;
 

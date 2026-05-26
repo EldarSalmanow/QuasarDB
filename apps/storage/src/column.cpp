@@ -1,44 +1,22 @@
-#include "../include/qdb/storage/column.h"
-
-#include <iostream>
+#include <qdb/storage/column.h>
 
 namespace qdb::storage {
 
 Column::Column(std::string name, ColumnType type, uint8_t flags)
     : Column(std::move(name), type, flags, DefaultType::NONE, 0, "") {}
 
-Column::Column(
-    std::string name,
-    ColumnType type,
-    uint8_t flags,
-    DefaultType default_type,
-    int32_t default_int,
-    std::string default_string
-)
-    : name_(std::move(name)),
-      type_(type),
-      flags_(flags),
-      default_type_(default_type),
-      default_int_(default_int),
-      default_string_(std::move(default_string)) {
-    if (DEBUG) {
-        std::cout << "Column::Column" << std::endl;
-    }
-
+Column::Column(std::string name, ColumnType type, uint8_t flags,
+               DefaultType default_type, int32_t default_int, std::string default_string)
+        : name_(std::move(name)), type_(type), flags_(flags),
+          default_type_(default_type), default_int_(default_int), default_string_(std::move(default_string)) {
     if (REQUIRE_NOTNULL_FOR_INDEXED && ((flags_ & INDEXED_FLAG) != 0)) {
         flags_ |= NOT_NULL_FLAG;
     }
 
-    validate_default();
+    ValidateDefault();
 }
 
-std::optional<Column> Column::from_binary(std::istream& stream) { return from_binary(stream, true); }
-
-std::optional<Column> Column::from_binary(std::istream& stream, bool read_default_metadata) {
-    if (DEBUG) {
-        std::cout << "Column::from_binary" << std::endl;
-    }
-
+auto Column::FromBinary(std::istream& stream) -> std::optional<Column> {
     uint32_t name_len;
     if (!stream.read(reinterpret_cast<char*>(&name_len), sizeof(name_len)) || name_len > 1024 * 1024) {
         return std::nullopt;
@@ -64,43 +42,33 @@ std::optional<Column> Column::from_binary(std::istream& stream, bool read_defaul
     int32_t default_int = 0;
     std::string default_string;
 
-    if (read_default_metadata) {
-        if (!stream.read(reinterpret_cast<char*>(&default_type), sizeof(default_type))) {
-            return std::nullopt;
-        }
-
-        if (default_type == DefaultType::INT) {
-            if (!stream.read(reinterpret_cast<char*>(&default_int), sizeof(default_int))) {
-                return std::nullopt;
-            }
-        } else if (default_type == DefaultType::STRING) {
-            uint32_t default_len;
-            if (!stream.read(reinterpret_cast<char*>(&default_len), sizeof(default_len)) ||
-                default_len > MAX_SERIALIZED_STRING_SIZE)
-            {
-                return std::nullopt;
-            }
-            default_string.resize(default_len);
-            if (!stream.read(default_string.data(), default_len)) {
-                return std::nullopt;
-            }
-        } else if (default_type != DefaultType::NONE && default_type != DefaultType::NULL_VALUE) {
-            return std::nullopt;
-        }
-    }
-
-    try {
-        return Column(std::move(name), type, flags, default_type, default_int, std::move(default_string));
-    } catch (const std::invalid_argument&) {
+    if (!stream.read(reinterpret_cast<char*>(&default_type), sizeof(default_type))) {
         return std::nullopt;
     }
-}
 
-bool Column::to_binary(std::ostream& stream) const {
-    if (DEBUG) {
-        std::cout << "Column::to_binary" << std::endl;
+    if (default_type == DefaultType::INT) {
+        if (!stream.read(reinterpret_cast<char*>(&default_int), sizeof(default_int))) {
+            return std::nullopt;
+        }
+    } else if (default_type == DefaultType::STRING) {
+        uint32_t default_len;
+        if (!stream.read(reinterpret_cast<char*>(&default_len), sizeof(default_len)) ||
+            default_len > MAX_SERIALIZED_STRING_SIZE) {
+            return std::nullopt;
+        }
+
+        default_string.resize(default_len);
+        if (!stream.read(default_string.data(), default_len)) {
+            return std::nullopt;
+        }
+    } else if (default_type != DefaultType::NONE && default_type != DefaultType::NULL_VALUE) {
+        return std::nullopt;
     }
 
+    return Column(std::move(name), type, flags, default_type, default_int, std::move(default_string));
+}
+
+auto Column::ToBinary(std::ostream& stream) const -> bool {
     uint32_t name_len = name_.size();
 
     stream.write(reinterpret_cast<const char*>(&name_len), sizeof(name_len));
@@ -115,6 +83,7 @@ bool Column::to_binary(std::ostream& stream) const {
         if (default_string_.size() > MAX_SERIALIZED_STRING_SIZE) {
             return false;
         }
+
         uint32_t default_len = default_string_.size();
         stream.write(reinterpret_cast<const char*>(&default_len), sizeof(default_len));
         stream.write(default_string_.c_str(), default_len);
@@ -123,53 +92,81 @@ bool Column::to_binary(std::ostream& stream) const {
     return !stream.fail();
 }
 
-std::string Column::name() const { return name_; }
+auto Column::Name() const -> std::string {
+    return name_;
+}
 
-bool Column::is_int() const { return type_ == ColumnType::INT; }
+auto Column::IsInt() const -> bool {
+    return type_ == ColumnType::INT;
+}
 
-bool Column::is_string() const { return type_ == ColumnType::STRING; }
+auto Column::IsString() const -> bool {
+    return type_ == ColumnType::STRING;
+}
 
-bool Column::not_null() const {
-    assert(!(flags_ & INDEXED_FLAG) || (flags_ & NOT_NULL_FLAG));
-
+auto Column::IsNotNull() const -> bool {
     return (flags_ & NOT_NULL_FLAG) != 0;
 }
 
-bool Column::indexed() const { return (flags_ & INDEXED_FLAG) != 0; }
+auto Column::IsIndexed() const -> bool {
+    return (flags_ & INDEXED_FLAG) != 0;
+}
 
-bool Column::has_default() const { return default_type_ != DefaultType::NONE; }
+auto Column::HasDefault() const -> bool {
+    return default_type_ != DefaultType::NONE;
+}
 
-Column::DefaultType Column::default_type() const { return default_type_; }
+auto Column::GetDefaultType() const -> DefaultType {
+    return default_type_;
+}
 
-Value Column::default_value(Interner& interner) const {
+auto Column::DefaultValue(Interner& interner) const -> Value {
     switch (default_type_) {
         case DefaultType::NULL_VALUE:
-            return Value();
+            return Value {};
         case DefaultType::INT:
-            return Value(default_int_);
+            return Value { default_int_ };
         case DefaultType::STRING:
-            return interner.str_to_value(default_string_);
+            return interner.Intern(default_string_);
         case DefaultType::NONE:
             break;
     }
-    throw std::runtime_error("Column '" + name_ + "' does not have DEFAULT value");
+
+    throw std::runtime_error("[ERROR in qdb::storage::Column]: Column '" + name_ + "' does not have DEFAULT value!");
 }
 
-void Column::validate_default() const {
-    if (default_type_ == DefaultType::NONE) {
-        return;
-    }
-    if (default_type_ == DefaultType::NULL_VALUE) {
-        if (not_null()) {
-            throw std::invalid_argument("Column '" + name_ + "' cannot have DEFAULT NULL and NOT_NULL");
+auto Column::operator==(const Column& other) const -> bool = default;
+
+auto Column::ValidateDefault() const -> void {
+    switch (default_type_) {
+        case DefaultType::NONE: {
+            return;
         }
-        return;
-    }
-    if (default_type_ == DefaultType::INT && !is_int()) {
-        throw std::invalid_argument("Column '" + name_ + "' expects STRING default");
-    }
-    if (default_type_ == DefaultType::STRING && !is_string()) {
-        throw std::invalid_argument("Column '" + name_ + "' expects INT default");
+        case DefaultType::NULL_VALUE: {
+            if (IsNotNull()) {
+                throw std::invalid_argument("[ERROR in qdb::storage::Column]: "
+                                            "Column '" + name_ + "' cannot have DEFAULT NULL and NOT_NULL!");
+            }
+
+            return;
+        }
+        case DefaultType::INT: {
+            if (!IsInt()) {
+                throw std::invalid_argument("[ERROR in qdb::storage::Column]: "
+                                            "Column '" + name_ + "' expects STRING default!");
+            }
+
+            return;
+        }
+        case DefaultType::STRING: {
+            if (!IsString()) {
+                throw std::invalid_argument("[ERROR in qdb::storage::Column]: "
+                                            "Column '" + name_ + "' expects INT default!");
+            }
+
+            return;
+        }
     }
 }
+
 }  // namespace qdb::storage

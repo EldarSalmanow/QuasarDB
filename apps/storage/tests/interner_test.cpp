@@ -12,40 +12,39 @@ TEST_F(InternerTest, InterningReturnsSamePointer) {
     std::string str1 = "hello";
     std::string str2 = "hello";
 
-    std::string_view view1 = interner.intern(str1);
-    std::string_view view2 = interner.intern(str2);
+    auto id1 = interner.Intern(str1).AsString();
+    auto id2 = interner.Intern(str2).AsString();
+    std::string_view view1 = interner.View(id1);
+    std::string_view view2 = interner.View(id2);
 
+    EXPECT_EQ(id1, id2);
     EXPECT_EQ(view1.data(), view2.data());
     EXPECT_EQ(view1, view2);
 }
 
 TEST_F(InternerTest, StabilityAfterMultipleAppends) {
-    std::string_view first = interner.intern("first");
+    auto first_id = interner.Intern("first").AsString();
+    std::string_view first = interner.View(first_id);
     for (int i = 0; i < 1000; ++i) {
-        interner.intern("string_" + std::to_string(i));
+        interner.Intern("string_" + std::to_string(i));
     }
     EXPECT_EQ(first, "first");
-    EXPECT_EQ(interner.intern("first").data(), first.data());
+    EXPECT_EQ(interner.View(interner.Intern("first").AsString()).data(), first.data());
 }
 
 TEST_F(InternerTest, StrToValueCreation) {
-    ExternalString ext = {.offset = 100, .size = 5};
-    Value val = interner.str_to_value("world", ext);
+    Value val = interner.Intern("world");
 
-    EXPECT_TRUE(val.is_string());
-    EXPECT_EQ(val.get_type(), Value::Type::STRING);
-    EXPECT_EQ(val.to_string(), "world");
-
-    InternedString interned_str = val.as_string();
-    EXPECT_TRUE(interned_str.has_ext_addr);
-    EXPECT_EQ(interned_str.ext_addr.offset, 100);
-    EXPECT_EQ(interned_str.intern_view, "world");
+    EXPECT_TRUE(val.IsString());
+    EXPECT_EQ(val.GetType(), Value::Type::STRING);
+    EXPECT_EQ(interner.View(val.AsString()), "world");
+    EXPECT_NE(val.AsString().value, 0);
 }
 
 TEST_F(InternerTest, StrictEquality) {
-    Value v1 = interner.str_to_value("test");
-    Value v2 = interner.str_to_value("test");
-    Value v3 = interner.str_to_value("other");
+    Value v1 = interner.Intern("test");
+    Value v2 = interner.Intern("test");
+    Value v3 = interner.Intern("other");
     Value v_int = Value(42);
     Value v_null;
 

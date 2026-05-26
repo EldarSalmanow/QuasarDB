@@ -97,51 +97,47 @@ SelectStmt::SelectStmt(bool all, std::vector<SelectItem> items, TableRef table,
                        std::unique_ptr<Condition> where)
         : SelectAll(all), SelectItems(std::move(items)), Table(std::move(table)), WhereClause(std::move(where)) {}
 
-auto Literal::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto IdentifierExpr::KindOf() const -> Kind { return Kind::Identifier; }
 
-auto IdentifierExpr::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto LiteralExpr::KindOf() const -> Kind { return Kind::Literal; }
 
-auto LiteralExpr::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto AggregateExpr::KindOf() const -> Kind { return Kind::Aggregate; }
 
-auto AggregateExpr::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto ComparisonCondition::KindOf() const -> Kind { return Kind::Comparison; }
 
-auto ComparisonCondition::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto BetweenCondition::KindOf() const -> Kind { return Kind::Between; }
 
-auto BetweenCondition::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto LikeCondition::KindOf() const -> Kind { return Kind::Like; }
 
-auto LikeCondition::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto AndCondition::KindOf() const -> Kind { return Kind::And; }
 
-auto AndCondition::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto OrCondition::KindOf() const -> Kind { return Kind::Or; }
 
-auto OrCondition::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto CreateDatabaseStmt::KindOf() const -> Kind { return Kind::CreateDatabase; }
 
-auto CreateDatabaseStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto DropDatabaseStmt::KindOf() const -> Kind { return Kind::DropDatabase; }
 
-auto DropDatabaseStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto UseDatabaseStmt::KindOf() const -> Kind { return Kind::UseDatabase; }
 
-auto UseDatabaseStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto CreateUserStmt::KindOf() const -> Kind { return Kind::CreateUser; }
 
-auto CreateUserStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto GrantStmt::KindOf() const -> Kind { return Kind::Grant; }
 
-auto GrantStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto RevokeStmt::KindOf() const -> Kind { return Kind::Revoke; }
 
-auto RevokeStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto RevertStmt::KindOf() const -> Kind { return Kind::Revert; }
 
-auto RevertStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto CreateTableStmt::KindOf() const -> Kind { return Kind::CreateTable; }
 
-auto CreateTableStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto DropTableStmt::KindOf() const -> Kind { return Kind::DropTable; }
 
-auto DropTableStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto InsertStmt::KindOf() const -> Kind { return Kind::Insert; }
 
-auto InsertStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto UpdateStmt::KindOf() const -> Kind { return Kind::Update; }
 
-auto UpdateStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
+auto DeleteStmt::KindOf() const -> Kind { return Kind::Delete; }
 
-auto DeleteStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
-
-auto SelectStmt::Accept(AstVisitor& visitor) const -> void { visitor.Visit(*this); }
-
-namespace {
+auto SelectStmt::KindOf() const -> Kind { return Kind::Select; }
 
 auto LiteralTypeName(Literal::Type type) -> std::string {
     switch (type) {
@@ -200,18 +196,23 @@ auto AggregateFromName(const std::string& name) -> AggregateExpr::Function {
 }
 
 auto ToJson(const Expression& expression) -> nlohmann::json {
-    if (const auto* identifier = dynamic_cast<const IdentifierExpr*>(&expression)) {
+    switch (expression.KindOf()) {
+    case Expression::Kind::Identifier: {
+        const auto* identifier = static_cast<const IdentifierExpr*>(&expression);
         return {{"node_type", "Identifier"}, {"value", identifier->Name}};
     }
-    if (const auto* literal = dynamic_cast<const LiteralExpr*>(&expression)) {
+    case Expression::Kind::Literal: {
+        const auto* literal = static_cast<const LiteralExpr*>(&expression);
         return ToJson(*literal->LiteralValue);
     }
-    if (const auto* aggregate = dynamic_cast<const AggregateExpr*>(&expression)) {
+    case Expression::Kind::Aggregate: {
+        const auto* aggregate = static_cast<const AggregateExpr*>(&expression);
         return {
             {"node_type", "AggregateFunction"},
             {"function", AggregateName(aggregate->FunctionType)},
             {"argument", {{"node_type", "Identifier"}, {"value", aggregate->Column}}}
         };
+    }
     }
     return {{"node_type", "Expression"}};
 }
@@ -244,7 +245,9 @@ auto ComparisonOperatorFromName(const std::string& op) -> ComparisonCondition::O
 }
 
 auto ToJson(const Condition& condition) -> nlohmann::json {
-    if (const auto* comparison = dynamic_cast<const ComparisonCondition*>(&condition)) {
+    switch (condition.KindOf()) {
+    case Condition::Kind::Comparison: {
+        const auto* comparison = static_cast<const ComparisonCondition*>(&condition);
         return {
             {"node_type", "BinaryExpression"},
             {"operator", ComparisonOperatorName(comparison->Op)},
@@ -252,7 +255,8 @@ auto ToJson(const Condition& condition) -> nlohmann::json {
             {"right", ToJson(*comparison->Right)}
         };
     }
-    if (const auto* like = dynamic_cast<const LikeCondition*>(&condition)) {
+    case Condition::Kind::Like: {
+        const auto* like = static_cast<const LikeCondition*>(&condition);
         return {
             {"node_type", "BinaryExpression"},
             {"operator", "LIKE"},
@@ -260,7 +264,8 @@ auto ToJson(const Condition& condition) -> nlohmann::json {
             {"right", ToJson(Literal(Literal::Type::String, like->Pattern))}
         };
     }
-    if (const auto* between = dynamic_cast<const BetweenCondition*>(&condition)) {
+    case Condition::Kind::Between: {
+        const auto* between = static_cast<const BetweenCondition*>(&condition);
         return {
             {"node_type", "BetweenExpression"},
             {"value", ToJson(*between->Value)},
@@ -268,7 +273,8 @@ auto ToJson(const Condition& condition) -> nlohmann::json {
             {"upper", ToJson(*between->Upper)}
         };
     }
-    if (const auto* and_condition = dynamic_cast<const AndCondition*>(&condition)) {
+    case Condition::Kind::And: {
+        const auto* and_condition = static_cast<const AndCondition*>(&condition);
         return {
             {"node_type", "BinaryExpression"},
             {"operator", "AND"},
@@ -276,13 +282,15 @@ auto ToJson(const Condition& condition) -> nlohmann::json {
             {"right", ToJson(*and_condition->Right)}
         };
     }
-    if (const auto* or_condition = dynamic_cast<const OrCondition*>(&condition)) {
+    case Condition::Kind::Or: {
+        const auto* or_condition = static_cast<const OrCondition*>(&condition);
         return {
             {"node_type", "BinaryExpression"},
             {"operator", "OR"},
             {"left", ToJson(*or_condition->Left)},
             {"right", ToJson(*or_condition->Right)}
         };
+    }
     }
     return {{"node_type", "Condition"}};
 }
@@ -432,37 +440,44 @@ auto SelectItemFromJson(const nlohmann::json& json) -> SelectItem {
     return SelectItem(std::move(expr), alias);
 }
 
-}  // namespace
-
 auto SerializeAst(const Statement& statement) -> nlohmann::json {
-    if (const auto* create_db = dynamic_cast<const CreateDatabaseStmt*>(&statement)) {
+    switch (statement.KindOf()) {
+    case Statement::Kind::CreateDatabase: {
+        const auto* create_db = static_cast<const CreateDatabaseStmt*>(&statement);
         return {{"node_type", "CreateDatabaseStatement"}, {"database", create_db->DatabaseName}};
     }
-    if (const auto* drop_db = dynamic_cast<const DropDatabaseStmt*>(&statement)) {
+    case Statement::Kind::DropDatabase: {
+        const auto* drop_db = static_cast<const DropDatabaseStmt*>(&statement);
         return {{"node_type", "DropDatabaseStatement"}, {"database", drop_db->DatabaseName}};
     }
-    if (const auto* use_db = dynamic_cast<const UseDatabaseStmt*>(&statement)) {
+    case Statement::Kind::UseDatabase: {
+        const auto* use_db = static_cast<const UseDatabaseStmt*>(&statement);
         return {{"node_type", "UseDatabaseStatement"}, {"database", use_db->DatabaseName}};
     }
-    if (const auto* create_user = dynamic_cast<const CreateUserStmt*>(&statement)) {
+    case Statement::Kind::CreateUser: {
+        const auto* create_user = static_cast<const CreateUserStmt*>(&statement);
         return {{"node_type", "CreateUserStatement"}, {"username", create_user->Username}};
     }
-    if (const auto* grant = dynamic_cast<const GrantStmt*>(&statement)) {
+    case Statement::Kind::Grant: {
+        const auto* grant = static_cast<const GrantStmt*>(&statement);
         return {{"node_type", "GrantStatement"}, {"permissions", grant->Permissions},
                 {"scope", TableToString(grant->Scope)}, {"username", grant->Username}};
     }
-    if (const auto* revoke = dynamic_cast<const RevokeStmt*>(&statement)) {
+    case Statement::Kind::Revoke: {
+        const auto* revoke = static_cast<const RevokeStmt*>(&statement);
         return {{"node_type", "RevokeStatement"}, {"permissions", revoke->Permissions},
                 {"scope", TableToString(revoke->Scope)}, {"username", revoke->Username}};
     }
-    if (const auto* create = dynamic_cast<const CreateTableStmt*>(&statement)) {
+    case Statement::Kind::CreateTable: {
+        const auto* create = static_cast<const CreateTableStmt*>(&statement);
         nlohmann::json columns = nlohmann::json::array();
         for (const auto& column : create->Columns) {
             columns.push_back(ToJson(column));
         }
         return {{"node_type", "CreateTableStatement"}, {"table", TableToString(create->Table)}, {"columns", columns}};
     }
-    if (const auto* select = dynamic_cast<const SelectStmt*>(&statement)) {
+    case Statement::Kind::Select: {
+        const auto* select = static_cast<const SelectStmt*>(&statement);
         nlohmann::json projections = nlohmann::json::array();
         if (select->SelectAll) {
             projections.push_back({{"node_type", "Wildcard"}});
@@ -485,10 +500,12 @@ auto SerializeAst(const Statement& statement) -> nlohmann::json {
         }
         return json;
     }
-    if (const auto* revert = dynamic_cast<const RevertStmt*>(&statement)) {
+    case Statement::Kind::Revert: {
+        const auto* revert = static_cast<const RevertStmt*>(&statement);
         return {{"node_type", "RevertStatement"}, {"table", TableToString(revert->Table)}, {"target_timestamp", revert->Timestamp}};
     }
-    if (const auto* insert = dynamic_cast<const InsertStmt*>(&statement)) {
+    case Statement::Kind::Insert: {
+        const auto* insert = static_cast<const InsertStmt*>(&statement);
         nlohmann::json values = nlohmann::json::array();
         for (const auto& row : insert->Values) {
             nlohmann::json row_json = nlohmann::json::array();
@@ -504,7 +521,8 @@ auto SerializeAst(const Statement& statement) -> nlohmann::json {
             {"values", values}
         };
     }
-    if (const auto* update = dynamic_cast<const UpdateStmt*>(&statement)) {
+    case Statement::Kind::Update: {
+        const auto* update = static_cast<const UpdateStmt*>(&statement);
         nlohmann::json assignments = nlohmann::json::array();
         for (const auto& [column, value] : update->Assignments) {
             assignments.push_back({{"column", column}, {"value", ToJson(*value)}});
@@ -519,15 +537,18 @@ auto SerializeAst(const Statement& statement) -> nlohmann::json {
         }
         return json;
     }
-    if (const auto* del = dynamic_cast<const DeleteStmt*>(&statement)) {
+    case Statement::Kind::Delete: {
+        const auto* del = static_cast<const DeleteStmt*>(&statement);
         nlohmann::json json = {{"node_type", "DeleteStatement"}, {"table", TableToString(del->Table)}};
         if (del->WhereClause) {
             json["where_clause"] = ToJson(*del->WhereClause);
         }
         return json;
     }
-    if (const auto* drop = dynamic_cast<const DropTableStmt*>(&statement)) {
+    case Statement::Kind::DropTable: {
+        const auto* drop = static_cast<const DropTableStmt*>(&statement);
         return {{"node_type", "DropTableStatement"}, {"table", TableToString(drop->Table)}};
+    }
     }
     return {{"node_type", "Statement"}};
 }

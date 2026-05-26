@@ -6,8 +6,6 @@
 
 namespace qdb::server {
 
-namespace {
-
 auto SemanticError(const std::string& message) -> std::runtime_error {
     return std::runtime_error("SEMANTIC_ERROR: " + message);
 }
@@ -53,28 +51,30 @@ auto ValidateInsert(const InsertStmt& insert) -> void {
     }
 }
 
-}  // namespace
-
 auto Analyzer::ValidateStatement(const Statement& statement) -> void {
-    if (const auto* create = dynamic_cast<const CreateTableStmt*>(&statement)) {
-        ValidateCreateTable(*create);
-        return;
-    }
-    if (const auto* insert = dynamic_cast<const InsertStmt*>(&statement)) {
-        ValidateInsert(*insert);
+    switch (statement.KindOf()) {
+        case Statement::Kind::CreateTable:
+            ValidateCreateTable(static_cast<const CreateTableStmt&>(statement));
+            break;
+        case Statement::Kind::Insert:
+            ValidateInsert(static_cast<const InsertStmt&>(statement));
+            break;
+        default:
+            break;
     }
 }
 
 auto Analyzer::TableFromStatement(const Statement& statement) -> std::optional<TableRef> {
-    if (const auto* create = dynamic_cast<const CreateTableStmt*>(&statement)) return create->Table;
-    if (const auto* drop = dynamic_cast<const DropTableStmt*>(&statement)) return drop->Table;
-    if (const auto* insert = dynamic_cast<const InsertStmt*>(&statement)) return insert->Table;
-    if (const auto* update = dynamic_cast<const UpdateStmt*>(&statement)) return update->Table;
-    if (const auto* del = dynamic_cast<const DeleteStmt*>(&statement)) return del->Table;
-    if (const auto* select = dynamic_cast<const SelectStmt*>(&statement)) return select->Table;
-    if (const auto* revert = dynamic_cast<const RevertStmt*>(&statement)) return revert->Table;
-
-    return std::nullopt;
+    switch (statement.KindOf()) {
+        case Statement::Kind::CreateTable: return static_cast<const CreateTableStmt&>(statement).Table;
+        case Statement::Kind::DropTable: return static_cast<const DropTableStmt&>(statement).Table;
+        case Statement::Kind::Insert: return static_cast<const InsertStmt&>(statement).Table;
+        case Statement::Kind::Update: return static_cast<const UpdateStmt&>(statement).Table;
+        case Statement::Kind::Delete: return static_cast<const DeleteStmt&>(statement).Table;
+        case Statement::Kind::Select: return static_cast<const SelectStmt&>(statement).Table;
+        case Statement::Kind::Revert: return static_cast<const RevertStmt&>(statement).Table;
+        default: return std::nullopt;
+    }
 }
 
 }  // namespace qdb::server

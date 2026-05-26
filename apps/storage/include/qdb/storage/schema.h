@@ -1,57 +1,46 @@
 #ifndef QUASARDB_SCHEMA_H
 #define QUASARDB_SCHEMA_H
 
-#include "column.h"
+#include <qdb/storage/column.h>
 
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
-
 
 namespace qdb::storage {
 
 class Schema final {
 public:
-    Schema() = default;
+    Schema();
 
-    Schema(std::vector<Column> columns, uint32_t record_id_count = 0);
-
-public:
-    static std::optional<Schema> from_binary(std::istream& stream);
+    Schema(std::vector<Column> columns, std::uint32_t record_id_count = 0);
 
 public:
-    bool to_binary(std::ostream& stream);
-
-    void increment_record_id_count();
-
-    void decrement_record_id_count();
-
-    int32_t get_column_idx(const std::string& column_name) const;
-
-    uint32_t get_bitmap_idx(uint32_t column_idx) const;
-
-    size_t size() const;
-
-    uint32_t record_id_count() const;
-
-    uint32_t null_bitmap_size() const;
+    static auto FromBinary(std::istream& stream) -> std::optional<Schema>;
 
 public:
-    bool operator==(const Schema& other) const;
+    auto ToBinary(std::ostream& stream) const -> bool;
 
-    const Column& operator[](const size_t& index) const;
+    auto IncrementRecordIdCount() -> void;
+
+    auto DecrementRecordIdCount() -> void;
+
+    auto ColumnIndex(const std::string& column_name) const -> std::int32_t;
+
+    auto Size() const -> std::size_t;
+
+    auto RecordIdCount() const -> std::uint32_t;
+
+public:
+    auto operator==(const Schema& other) const -> bool;
+
+    auto operator[](const std::size_t &index) const -> const Column&;
 
 private:
-    static constexpr bool DEBUG = false;
     static constexpr std::string_view HEADER = "SCHEMA";
-    static constexpr uint32_t FORMAT_MAGIC = 0x51444232;  // QDB2
-    static constexpr uint32_t FORMAT_VERSION = 2;
 
-    std::vector<Column> _columns;
-    uint32_t _record_id_count = 0;
-    uint32_t _bitmap_size = 0;  // bytes
-    std::unordered_map<uint32_t, uint32_t> column_id_to_bitmap_id;
+    std::vector<Column> columns_;
+    uint32_t record_id_count_ = 0;
 };
 
 }  // namespace qdb::storage

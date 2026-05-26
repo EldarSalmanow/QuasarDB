@@ -55,6 +55,8 @@ public:
 
     static auto CreateSuperuser(std::string username, std::string password) -> RequestBuilder;
 
+    static auto Handshake() -> RequestBuilder;
+
     static auto Query(std::string sql) -> RequestBuilder;
 
     static auto CheckTask(std::string task_id) -> RequestBuilder;

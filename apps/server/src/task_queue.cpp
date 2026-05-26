@@ -1,53 +1,33 @@
 #include <qdb/server/task_queue.h>
 
+#include <openssl/rand.h>
+
 #include <array>
 #include <exception>
-#include <random>
+#include <iomanip>
+#include <sstream>
 #include <utility>
 
 namespace qdb::server {
 
-namespace {
-
-auto Pending(std::string message, nlohmann::json data = nlohmann::json::object()) -> qdb::core::Response {
-    return qdb::core::ResponseBuilder::Pending()
-        .Message(std::move(message))
-        .Data(std::move(data))
-        .Build();
-}
-
-auto Error(std::string message) -> qdb::core::Response {
-    return qdb::core::ResponseBuilder::Error()
-        .Message(std::move(message))
-        .Build();
-}
-
 auto NewGuid() -> std::string {
-    static constexpr char hex[] = "0123456789abcdef";
-
     std::array<unsigned char, 16> bytes{};
-    std::random_device random;
-    for (auto& byte : bytes) {
-        byte = static_cast<unsigned char>(random());
+    if (RAND_bytes(bytes.data(), static_cast<int>(bytes.size())) != 1) {
+        return {};
     }
 
     bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0F) | 0x40);
     bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3F) | 0x80);
 
-    std::string guid;
-    guid.reserve(36);
-    for (std::size_t i = 0; i < bytes.size(); ++i) {
+    std::ostringstream out;
+    for (size_t i = 0; i < bytes.size(); ++i) {
         if (i == 4 || i == 6 || i == 8 || i == 10) {
-            guid += '-';
+            out << '-';
         }
-        guid += hex[bytes[i] >> 4];
-        guid += hex[bytes[i] & 0x0F];
+        out << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(bytes[i]);
     }
-
-    return guid;
+    return out.str();
 }
-
-}  // namespace
 
 TaskQueue::TaskQueue(Handler handler, std::size_t worker_count)
         : handler_(std::move(handler)) {
@@ -63,7 +43,7 @@ TaskQueue::~TaskQueue() {
 
 auto TaskQueue::Submit(std::unique_ptr<Statement> statement) -> std::string {
     auto id = NewGuid();
-    Store(id, Pending("Operation is running in background", {{"task_id", id}}));
+    Store(id, qdb::core::Pending("Operation is running in background", {{"task_id", id}}));
 
     {
         std::lock_guard lock(queue_mutex_);
@@ -114,12 +94,12 @@ auto TaskQueue::Worker() -> void {
             queue_.pop();
         }
 
-        Store(task.id, Pending("Operation is still running", {{"task_id", task.id}}));
+        Store(task.id, qdb::core::Pending("Operation is still running", {{"task_id", task.id}}));
 
         try {
             Store(task.id, handler_(*task.statement));
         } catch (const std::exception& exception) {
-            Store(task.id, Error(exception.what()));
+            Store(task.id, qdb::core::Error(exception.what()));
         }
     }
 }

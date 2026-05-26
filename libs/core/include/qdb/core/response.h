@@ -71,6 +71,18 @@ private:
     Response response_;
 };
 
+auto Success(std::string message, nlohmann::json data = nlohmann::json::object()) -> Response;
+
+auto Pending(std::string message, nlohmann::json data = nlohmann::json::object()) -> Response;
+
+auto Error(std::string message, nlohmann::json data = nlohmann::json::object()) -> Response;
+
+auto SuccessJson(std::string message, nlohmann::json data = nlohmann::json::object()) -> nlohmann::json;
+
+auto PendingJson(std::string message, nlohmann::json data = nlohmann::json::object()) -> nlohmann::json;
+
+auto ErrorJson(std::string message, nlohmann::json data = nlohmann::json::object()) -> nlohmann::json;
+
 }  // namespace qdb::core
 
 #endif  // QUASARDB_RESPONSE_H

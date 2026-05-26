@@ -12,15 +12,6 @@
 
 namespace qdb::client {
 
-namespace {
-
-auto IsSetupRequired(const qdb::core::Response& response) -> bool {
-    const auto& data = response.GetDataObject();
-    return response.IsError() && data.is_object() && data.value("setup_required", false);
-}
-
-}  // namespace
-
 Application::Application(Config config)
     : config_(std::move(config)), client_(qdb::core::TcpClient::New(config_.Host(), config_.Port())) {}
 
@@ -30,12 +21,6 @@ auto Application::New(Config config) -> std::unique_ptr<Application> {
 
 auto Application::Run() -> std::int32_t {
     renderer_.RenderWelcome();
-
-    if (!client_ || !client_->Connect()) {
-        renderer_.RenderError("Failed to connect to server " + config_.Host() + ":" + std::to_string(config_.Port()));
-
-        return 1;
-    }
 
     std::unique_ptr<IReader> reader;
 
@@ -50,6 +35,17 @@ auto Application::Run() -> std::int32_t {
         reader = std::make_unique<ConsoleReader>();
     }
 
+    if (!client_ || !client_->Connect()) {
+        renderer_.RenderError("Failed to connect to server " + config_.Host() + ":" + std::to_string(config_.Port()));
+
+        return 1;
+    }
+
+    if (!PrepareSession()) {
+        client_->Disconnect();
+        return 1;
+    }
+
     while (reader->HasMore()) {
         auto command = reader->ReadCommand();
 
@@ -61,15 +57,30 @@ auto Application::Run() -> std::int32_t {
             continue;
         }
 
-        auto request = BuildRequest(command.value());
-
-        if (!client_->SendRequest(request)) {
-            renderer_.RenderError("Failed to send request");
-
+        std::istringstream command_head(command.value());
+        std::string first_word;
+        command_head >> first_word;
+        for (auto& ch : first_word) {
+            ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        }
+        if (!first_word.empty() && first_word.back() == ';') {
+            first_word.pop_back();
+        }
+        if (first_word == "EXIT") {
+            break;
+        }
+        if (first_word == "LOGOUT") {
+            token_.clear();
+            renderer_.RenderResponse(qdb::core::Success("Logged out"));
+            if (!LoginInteractively()) {
+                break;
+            }
             continue;
         }
 
-        auto response = client_->ReceiveResponse();
+        auto request = BuildRequest(command.value());
+
+        auto response = SendAndReceive(request);
 
         if (!response.has_value()) {
             renderer_.RenderError("Failed to receive response");
@@ -77,11 +88,7 @@ auto Application::Run() -> std::int32_t {
             continue;
         }
 
-        if (IsSetupRequired(response.value()) && config_.File().empty()) {
-            if (!CreateSuperuserInteractively()) {
-                return 1;
-            }
-        } else if (request.Action() == "login") {
+        if (request.Action() == "login") {
             HandleLoginResponse(response.value());
         } else if (response->IsPending()) {
             HandleAsyncResponse(response.value());
@@ -93,6 +100,35 @@ auto Application::Run() -> std::int32_t {
     client_->Disconnect();
 
     return 0;
+}
+
+auto Application::PrepareSession() -> bool {
+    auto response = SendAndReceive(qdb::core::RequestBuilder::Handshake().Build());
+    if (!response.has_value()) {
+        renderer_.RenderError("Failed to receive handshake response");
+        return false;
+    }
+    if (!response->IsSuccess()) {
+        renderer_.RenderResponse(response.value());
+        return false;
+    }
+
+    const auto& data = response->GetDataObject();
+    if (!data.value("auth_required", false)) {
+        return true;
+    }
+    if (data.value("setup_required", false)) {
+        return CreateSuperuserInteractively();
+    }
+    return LoginInteractively();
+}
+
+auto Application::SendAndReceive(const qdb::core::Request& request) -> std::optional<qdb::core::Response> {
+    if (!client_->SendRequest(request)) {
+        renderer_.RenderError("Failed to send request");
+        return std::nullopt;
+    }
+    return client_->ReceiveResponse();
 }
 
 void Application::HandleAsyncResponse(const qdb::core::Response& response) {
@@ -214,6 +250,30 @@ auto Application::CreateSuperuserInteractively() -> bool {
     auto response = client_->ReceiveResponse();
     if (!response.has_value()) {
         renderer_.RenderError("Failed to receive superuser setup response");
+        return false;
+    }
+
+    HandleLoginResponse(response.value());
+    return response->IsSuccess();
+}
+
+auto Application::LoginInteractively() -> bool {
+    std::string username;
+    std::string password;
+
+    std::cout << "login: " << std::flush;
+    if (!std::getline(std::cin, username)) {
+        return false;
+    }
+
+    std::cout << "password: " << std::flush;
+    if (!std::getline(std::cin, password)) {
+        return false;
+    }
+
+    auto response = SendAndReceive(qdb::core::RequestBuilder::Login(std::move(username), std::move(password)).Build());
+    if (!response.has_value()) {
+        renderer_.RenderError("Failed to receive login response");
         return false;
     }
 

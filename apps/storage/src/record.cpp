@@ -1,12 +1,14 @@
 #include "../include/qdb/storage/record.h"
 
+#include <cassert>
+
 namespace qdb::storage {
 
-bool RecordAddress::operator==(const RecordAddress& other) const {
+auto RecordAddress::operator==(const RecordAddress& other) const -> bool {
     return page_idx == other.page_idx && slot_idx == other.slot_idx;
 }
 
-bool RecordAddress::operator!=(const RecordAddress& other) const { return !(*this == other); }
+auto RecordAddress::operator!=(const RecordAddress& other) const -> bool { return !(*this == other); }
 
 std::ostream& operator<<(std::ostream& os, const RecordAddress& record_addr) {
     os << "(page_idx=" << record_addr.page_idx << ", slot_idx=" << record_addr.slot_idx << ")";
@@ -22,113 +24,80 @@ Record::Record(uint32_t id, uint32_t n) : _id(id), _fields(std::vector<Value>(n)
 Record::Record(uint32_t id, std::vector<Value> values) : _id(id), _fields(std::move(values)){};
 
 Record::Record(uint32_t id, std::vector<Value> values, RecordAddress addr)
-    : _id(id), _fields(std::move(values)), _addr(addr), _has_addr(true){};
+    : _id(id), _fields(std::move(values)), _address(addr){};
 
-bool Record::operator==(const Record& other) const {
-    if (size() != other.size()) {
+auto Record::operator==(const Record& other) const -> bool {
+    if (Size() != other.Size()) {
         return false;
     }
-    for (uint32_t i = 0; i < size(); ++i) {
+    for (uint32_t i = 0; i < Size(); ++i) {
         if (!_fields[i].StrictEq(other._fields[i])) {
             return false;
         }
     }
-    return _id == other._id && _has_addr == other._has_addr && (!_has_addr || (address() == other.address()));
+    return _id == other._id && _address == other._address;
 }
 
-uint32_t Record::size() const { return _fields.size(); }
+auto Record::Size() const -> uint32_t { return static_cast<uint32_t>(_fields.size()); }
 
-Value& Record::operator[](int idx) { return _fields[idx]; }
+auto Record::operator[](size_t index) -> Value& { return _fields[index]; }
 
-const Value& Record::operator[](int idx) const { return _fields[idx]; }
+auto Record::operator[](size_t index) const -> const Value& { return _fields[index]; }
 
-uint32_t Record::id() const { return _id; }
+auto Record::Id() const -> uint32_t { return _id; }
 
-bool Record::has_addr() const { return _has_addr; }
+auto Record::HasAddress() const -> bool { return _address.has_value(); }
 
-RecordAddress Record::address() const {
-    if (!has_addr()) {
+auto Record::Address() const -> RecordAddress {
+    if (!_address.has_value()) {
         throw std::runtime_error("Record has not address.");
     }
-    return _addr;
+    return _address.value();
 }
 
-void Record::set_address(RecordAddress addr) {
-    _addr = addr;
-    _has_addr = true;
+auto Record::SetAddress(RecordAddress address) -> void {
+    _address = address;
 }
 
-uint32_t Record::serialized_values_size(const Schema& schema, Serializer* serializer) const {
-    if (serializer == nullptr) {
-        throw std::runtime_error("Serializer should not be nullptr.");
-    }
-    uint32_t result = schema.null_bitmap_size();
+auto Record::SerializedSize() const -> uint32_t {
+    uint32_t result = 0;
     for (const auto& value : _fields) {
-        if (value.is_null()) {
-            continue;
-        }
-        result += serializer->serialized_size(value);
+        result += qdb::storage::SerializedSize(value);
     }
     return result;
 }
 
-std::vector<uint8_t> Record::serialized(const Schema& schema, Serializer* serializer) const {
-    if (serializer == nullptr) {
-        throw std::runtime_error("Serializer should not be nullptr.");
-    }
+auto Record::Serialize() const -> std::vector<uint8_t> {
     std::vector<uint8_t> data_v;
-    auto result_size = serialized_values_size(schema, serializer);
+    auto result_size = SerializedSize();
     data_v.reserve(result_size);
-    data_v.resize(schema.null_bitmap_size());
-    for (size_t i = 0; i < _fields.size(); ++i) {
-        const auto& value = _fields[i];
-        if (value.is_null()) {
-            auto bitmap_idx = schema.get_bitmap_idx(static_cast<uint32_t>(i));
-            data_v[bitmap_idx / 8] |= (1 << (bitmap_idx % 8));
-        } else {
-            serializer->append_value_to_buffer(value, data_v);
-        }
+    for (const auto& value : _fields) {
+        AppendValueToBuffer(value, data_v);
     }
     assert(data_v.size() == result_size);
     return data_v;
 }
 
-Record Record::from_binary(
-    uint8_t* data,
+auto Record::FromBinary(
+    const uint8_t* data,
     uint32_t size,
     uint32_t record_id,
     const Schema& schema,
-    StringStorage* string_storage,
-    Serializer* serializer
-) {
-    if (serializer == nullptr) {
-        throw std::runtime_error("Serializer should not be nullptr.");
+    Interner& interner
+) -> Record {
+    const uint8_t* start = data;
+    std::vector<Value> values(schema.Size());
+    for (size_t i = 0; i < schema.Size(); ++i) {
+        values[i] = ReadValue(data, interner);
     }
-    const uint8_t* null_bitmap = data;
-    data += schema.null_bitmap_size();
-    std::vector<Value> values(schema.size());
-    for (size_t i = 0; i < schema.size(); ++i) {
-        if (!schema[i].not_null()) {
-            auto bitmap_idx = schema.get_bitmap_idx(static_cast<uint32_t>(i));
-            bool value_is_null = null_bitmap[bitmap_idx / 8] & (1 << (bitmap_idx % 8));
-            if (value_is_null) {
-                continue;
-            }
-        }
-        if (schema[i].is_int()) {
-            values[i] = serializer->read_value(data, Value::Type::INT, string_storage);
-        } else if (schema[i].is_string()) {
-            values[i] = serializer->read_value(data, Value::Type::STRING, string_storage);
-        }
-    }
-    if (data - null_bitmap != size) {
+    if (data - start != size) {
         throw std::runtime_error("Read data and size are mismatch.");
     }
     return Record(record_id, values);
 }
 
 std::ostream& operator<<(std::ostream& os, const Record& record) {
-    os << "Rec(id=" << record._id << "|has_addr=" << record._has_addr << "|";
+    os << "Rec(id=" << record._id << "|has_addr=" << record._address.has_value() << "|";
     for (const auto& v : record._fields) {
         os << v << "|";
     }
