@@ -63,6 +63,7 @@ public:
 
 private:
     std::string write_track(Track::Type type, uint32_t record_id, std::vector<uint8_t> data = {});
+    void sync();
 
     void truncate_to_last();
 };

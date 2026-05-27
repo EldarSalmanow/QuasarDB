@@ -44,11 +44,17 @@ private:
 
     std::atomic<std::uint64_t> total_requests_{0};
     std::atomic<std::uint64_t> total_errors_{0};
-    std::atomic<std::uint64_t> total_duration_ms_{0};
+    std::atomic<std::uint64_t> current_second_requests_{0};
+    std::atomic<std::uint64_t> current_second_errors_{0};
+    std::atomic<std::uint64_t> current_second_duration_ms_{0};
+    std::atomic<std::uint64_t> current_rps_{0};
     std::uint64_t last_total_requests_{0};
 
-    RollingWindow<10> rps_window_;
     RollingWindow<600> rps_10min_;
+    RollingWindow<10> duration_sum_10s_;
+    RollingWindow<10> duration_count_10s_;
+    RollingWindow<60> error_sum_60s_;
+    RollingWindow<60> request_sum_60s_;
 
     std::thread output_thread_;
     std::atomic<bool> running_{true};

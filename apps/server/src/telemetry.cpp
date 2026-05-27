@@ -15,15 +15,18 @@ Telemetry::~Telemetry() {
 
 void Telemetry::RecordRequest(std::uint64_t duration_ms, bool success) {
     total_requests_.fetch_add(1, std::memory_order_relaxed);
-    total_duration_ms_.fetch_add(duration_ms, std::memory_order_relaxed);
+    current_second_requests_.fetch_add(1, std::memory_order_relaxed);
+    current_second_duration_ms_.fetch_add(duration_ms, std::memory_order_relaxed);
 
     if (!success) {
         total_errors_.fetch_add(1, std::memory_order_relaxed);
+        current_second_errors_.fetch_add(1, std::memory_order_relaxed);
     }
 }
 
 auto Telemetry::GetCurrentRPS() const -> double {
-    return rps_window_.Avg();
+    auto current = current_second_requests_.load(std::memory_order_relaxed);
+    return static_cast<double>(current == 0 ? current_rps_.load(std::memory_order_relaxed) : current);
 }
 
 auto Telemetry::GetAvgRPS10min() const -> double {
@@ -35,17 +38,17 @@ auto Telemetry::GetMaxRPS10min() const -> std::uint64_t {
 }
 
 auto Telemetry::GetAvgDuration() const -> double {
-    auto total = total_requests_.load(std::memory_order_relaxed);
-    if (total == 0) return 0.0;
-    auto dur = total_duration_ms_.load(std::memory_order_relaxed);
-    return static_cast<double>(dur) / total;
+    auto count = duration_count_10s_.Sum() + current_second_requests_.load(std::memory_order_relaxed);
+    if (count == 0) return 0.0;
+    auto duration = duration_sum_10s_.Sum() + current_second_duration_ms_.load(std::memory_order_relaxed);
+    return static_cast<double>(duration) / count;
 }
 
 auto Telemetry::GetErrorRate() const -> double {
-    auto total = total_requests_.load(std::memory_order_relaxed);
-    if (total == 0) return 0.0;
-    auto err = total_errors_.load(std::memory_order_relaxed);
-    return static_cast<double>(err) / total;
+    auto requests = request_sum_60s_.Sum() + current_second_requests_.load(std::memory_order_relaxed);
+    if (requests == 0) return 0.0;
+    auto errors = error_sum_60s_.Sum() + current_second_errors_.load(std::memory_order_relaxed);
+    return static_cast<double>(errors) / requests;
 }
 
 auto Telemetry::GetTotalRequests() const -> std::uint64_t {
@@ -66,9 +69,13 @@ void Telemetry::OutputLoop() {
         auto total = total_requests_.load(std::memory_order_relaxed);
         auto rps = total - last_total_requests_;
         last_total_requests_ = total;
+        current_rps_.store(rps, std::memory_order_relaxed);
 
-        rps_window_.Tick(rps);
         rps_10min_.Tick(rps);
+        duration_sum_10s_.Tick(current_second_duration_ms_.exchange(0, std::memory_order_relaxed));
+        duration_count_10s_.Tick(current_second_requests_.exchange(0, std::memory_order_relaxed));
+        error_sum_60s_.Tick(current_second_errors_.exchange(0, std::memory_order_relaxed));
+        request_sum_60s_.Tick(rps);
     }
 }
 

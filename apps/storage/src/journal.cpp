@@ -3,6 +3,8 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace qdb::storage {
 
@@ -82,8 +84,12 @@ std::string Journal::write_track(Track::Type type, uint32_t record_id, std::vect
         _file.write(reinterpret_cast<const char*>(data.data()), data_size);
     }
     _file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    if (!_file.good()) {
+        throw std::runtime_error("Failed to write journal track.");
+    }
     _pos = _file.seekp(0, std::ios::end).tellp();
     _file.flush();
+    sync();
     return time;
 }
 
@@ -115,6 +121,18 @@ Journal::RevertResult Journal::revert_last(const std::string& time, const Schema
         record = Record::FromBinary(data.data(), data_size, record_id, schema, interner);
     }
     return {writed_time, type, std::move(record)};
+}
+
+void Journal::sync() {
+    const auto fd = ::open(_path.c_str(), O_RDONLY);
+    if (fd < 0) {
+        throw std::runtime_error("Journal cannot open file for sync.");
+    }
+    const auto result = ::fsync(fd);
+    ::close(fd);
+    if (result != 0) {
+        throw std::runtime_error("Journal sync failed.");
+    }
 }
 
 void Journal::truncate_to_last() {

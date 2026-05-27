@@ -288,3 +288,12 @@ graph TD
 - Storage: pager + таблицы + индекс по ключу.
 - Entrypoint: маршрутизация на один Storage узел.
 - Клиент: ввод, отправка, вывод результата.
+
+## Current Implementation Notes
+- Public API actions: `handshake`, `login`, `query`, `check_task`, `telemetry`.
+- Client-only commands: `exit`, `logout`, `telemetry`.
+- Storage healthcheck uses internal `ping`, not `heartbeat`.
+- Registry starts one `qdb-storage` process per table shard. Monitor marks missed nodes and asks Registry to restart a node after the configured miss threshold.
+- Storage shard files are created under `data/<sanitized-table>/` by default.
+- Telemetry windows: current RPS is the last full second, average/max RPS use a 10-minute window, average duration uses a 10-second window, and error rate uses a 60-second window. Metrics are exposed through the `telemetry` API.
+- Journal writes the inverse operation before table/index mutation and flushes/fsyncs the journal file before the mutation continues.

@@ -70,6 +70,8 @@ public:
 
     auto UpdateNode(const StorageId& id, StorageState state) -> bool;
 
+    auto RestartNode(const StorageId& id) -> bool;
+
     auto DropNode(const StorageId &id) -> bool;
 
     auto GetNodes() const -> std::vector<std::pair<StorageId, StorageNode>>;

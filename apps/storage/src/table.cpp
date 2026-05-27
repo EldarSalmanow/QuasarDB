@@ -97,12 +97,12 @@ Record Table::insert_record(std::vector<Value> values, const std::vector<std::st
     uint32_t record_id = _schema.RecordIdCount();
     Record record = make_record(record_id, std::move(values), column_names);
     validate_record(record);
+    _journal.save_insertion(record);
     _schema.IncrementRecordIdCount();
     save_schema();
     write_record_to_disk(record);
     _indexes.Insert(_schema, record);
     _id_to_addr.insert(record.Id(), record.Address());
-    _journal.save_insertion(record);
     return record;
 }
 
@@ -166,12 +166,12 @@ RecordAddress Table::update_record(Record& record) {
     validate_record(record);
     auto old_record_addr = record.Address();
     auto old_record = *read_record(old_record_addr);
+    _journal.save_updation(old_record);
     auto table_page = TablePage(record.Address().page_index, &_pager, _interner);
     table_page.delete_record(record.Address().slot_idx);
     auto new_record_addr = write_record_to_disk(record, old_record_addr.page_index);
     _indexes.Update(_schema, old_record, record);
     _id_to_addr.update(record.Id(), record.Address());
-    _journal.save_updation(old_record);
     return new_record_addr;
 }
 
@@ -190,11 +190,11 @@ std::vector<std::pair<int, std::string>> Table::update_multiple(std::vector<Reco
 }
 
 void Table::delete_record(const Record& record) {
+    _journal.save_deletion(record);
     auto table_page = TablePage(record.Address().page_index, &_pager, _interner);
     table_page.delete_record(record.Address().slot_idx);
     _indexes.Remove(_schema, record);
     _id_to_addr.remove(record.Id());
-    _journal.save_deletion(record);
 }
 
 void Table::delete_multiple(const std::vector<Record>& records) {

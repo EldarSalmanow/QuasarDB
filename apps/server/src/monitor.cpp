@@ -70,7 +70,10 @@ auto Monitor::ProbeOnce() -> void {
         auto& missed = missed_heartbeats_[id];
         ++missed;
         if (missed >= dead_threshold_) {
-            registry_->UpdateNode(id, StorageState::Down);
+            missed = 0;
+            if (!registry_->RestartNode(id)) {
+                registry_->UpdateNode(id, StorageState::Down);
+            }
         }
     }
 }

@@ -103,6 +103,23 @@ auto Registry::UpdateNode(const StorageId &id, StorageState state) -> bool {
     return true;
 }
 
+auto Registry::RestartNode(const StorageId& id) -> bool {
+    std::unique_lock lock(nodes_mutex_);
+    auto iterator = nodes_.find(id);
+    if (iterator == nodes_.end()) {
+        return false;
+    }
+
+    StopProcessNonSync(id);
+    if (!auto_start_storage_ || !StartProcessNonSync(id, iterator->second)) {
+        iterator->second.state = StorageState::Down;
+        return false;
+    }
+
+    iterator->second.state = StorageState::Up;
+    return true;
+}
+
 auto Registry::DropNode(const StorageId &id) -> bool {
     std::unique_lock lock(nodes_mutex_);
 
