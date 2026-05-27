@@ -52,14 +52,14 @@ class Registry {
 public:
     explicit Registry(bool auto_start_storage = true,
                       std::string storage_binary = "",
-                      std::string storage_root = "data/storage");
+                      std::string storage_root = "data");
 
     ~Registry();
 
 public:
     static auto New(bool auto_start_storage = true,
                     std::string storage_binary = "",
-                    std::string storage_root = "data/storage") -> std::shared_ptr<Registry>;
+                    std::string storage_root = "data") -> std::shared_ptr<Registry>;
 
 public:
     auto CreateNode(const StorageId &id) -> bool;

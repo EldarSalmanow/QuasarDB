@@ -4,7 +4,6 @@
 #include <qdb/core/request.h>
 #include <qdb/core/response.h>
 #include <qdb/core/tcp_server.h>
-#include <qdb/server/async_status.h>
 #include <qdb/server/config.h>
 #include <qdb/server/catalog.h>
 #include <qdb/server/logger.h>
@@ -12,6 +11,7 @@
 #include <qdb/server/rbac.h>
 #include <qdb/server/router.h>
 #include <qdb/server/security.h>
+#include <qdb/server/task_processor.h>
 #include <qdb/server/telemetry.h>
 
 #include <memory>
@@ -47,6 +47,8 @@ private:
 
     auto HandleCheckTask(const qdb::core::Request& request) -> qdb::core::Response;
 
+    auto HandleTelemetry(const qdb::core::Request& request) const -> qdb::core::Response;
+
     auto Authenticate(const qdb::core::Request& request) const -> std::optional<std::string>;
 
     auto CheckAccess(const std::string& user, const Statement& statement) const -> bool;
@@ -76,7 +78,7 @@ private:
 
     Monitor monitor_;
 
-    TaskTracker tasks_;
+    TaskProcessor tasks_;
 };
 
 }  // namespace qdb::server

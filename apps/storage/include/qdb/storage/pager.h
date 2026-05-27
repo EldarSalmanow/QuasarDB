@@ -1,7 +1,6 @@
 #ifndef QUASARDB_PAGER_H
 #define QUASARDB_PAGER_H
 
-#include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -10,12 +9,6 @@
 namespace qdb::storage {
 
 class Pager final {
-    size_t page_size;
-    std::string file_path;
-    std::fstream db_file;
-
-    std::vector<uint8_t> white_page;
-
 public:
     Pager(Pager&& other) noexcept;
 
@@ -41,6 +34,13 @@ public:
     uint32_t append_new_page();
 
     void truncate(uint32_t count);
+
+private:
+    size_t page_size;
+    std::string file_path;
+    std::fstream db_file;
+
+    std::vector<uint8_t> white_page;
 };
 
 }  // namespace qdb::storage

@@ -65,15 +65,6 @@ TEST(TelemetryTest, AllErrors) {
     ASSERT_DOUBLE_EQ(t.GetErrorRate(), 1.0);
 }
 
-TEST(TelemetryTest, ReportFormat) {
-    Telemetry t;
-    t.RecordRequest(100, true);
-    auto report = t.GetReport();
-    ASSERT_FALSE(report.empty());
-    ASSERT_NE(report.find("[TELEMETRY]"), std::string::npos);
-    ASSERT_NE(report.find("requests=1"), std::string::npos);
-}
-
 TEST(TelemetryTest, ConcurrentRequests) {
     Telemetry t;
     std::thread t1([&] { for (int i = 0; i < 100; ++i) t.RecordRequest(5, true); });

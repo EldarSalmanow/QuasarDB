@@ -4,6 +4,7 @@
 #include "pager.h"
 
 #include <algorithm>
+#include <cassert>
 #include <concepts>
 #include <cstring>
 #include <iostream>

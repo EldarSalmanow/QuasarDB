@@ -195,10 +195,13 @@ auto Application::BuildRequest(const std::string& command) -> qdb::core::Request
     for (auto& ch : action) {
         ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
     }
+    if (!action.empty() && action.back() == ';') {
+        action.pop_back();
+    }
 
     if (action == "LOGIN") {
-        std::string username;
-        std::string password;
+            std::string username;
+            std::string password;
         input >> username >> password;
         if (!password.empty() && password.back() == ';') {
             password.pop_back();
@@ -207,6 +210,14 @@ auto Application::BuildRequest(const std::string& command) -> qdb::core::Request
             password = password.substr(1, password.size() - 2);
         }
         return qdb::core::RequestBuilder::Login(std::move(username), std::move(password)).Build();
+    }
+
+    if (action == "TELEMETRY") {
+        auto builder = qdb::core::RequestBuilder::Telemetry();
+        if (!token_.empty()) {
+            builder.Token(token_);
+        }
+        return builder.Build();
     }
 
     auto builder = qdb::core::RequestBuilder::Query(command);

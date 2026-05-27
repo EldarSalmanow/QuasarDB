@@ -26,6 +26,14 @@ TEST(RequestEnvelope, ParsesCheckTask) {
     EXPECT_EQ(request.TaskId().value(), "task-1");
 }
 
+TEST(RequestEnvelope, BuildsTelemetryRequest) {
+    const auto request = qdb::core::RequestBuilder::Telemetry().Token("jwt").Build();
+
+    EXPECT_EQ(request.Action(), "telemetry");
+    EXPECT_EQ(request.Token(), "jwt");
+    EXPECT_TRUE(request.Data().empty());
+}
+
 TEST(ResponseEnvelope, SerializesJsonData) {
     auto response = qdb::core::ResponseBuilder::Success()
                         .Message("ok")

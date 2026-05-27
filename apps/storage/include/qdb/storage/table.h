@@ -1,7 +1,7 @@
 #ifndef QUASARDB_TABLE_H
 #define QUASARDB_TABLE_H
 
-#include "b_star_plus_tree.h"
+#include "index_set.h"
 #include "journal.h"
 #include "page.h"
 #include "pager.h"
@@ -10,10 +10,7 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <functional>
 #include <string>
-#include <unordered_map>
-#include <variant>
 
 namespace fs = std::filesystem;
 
@@ -38,8 +35,7 @@ private:
     Schema _schema;
     Journal _journal;
     BStarPlusTree<uint32_t, RecordAddress> _id_to_addr;
-    using IndexTree = std::variant<BStarPlusTree<int32_t, RecordAddress>, BStarPlusTree<StringId, RecordAddress>>;
-    std::unordered_map<std::string, IndexTree> _indexes;
+    IndexSet _indexes;
 
     struct MetadataStruct {
         char header[HEADER.size() + 1];
@@ -66,10 +62,6 @@ public:
 
 private:
     void save_schema();
-
-    fs::path index_path(const std::string& column_name);
-
-    void open_indexes();
 
 public:
     void drop();
@@ -116,22 +108,10 @@ private:
 
     TablePage find_enough_free_page(uint32_t free_space, uint32_t prefer_page_id = 0);
 
-    void for_each_indexed_value(
-        const Record& record,
-        const std::function<void(size_t, const Column&, const Value&, IndexTree&)>& action
-    );
-
-    void update_indexes_after_insert(const Record& record);
-
-    void update_indexes_after_delete(const Record& record);
-
-    void update_indexes_after_update(const Record& old_record, const Record& new_record);
-
 public:
     std::string name() const;
 
     const Schema& schema() const;
-
 };
 
 }  // namespace qdb::storage

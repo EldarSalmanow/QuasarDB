@@ -1,9 +1,10 @@
 #include "../include/qdb/storage/journal.h"
 
+#include <chrono>
+#include <iomanip>
 #include <sstream>
 
 namespace qdb::storage {
-Journal::Track::Track(Type type, uint32_t record_id) : _type(type), _record_id(record_id), _time(get_now()) {}
 
 std::string Journal::Track::get_now() {
     auto now = std::chrono::system_clock::now();
@@ -14,49 +15,6 @@ std::string Journal::Track::get_now() {
     std::ostringstream oss;
     oss << std::put_time(&tm_zone, "%Y.%m.%d-%H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count();
     return oss.str();
-}
-
-Journal::Track::Type Journal::Track::type() const { return _type; }
-
-std::string Journal::Track::time() const { return _time; }
-
-uint32_t Journal::Track::write(std::fstream& os) {
-    os.write(_time.data(), TIME_LEN);
-    os.write(reinterpret_cast<const char*>(&_record_id), sizeof(_record_id));
-    os.write(reinterpret_cast<const char*>(&_type), sizeof(_type));
-    return TIME_LEN + sizeof(_record_id) + sizeof(_type);
-}
-
-Journal::DeleteTrack::DeleteTrack(uint32_t record_id) : Journal::Track(Track::Type::DELETE, record_id) {}
-
-uint32_t Journal::DeleteTrack::write(std::fstream& os) {
-    uint32_t size = Track::write(os) + sizeof(uint32_t);
-    os.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    return size;
-}
-
-Journal::InsertTrack::InsertTrack(const Record& record)
-    : Journal::Track(Track::Type::INSERT, record.Id()), _serialized_record(record.Serialize()) {}
-
-uint32_t Journal::InsertTrack::write(std::fstream& os) {
-    uint32_t size = Track::write(os) + sizeof(uint32_t) + _serialized_record.size() + sizeof(uint32_t);
-    uint32_t data_size = static_cast<uint32_t>(_serialized_record.size());
-    os.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
-    os.write(reinterpret_cast<const char*>(_serialized_record.data()), data_size);
-    os.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    return size;
-}
-
-Journal::UpdateTrack::UpdateTrack(const Record& record)
-    : Track(Track::Type::UPDATE, record.Id()), _serialized_record(record.Serialize()) {}
-
-uint32_t Journal::UpdateTrack::write(std::fstream& os) {
-    uint32_t size = Track::write(os) + sizeof(uint32_t) + _serialized_record.size() + sizeof(uint32_t);
-    uint32_t data_size = static_cast<uint32_t>(_serialized_record.size());
-    os.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
-    os.write(reinterpret_cast<const char*>(_serialized_record.data()), data_size);
-    os.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    return size;
 }
 
 Journal::Journal(fs::path root, const std::string& name)
@@ -92,39 +50,41 @@ void Journal::drop() {
 }
 
 std::string Journal::save_insertion(const Record& record) {
-    _file.seekp(0, std::ios::end);
-    if (_pos != _file.tellp()) {
-        truncate_to_last();
-    }
-    DeleteTrack track(record.Id());
-    track.write(_file);
-    _pos = _file.seekp(0, std::ios::end).tellp();
-    _file.flush();
-    return track.time();
+    return write_track(Track::Type::DELETE, record.Id());
 }
 
 std::string Journal::save_updation(const Record& old_record) {
-    _file.seekp(0, std::ios::end);
-    if (_pos != _file.tellp()) {
-        truncate_to_last();
-    }
-    UpdateTrack track(old_record);
-    track.write(_file);
-    _pos = _file.seekp(0, std::ios::end).tellp();
-    _file.flush();
-    return track.time();
+    return write_track(Track::Type::UPDATE, old_record.Id(), old_record.Serialize());
 }
 
 std::string Journal::save_deletion(const Record& record) {
+    return write_track(Track::Type::INSERT, record.Id(), record.Serialize());
+}
+
+std::string Journal::write_track(Track::Type type, uint32_t record_id, std::vector<uint8_t> data) {
     _file.seekp(0, std::ios::end);
     if (_pos != _file.tellp()) {
         truncate_to_last();
     }
-    InsertTrack track(record);
-    track.write(_file);
+
+    auto time = Track::get_now();
+    auto size = static_cast<uint32_t>(Track::TIME_LEN + sizeof(record_id) + sizeof(type) + sizeof(uint32_t));
+    if (!data.empty()) {
+        size += static_cast<uint32_t>(sizeof(uint32_t) + data.size());
+    }
+
+    _file.write(time.data(), Track::TIME_LEN);
+    _file.write(reinterpret_cast<const char*>(&record_id), sizeof(record_id));
+    _file.write(reinterpret_cast<const char*>(&type), sizeof(type));
+    if (!data.empty()) {
+        auto data_size = static_cast<uint32_t>(data.size());
+        _file.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
+        _file.write(reinterpret_cast<const char*>(data.data()), data_size);
+    }
+    _file.write(reinterpret_cast<const char*>(&size), sizeof(size));
     _pos = _file.seekp(0, std::ios::end).tellp();
     _file.flush();
-    return track.time();
+    return time;
 }
 
 Journal::RevertResult Journal::revert_last(const std::string& time, const Schema& schema, Interner& interner) {

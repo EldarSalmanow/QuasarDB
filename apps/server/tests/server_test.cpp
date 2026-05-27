@@ -110,6 +110,18 @@ TEST(ServerPipelineTest, UnknownActionsAreRejected) {
     EXPECT_EQ(submit.GetMessage(), "Unsupported action: unknown");
 }
 
+TEST(ServerPipelineTest, TelemetryReturnsCounters) {
+    Application application(TestConfig("telemetry"));
+
+    auto response = application.Process(qdb::core::RequestBuilder::Telemetry().Build());
+
+    ASSERT_TRUE(response.IsSuccess());
+    EXPECT_EQ(response.GetMessage(), "Telemetry");
+    EXPECT_TRUE(response.GetDataObject().contains("total_requests"));
+    EXPECT_TRUE(response.GetDataObject().contains("total_errors"));
+    EXPECT_TRUE(response.GetDataObject().contains("avg_duration_ms"));
+}
+
 TEST(ServerPipelineTest, AuthRequiresSuperuserSetupBeforeQueries) {
     Application application(AuthConfig("setup_required"));
 

@@ -96,6 +96,10 @@ auto RequestBuilder::CheckTask(std::string task_id) -> RequestBuilder {
     return RequestBuilder{}.Action("check_task").TaskId(std::move(task_id));
 }
 
+auto RequestBuilder::Telemetry() -> RequestBuilder {
+    return RequestBuilder{}.Action("telemetry");
+}
+
 auto RequestBuilder::Action(std::string action) -> RequestBuilder & {
     request_.action_ = std::move(action);
 

@@ -89,9 +89,6 @@ public:
 
     auto operator!=(const Value& other) const -> SqlBool;
 
-public:
-    friend auto operator<<(std::ostream& ostream, const Value& value) -> std::ostream&;
-
 private:
     std::variant<std::nullptr_t, std::int32_t, StringId> data_;
 };

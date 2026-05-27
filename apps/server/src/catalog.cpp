@@ -1,6 +1,6 @@
 #include <qdb/server/catalog.h>
 
-#include <fstream>
+#include <qdb/core/json_file.h>
 
 namespace qdb::server {
 
@@ -90,28 +90,14 @@ auto Catalog::DatabaseName(const TableRef& table) -> std::string {
 }
 
 auto Catalog::Load() -> void {
-    if (!std::filesystem::exists(path_)) {
-        data_ = {{"databases", nlohmann::json::object()}};
-        return;
-    }
-
-    std::ifstream input(path_);
-    data_ = nlohmann::json::parse(input, nullptr, false);
+    data_ = qdb::core::JsonFile(path_).Load({{"databases", nlohmann::json::object()}});
     if (!data_.is_object() || !data_.contains("databases")) {
         data_ = {{"databases", nlohmann::json::object()}};
     }
 }
 
 auto Catalog::Save() const -> void {
-    if (!path_.parent_path().empty()) {
-        std::filesystem::create_directories(path_.parent_path());
-    }
-    const auto tmp = path_.string() + ".tmp";
-    {
-        std::ofstream output(tmp);
-        output << data_.dump(2);
-    }
-    std::filesystem::rename(tmp, path_);
+    qdb::core::JsonFile(path_).Save(data_);
 }
 
 }  // namespace qdb::server

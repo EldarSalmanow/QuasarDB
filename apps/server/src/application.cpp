@@ -7,11 +7,9 @@
 #include <algorithm>
 #include <exception>
 #include <filesystem>
-#include <functional>
 #include <optional>
 #include <sstream>
 #include <thread>
-#include <unordered_map>
 #include <utility>
 
 namespace qdb::server {
@@ -166,20 +164,21 @@ auto Application::Process(const qdb::core::Request& request, Session& session) -
     qdb::core::Response response = Error("Unsupported action: " + request.Action());
 
     try {
-        const std::unordered_map<std::string, std::function<qdb::core::Response()>> handlers = {
-            {"handshake", [this] { return HandleHandshake(); }},
-            {"login", [this, &request] { return HandleLogin(request); }},
-            {"query", [this, &request, &session] { return HandleExecute(request, session); }},
-            {"check_task", [this, &request] { return HandleCheckTask(request); }}
-        };
-
         if (request.Action().empty()) {
             response = Error("Request must contain string field 'action'");
         } else if (config_.AuthRequired() && accounts_.Empty() && request.Action() != "login" &&
                    request.Action() != "handshake") {
             response = SetupRequired();
-        } else if (auto handler = handlers.find(request.Action()); handler != handlers.end()) {
-            response = handler->second();
+        } else if (request.Action() == "handshake") {
+            response = HandleHandshake();
+        } else if (request.Action() == "login") {
+            response = HandleLogin(request);
+        } else if (request.Action() == "query") {
+            response = HandleExecute(request, session);
+        } else if (request.Action() == "check_task") {
+            response = HandleCheckTask(request);
+        } else if (request.Action() == "telemetry") {
+            response = HandleTelemetry(request);
         } else {
             response = Error("Unsupported action: " + request.Action());
         }
@@ -309,20 +308,42 @@ auto Application::HandleCheckTask(const qdb::core::Request& request) -> qdb::cor
         return Error("check_task requires data.task_id");
     }
 
-    auto task = tasks_.GetStatus(request.TaskId().value());
+    auto task = tasks_.Get(request.TaskId().value());
 
     if (!task.has_value()) {
         return Error("Task not found", {{"task_id", request.TaskId().value()}});
     }
 
-    if (task->result.has_value()) {
-        return task->result.value();
+    if (task->response.has_value()) {
+        return task->response.value();
+    }
+    if (task->error.has_value()) {
+        return Error(task->error.value(), {{"task_id", request.TaskId().value()}});
     }
 
     return qdb::core::Pending(
         task->status == TaskStatus::Running ? "Operation is still running" : "Operation is pending",
         {{"task_id", request.TaskId().value()}, {"status", task->status == TaskStatus::Running ? "running" : "pending"}}
     );
+}
+
+auto Application::HandleTelemetry(const qdb::core::Request& request) const -> qdb::core::Response {
+    if (config_.AuthRequired() && accounts_.Empty()) {
+        return SetupRequired();
+    }
+    if (config_.AuthRequired() && !Authenticate(request).has_value()) {
+        return Error("Valid token is required");
+    }
+
+    return Ok("Telemetry", {
+        {"total_requests", telemetry_.GetTotalRequests()},
+        {"total_errors", telemetry_.GetTotalErrors()},
+        {"error_rate", telemetry_.GetErrorRate()},
+        {"current_rps", telemetry_.GetCurrentRPS()},
+        {"avg_rps_10min", telemetry_.GetAvgRPS10min()},
+        {"max_rps_10min", telemetry_.GetMaxRPS10min()},
+        {"avg_duration_ms", telemetry_.GetAvgDuration()}
+    });
 }
 
 auto Application::Authenticate(const qdb::core::Request& request) const -> std::optional<std::string> {

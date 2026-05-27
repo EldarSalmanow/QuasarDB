@@ -61,6 +61,8 @@ public:
 
     static auto CheckTask(std::string task_id) -> RequestBuilder;
 
+    static auto Telemetry() -> RequestBuilder;
+
 public:
     auto Action(std::string action) -> RequestBuilder &;
 

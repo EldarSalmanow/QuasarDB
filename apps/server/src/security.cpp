@@ -1,5 +1,7 @@
 #include <qdb/server/security.h>
 
+#include <qdb/core/json_file.h>
+
 #include <jwt-cpp/traits/nlohmann-json/defaults.h>
 
 #include <openssl/crypto.h>
@@ -8,8 +10,6 @@
 #include <openssl/rand.h>
 
 #include <algorithm>
-#include <filesystem>
-#include <fstream>
 #include <iomanip>
 #include <sstream>
 
@@ -25,11 +25,6 @@ auto ToHex(const unsigned char* data, size_t size) -> std::string {
 
 auto ToHex(const std::vector<unsigned char>& data) -> std::string {
     return ToHex(data.data(), data.size());
-}
-
-auto RemoveFile(const std::string& path) -> void {
-    std::error_code ec;
-    std::filesystem::remove(path, ec);
 }
 
 void to_json(nlohmann::json& j, const Account& a) {
@@ -89,15 +84,8 @@ auto AccountStore::Empty() const -> bool {
 }
 
 auto AccountStore::Load() -> bool {
-    std::ifstream file(storage_path_);
-    if (!file.is_open()) {
-        load_ok_ = true;
-        return true;
-    }
-
     try {
-        nlohmann::json j;
-        file >> j;
+        auto j = qdb::core::JsonFile(storage_path_).Load(nlohmann::json::object());
         accounts_ = j.get<std::unordered_map<std::string, Account>>();
         load_ok_ = true;
         return true;
@@ -109,39 +97,7 @@ auto AccountStore::Load() -> bool {
 
 auto AccountStore::Save() -> bool {
     if (!load_ok_) return false;
-    auto tmp_path = storage_path_ + ".tmp";
-    nlohmann::json j = accounts_;
-    std::ofstream file(tmp_path, std::ios::trunc);
-    if (!file.is_open()) return false;
-
-    std::error_code ec;
-    std::filesystem::permissions(tmp_path, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
-                                 std::filesystem::perm_options::replace, ec);
-    if (ec) {
-        file.close();
-        RemoveFile(tmp_path);
-        return false;
-    }
-
-    file << j.dump(4);
-    if (!file.good()) {
-        file.close();
-        RemoveFile(tmp_path);
-        return false;
-    }
-
-    file.close();
-    if (file.fail()) {
-        RemoveFile(tmp_path);
-        return false;
-    }
-
-    std::filesystem::rename(tmp_path, storage_path_, ec);
-    if (ec) {
-        RemoveFile(tmp_path);
-        return false;
-    }
-    return true;
+    return qdb::core::JsonFile(storage_path_).Save(accounts_);
 }
 
 auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t> {

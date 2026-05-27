@@ -1,8 +1,5 @@
 #include <qdb/server/telemetry.h>
 
-#include <iomanip>
-#include <sstream>
-
 namespace qdb::server {
 
 Telemetry::Telemetry()
@@ -59,19 +56,6 @@ auto Telemetry::GetTotalErrors() const -> std::uint64_t {
     return total_errors_.load(std::memory_order_relaxed);
 }
 
-auto Telemetry::GetReport() const -> std::string {
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(2);
-    oss << "[TELEMETRY] requests=" << GetTotalRequests()
-        << " errors=" << GetTotalErrors()
-        << " error_rate=" << (GetErrorRate() * 100) << "%"
-        << " rps=" << GetCurrentRPS()
-        << " avg_rps_10min=" << GetAvgRPS10min()
-        << " max_rps_10min=" << GetMaxRPS10min()
-        << " avg_duration=" << GetAvgDuration() << "ms";
-    return oss.str();
-}
-
 void Telemetry::OutputLoop() {
     auto next = std::chrono::steady_clock::now() + std::chrono::seconds(1);
 
@@ -79,12 +63,12 @@ void Telemetry::OutputLoop() {
         std::this_thread::sleep_until(next);
         next += std::chrono::seconds(1);
 
-        auto req_count = total_requests_.load(std::memory_order_relaxed);
-        auto err_count = total_errors_.load(std::memory_order_relaxed);
+        auto total = total_requests_.load(std::memory_order_relaxed);
+        auto rps = total - last_total_requests_;
+        last_total_requests_ = total;
 
-        rps_window_.Tick(req_count);
-        rps_10min_.Tick(req_count);
-        duration_window_.Tick(err_count);
+        rps_window_.Tick(rps);
+        rps_10min_.Tick(rps);
     }
 }
 

@@ -8,7 +8,8 @@ Table::Table(std::string name, fs::path root, Interner* interner)
       _pager(_root / (_name + std::string(DATA_EXT)), PAGE_SIZE),
       _interner(interner),
       _journal(_root, _name),
-    _id_to_addr(_root / (_name + "_id_to_addr" + std::string(INDEX_EXT))) {
+      _id_to_addr(_root / (_name + "_id_to_addr" + std::string(INDEX_EXT))),
+      _indexes(_root, _name) {
     _interner->UseStorage(_root / (_name + std::string(STR_STORAGE_EXT)));
     auto metadata = std::make_unique<union MetadataPage>();
     _pager.read_page(METADATA_PAGE_ID, metadata->raw);
@@ -30,7 +31,7 @@ Table::Table(std::string name, fs::path root, Interner* interner)
     } else {
         throw std::runtime_error("Can not read schema for table with name " + _name + ".");
     }
-    open_indexes();
+    _indexes.Open(_schema);
 }
 
 Table::Table(std::string name, fs::path root, Schema schema, Interner* interner)
@@ -40,7 +41,8 @@ Table::Table(std::string name, fs::path root, Schema schema, Interner* interner)
       _interner(interner),
       _schema(std::move(schema)),
       _journal(_root, _name),
-      _id_to_addr(_root / (_name + "_id_to_addr" + std::string(INDEX_EXT))) {
+      _id_to_addr(_root / (_name + "_id_to_addr" + std::string(INDEX_EXT))),
+      _indexes(_root, _name) {
     _interner->UseStorage(_root / (_name + std::string(STR_STORAGE_EXT)));
     auto data_path = _root / (_name + std::string(DATA_EXT));
     auto str_storage_path = _root / (_name + std::string(STR_STORAGE_EXT));
@@ -56,22 +58,7 @@ Table::Table(std::string name, fs::path root, Schema schema, Interner* interner)
 
     save_schema();
 
-    open_indexes();
-}
-
-void Table::open_indexes() {
-    _indexes.clear();
-    for (size_t i = 0; i < _schema.Size(); ++i) {
-        if (_schema[i].IsIndexed()) {
-            const std::string& column_name = _schema[i].Name();
-            auto column_index_path = index_path(column_name);
-            if (_schema[i].IsInt()) {
-                _indexes.emplace(column_name, BStarPlusTree<int, RecordAddress>(column_index_path));
-            } else if (_schema[i].IsString()) {
-                _indexes.emplace(column_name, BStarPlusTree<StringId, RecordAddress>(column_index_path));
-            }
-        }
-    }
+    _indexes.Open(_schema);
 }
 
 Table::~Table() noexcept { close(); }
@@ -90,20 +77,9 @@ void Table::save_schema() {
     fs::rename(temp_path, path_to_schema);
 }
 
-fs::path Table::index_path(const std::string& column_name) {
-    return _root / (_name + "_" + column_name + std::string(INDEX_EXT));
-}
-
 void Table::drop() {
     close();
-    std::vector<fs::path> index_paths;
-    for (const auto& [column_name, index] : _indexes) {
-        index_paths.push_back(std::visit([](auto& tree) { return tree.path(); }, index));
-    }
-    _indexes.clear();
-    for (const auto& p : index_paths) {
-        fs::remove(p);
-    }
+    _indexes.Drop();
     fs::remove(_root / (_name + std::string(DATA_EXT)));
     fs::remove(_root / (_name + std::string(SCHEMA_EXT)));
     fs::remove(_root / (_name + std::string(STR_STORAGE_EXT)));
@@ -113,9 +89,7 @@ void Table::drop() {
 
 void Table::close() noexcept {
     _pager.close();
-    for (auto& [column_name, index] : _indexes) {
-        std::visit([](auto& tree) { return tree.close(); }, index);
-    }
+    _indexes.Close();
     _id_to_addr.close();
 }
 
@@ -126,7 +100,7 @@ Record Table::insert_record(std::vector<Value> values, const std::vector<std::st
     _schema.IncrementRecordIdCount();
     save_schema();
     write_record_to_disk(record);
-    update_indexes_after_insert(record);
+    _indexes.Insert(_schema, record);
     _id_to_addr.insert(record.Id(), record.Address());
     _journal.save_insertion(record);
     return record;
@@ -142,10 +116,10 @@ std::vector<Record> Table::
 }
 
 std::optional<Record> Table::read_record(RecordAddress record_address) {
-    if (!_pager.page_exists(record_address.page_idx)) {
+    if (!_pager.page_exists(record_address.page_index)) {
         return std::nullopt;
     }
-    auto table_page = TablePage(record_address.page_idx, &_pager, _interner);
+    auto table_page = TablePage(record_address.page_index, &_pager, _interner);
     auto record = table_page.read_record(record_address.slot_idx, _schema);
     if (record == std::nullopt) {
         return std::nullopt;
@@ -175,41 +149,16 @@ std::vector<Record> Table::records() {
 
 std::optional<std::vector<Record>> Table::find_by_index(const std::string& column_name, const Value& value) {
     const auto column_idx = _schema.ColumnIndex(column_name);
-    if (column_idx < 0) {
-        throw std::runtime_error("Unknown column: " + column_name);
-    }
-
-    const auto& column = _schema[column_idx];
-    if (!column.IsIndexed() || value.IsNull()) {
-        return std::nullopt;
-    }
-    if ((column.IsInt() && !value.IsInt()) || (column.IsString() && !value.IsString())) {
-        return std::nullopt;
-    }
-
-    auto index = _indexes.find(column_name);
-    if (index == _indexes.end()) {
-        throw std::runtime_error("Index not found for column " + column_name + ".");
-    }
+    auto addresses = _indexes.Find(_schema, column_name, value);
+    if (!addresses.has_value()) return std::nullopt;
 
     std::vector<Record> result;
-    auto add_records = [&](const std::vector<RecordAddress>& addresses) {
-        for (auto address : addresses) {
-            auto record = read_record(address);
-            if (record && (*record)[column_idx].StrictEq(value)) {
-                result.push_back(std::move(*record));
-            }
+    for (auto address : addresses.value()) {
+        auto record = read_record(address);
+        if (record && (*record)[column_idx].StrictEq(value)) {
+            result.push_back(std::move(*record));
         }
-    };
-
-    std::visit([&](auto& tree) {
-        using KeyType = typename std::decay_t<decltype(tree)>::key_type;
-        if constexpr (std::is_same_v<KeyType, int32_t>) {
-            add_records(tree.search(value.AsInt()));
-        } else if constexpr (std::is_same_v<KeyType, StringId>) {
-            add_records(tree.search(value.AsString()));
-        }
-    }, index->second);
+    }
     return result;
 }
 
@@ -217,10 +166,10 @@ RecordAddress Table::update_record(Record& record) {
     validate_record(record);
     auto old_record_addr = record.Address();
     auto old_record = *read_record(old_record_addr);
-    auto table_page = TablePage(record.Address().page_idx, &_pager, _interner);
+    auto table_page = TablePage(record.Address().page_index, &_pager, _interner);
     table_page.delete_record(record.Address().slot_idx);
-    auto new_record_addr = write_record_to_disk(record, old_record_addr.page_idx);
-    update_indexes_after_update(old_record, record);
+    auto new_record_addr = write_record_to_disk(record, old_record_addr.page_index);
+    _indexes.Update(_schema, old_record, record);
     _id_to_addr.update(record.Id(), record.Address());
     _journal.save_updation(old_record);
     return new_record_addr;
@@ -241,9 +190,9 @@ std::vector<std::pair<int, std::string>> Table::update_multiple(std::vector<Reco
 }
 
 void Table::delete_record(const Record& record) {
-    auto table_page = TablePage(record.Address().page_idx, &_pager, _interner);
+    auto table_page = TablePage(record.Address().page_index, &_pager, _interner);
     table_page.delete_record(record.Address().slot_idx);
-    update_indexes_after_delete(record);
+    _indexes.Remove(_schema, record);
     _id_to_addr.remove(record.Id());
     _journal.save_deletion(record);
 }
@@ -260,25 +209,25 @@ void Table::revert(const std::string& time) {
         auto& record = revert_data.record;
         if (revert_data.type == Journal::Track::Type::INSERT) {
             write_record_to_disk(record);
-            update_indexes_after_insert(record);
+            _indexes.Insert(_schema, record);
             _id_to_addr.insert(record.Id(), record.Address());
         } else if (revert_data.type == Journal::Track::Type::UPDATE) {
             assert(_id_to_addr.search(record.Id()).size() == 1);
             auto current_record_addr = _id_to_addr.search(record.Id()).back();
             auto current_record = *read_record(current_record_addr);
             record.SetAddress(current_record_addr);
-            auto table_page = TablePage(record.Address().page_idx, &_pager, _interner);
+            auto table_page = TablePage(record.Address().page_index, &_pager, _interner);
             table_page.delete_record(record.Address().slot_idx);
-            write_record_to_disk(record, record.Address().page_idx);
-            update_indexes_after_update(current_record, record);
+            write_record_to_disk(record, record.Address().page_index);
+            _indexes.Update(_schema, current_record, record);
             _id_to_addr.update(record.Id(), record.Address());
         } else if (revert_data.type == Journal::Track::Type::DELETE) {
             assert(_id_to_addr.search(record.Id()).size() == 1);
             auto address = _id_to_addr.search(record.Id()).back();
-            auto table_page = TablePage(address.page_idx, &_pager, _interner);
+            auto table_page = TablePage(address.page_index, &_pager, _interner);
             auto real_record = *table_page.read_record(address.slot_idx, _schema);
             table_page.delete_record(address.slot_idx);
-            update_indexes_after_delete(real_record);
+            _indexes.Remove(_schema, real_record);
             _id_to_addr.remove(record.Id());
             assert(record.Id() + 1 == _schema.RecordIdCount());
             _schema.DecrementRecordIdCount();
@@ -357,41 +306,12 @@ void Table::validate_record(const Record& record) {
                 throw std::runtime_error("Column '" + column.Name() + "' expects STRING, got " + value.GetTypeName());
             }
         }
-        if (column.IsIndexed()) {
-            auto duplicate_found = false;
-            for_each_indexed_value(record, [&](size_t indexed_column, const Column&, const Value& indexed_value, IndexTree& index) {
-                if (indexed_column != i) {
-                    return;
-                }
-                duplicate_found = std::visit(
-                [&](auto& tree) -> bool {
-                    using KeyType = typename std::decay_t<decltype(tree)>::key_type;
-                    if constexpr (std::is_same_v<KeyType, int32_t>) {
-                        auto results = tree.search(indexed_value.AsInt());
-                        for (auto addr : results) {
-                            if (!record.HasAddress() || addr != record.Address()) {
-                                return true;
-                            }
-                        }
-                    } else if constexpr (std::is_same_v<KeyType, StringId>) {
-                        auto results = tree.search(indexed_value.AsString());
-                        for (auto addr : results) {
-                            auto prob_record = *read_record(addr);
-                            if (prob_record[i].StrictEq(indexed_value) && (!record.HasAddress() || addr != record.Address())) {
-                                return true;
-                            }
-                        }
-                    }
-                    return false;
-                },
-                index
-                );
-            });
-            if (duplicate_found) {
-                auto text = value.IsString() ? std::string(_interner->View(value.AsString())) : value.ToString();
-                throw std::
-                    runtime_error("Duplicate value for indexed column '" + column.Name() + "': " + text);
-            }
+        if (column.IsIndexed() && _indexes.HasDuplicate(_schema, record, i, value, [this](auto address) {
+                return read_record(address);
+            }))
+        {
+            auto text = value.IsString() ? std::string(_interner->View(value.AsString())) : value.ToString();
+            throw std::runtime_error("Duplicate value for indexed column '" + column.Name() + "': " + text);
         }
     }
 }
@@ -424,81 +344,6 @@ TablePage Table::find_enough_free_page(uint32_t free_space, uint32_t prefer_page
         }
     }
     return TablePage::create(&_pager, _interner);
-}
-
-void Table::for_each_indexed_value(
-    const Record& record,
-    const std::function<void(size_t, const Column&, const Value&, IndexTree&)>& action
-) {
-    for (size_t i = 0; i < _schema.Size(); ++i) {
-        const auto& column = _schema[i];
-        if (!column.IsIndexed()) {
-            continue;
-        }
-        if (record[i].IsNull()) {
-            continue;
-        }
-        auto it = _indexes.find(column.Name());
-        if (it == _indexes.end()) {
-            throw std::runtime_error("Index not found for column " + column.Name() + ".");
-        }
-        action(i, column, record[i], it->second);
-    }
-}
-
-void Table::update_indexes_after_insert(const Record& record) {
-    for_each_indexed_value(record, [&](size_t, const Column&, const Value& value, IndexTree& index) {
-        std::visit(
-            [&](auto& tree) {
-                using KeyType = typename std::decay_t<decltype(tree)>::key_type;
-                if constexpr (std::is_same_v<KeyType, int32_t>) {
-                    tree.insert(value.AsInt(), record.Address());
-                } else if constexpr (std::is_same_v<KeyType, StringId>) {
-                    tree.insert(value.AsString(), record.Address());
-                }
-            },
-            index
-        );
-    });
-}
-
-void Table::update_indexes_after_delete(const Record& record) {
-    for_each_indexed_value(record, [&](size_t, const Column&, const Value& value, IndexTree& index) {
-        std::visit(
-            [&](auto& tree) {
-                using KeyType = typename std::decay_t<decltype(tree)>::key_type;
-                if constexpr (std::is_same_v<KeyType, int32_t>) {
-                    tree.remove(value.AsInt());
-                } else if constexpr (std::is_same_v<KeyType, StringId>) {
-                    tree.remove(value.AsString());
-                }
-            },
-            index
-        );
-    });
-}
-
-void Table::update_indexes_after_update(const Record& old_record, const Record& new_record) {
-    for_each_indexed_value(new_record, [&](size_t i, const Column&, const Value&, IndexTree& index) {
-        if (old_record[i].StrictEq(new_record[i]) && old_record.Address() == new_record.Address()) {
-            return;
-        }
-            const auto& old_value = old_record[i];
-            const auto& new_value = new_record[i];
-            std::visit(
-                [&](auto& tree) {
-                    using KeyType = typename std::decay_t<decltype(tree)>::key_type;
-                    if constexpr (std::is_same_v<KeyType, int32_t>) {
-                        tree.remove(old_value.AsInt());
-                        tree.insert(new_value.AsInt(), new_record.Address());
-                    } else if constexpr (std::is_same_v<KeyType, StringId>) {
-                        tree.remove(old_value.AsString());
-                        tree.insert(new_value.AsString(), new_record.Address());
-                    }
-                },
-                index
-            );
-    });
 }
 
 std::string Table::name() const { return _name; }

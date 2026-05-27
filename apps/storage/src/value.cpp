@@ -1,7 +1,6 @@
 #include <qdb/storage/value.h>
 
 #include <cassert>
-#include <iostream>
 
 namespace qdb::storage {
 
@@ -203,20 +202,6 @@ auto Value::operator>=(const Value& other) const -> SqlBool {
 
 auto Value::operator!=(const Value& other) const -> SqlBool {
     return !(*this == other);
-}
-
-auto operator<<(std::ostream& ostream, const Value& value) -> std::ostream& {
-    ostream << "V(" << value.GetTypeName();
-
-    if (value.IsInt()) {
-        ostream << "|" << value.AsInt();
-    } else if (value.IsString()) {
-        ostream << "|string_id=" << value.AsString().value;
-    }
-
-    ostream << ")";
-
-    return ostream;
 }
 
 }  // namespace qdb::storage

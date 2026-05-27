@@ -39,18 +39,16 @@ public:
     auto GetTotalRequests() const -> std::uint64_t;
     auto GetTotalErrors() const -> std::uint64_t;
 
-    auto GetReport() const -> std::string;
-
 private:
     void OutputLoop();
 
     std::atomic<std::uint64_t> total_requests_{0};
     std::atomic<std::uint64_t> total_errors_{0};
     std::atomic<std::uint64_t> total_duration_ms_{0};
+    std::uint64_t last_total_requests_{0};
 
     RollingWindow<10> rps_window_;
     RollingWindow<600> rps_10min_;
-    RollingWindow<10> duration_window_;
 
     std::thread output_thread_;
     std::atomic<bool> running_{true};

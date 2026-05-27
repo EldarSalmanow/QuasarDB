@@ -347,7 +347,7 @@ TEST_F(TableTest, RevertTest) {
         for (const auto& record : table.records()) {
             out << record.Id() << ":";
             for (uint32_t i = 0; i < record.Size(); ++i) {
-                out << record[i] << ";";
+                out << record[i].ToString() << ";";
             }
             out << "\n";
         }

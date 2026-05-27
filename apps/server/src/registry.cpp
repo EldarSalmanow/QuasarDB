@@ -29,16 +29,6 @@ auto SanitizedPath(std::string value) -> std::filesystem::path {
     return path / (part.empty() ? "_" : part);
 }
 
-auto ExistingExecutable(const std::vector<std::filesystem::path>& candidates) -> std::filesystem::path {
-    for (const auto& candidate : candidates) {
-        std::error_code ec;
-        if (std::filesystem::exists(candidate, ec) && !std::filesystem::is_directory(candidate, ec)) {
-            return candidate;
-        }
-    }
-    return {};
-}
-
 StorageId::StorageId(std::string table)
         : table(std::move(table)) {}
 
@@ -170,7 +160,7 @@ auto Registry::StartProcessNonSync(const StorageId& id, const StorageNode& node)
         execl(binary.c_str(), binary.c_str(),
               "--host", node.host.c_str(),
               "--port", port.c_str(),
-              "--data-dir", data_dir.c_str(),
+              "--root", data_dir.c_str(),
               static_cast<char*>(nullptr));
         _exit(127);
     }
@@ -214,13 +204,12 @@ auto Registry::ResolveStorageBinary() const -> std::filesystem::path {
         return std::filesystem::absolute(storage_binary_);
     }
 
-    const auto cwd = std::filesystem::current_path();
-    return ExistingExecutable({
-        cwd / "qdb-storage",
-        cwd / "cmake-build-debug" / "qdb-storage",
-        cwd / "build" / "qdb-storage",
-        cwd / "apps" / "storage" / "qdb-storage",
-    });
+    std::error_code ec;
+    auto candidate = std::filesystem::current_path() / "qdb-storage";
+    if (std::filesystem::exists(candidate, ec) && !std::filesystem::is_directory(candidate, ec)) {
+        return candidate;
+    }
+    return {};
 }
 
 auto Registry::WaitUntilReady(const StorageNode& node) -> bool {

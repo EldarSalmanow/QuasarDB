@@ -23,48 +23,7 @@ public:
 
         static constexpr uint32_t TIME_LEN = 23;
 
-    protected:
-        Type _type;
-        uint32_t _record_id;
-        std::string _time;
-
-        Track(Type type, uint32_t record_id);
-
-    public:
         static std::string get_now();
-
-        Type type() const;
-
-        std::string time() const;
-
-        virtual ~Track() noexcept = default;
-
-        virtual uint32_t write(std::fstream& os);
-    };
-
-    class DeleteTrack : public Track {
-    public:
-        DeleteTrack(uint32_t record_id);
-
-        uint32_t write(std::fstream& os) override;
-    };
-
-    class InsertTrack : public Track {
-        std::vector<uint8_t> _serialized_record;
-
-    public:
-        explicit InsertTrack(const Record& record);
-
-        uint32_t write(std::fstream& os) override;
-    };
-
-    class UpdateTrack : public Track {
-        std::vector<uint8_t> _serialized_record;
-
-    public:
-        explicit UpdateTrack(const Record& record);
-
-        uint32_t write(std::fstream& os) override;
     };
 
     struct RevertResult {
@@ -103,6 +62,8 @@ public:
     RevertResult revert_last(const std::string& time, const Schema& schema, Interner& interner);
 
 private:
+    std::string write_track(Track::Type type, uint32_t record_id, std::vector<uint8_t> data = {});
+
     void truncate_to_last();
 };
 

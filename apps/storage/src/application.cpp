@@ -1,7 +1,6 @@
 #include <qdb/storage/application.h>
 
 #include <filesystem>
-#include <iostream>
 #include <qdb/storage/executor.h>
 #include <qdb/server/ast.h>
 
@@ -46,11 +45,8 @@ auto Application::New(Config config) -> std::unique_ptr<Application> {
 
 auto Application::Run() -> std::int32_t {
     if (!server_ || !server_->Start()) {
-        std::cerr << "Failed to start storage on " << config_.Host() << ":" << config_.Port() << std::endl;
         return 1;
     }
-
-    std::cout << "Storage listening on " << config_.Host() << ":" << config_.Port() << std::endl;
 
     while (server_->IsRunning()) {
         auto client = AcceptConnection();

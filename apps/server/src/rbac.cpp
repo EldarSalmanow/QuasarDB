@@ -1,8 +1,8 @@
 #include <qdb/server/rbac.h>
 
+#include <qdb/core/json_file.h>
+
 #include <algorithm>
-#include <filesystem>
-#include <fstream>
 
 namespace qdb::server {
 
@@ -110,33 +110,14 @@ auto RBACManager::GetAllRules() const -> const std::vector<AccessRule>& {
 }
 
 void RBACManager::Load() {
-    std::ifstream file(storage_path_);
-    if (!file.is_open()) return;
-
     try {
-        nlohmann::json j;
-        file >> j;
-        rules_ = j.get<std::vector<AccessRule>>();
+        rules_ = qdb::core::JsonFile(storage_path_).Load(nlohmann::json::array()).get<std::vector<AccessRule>>();
     } catch (...) {
     }
 }
 
 auto RBACManager::Save() const -> bool {
-    auto tmp_path = storage_path_ + ".tmp";
-    nlohmann::json j = rules_;
-    std::ofstream file(tmp_path, std::ios::trunc);
-    if (!file.is_open()) return false;
-    std::error_code ec;
-    std::filesystem::permissions(tmp_path, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
-                                 std::filesystem::perm_options::replace, ec);
-    if (ec) { file.close(); std::filesystem::remove(tmp_path); return false; }
-    file << j.dump(4);
-    if (!file.good()) { file.close(); std::filesystem::remove(tmp_path); return false; }
-    file.close();
-    if (file.fail()) { std::filesystem::remove(tmp_path); return false; }
-    std::filesystem::rename(tmp_path, storage_path_, ec);
-    if (ec) { std::filesystem::remove(tmp_path); return false; }
-    return true;
+    return qdb::core::JsonFile(storage_path_).Save(rules_);
 }
 
 }  // namespace qdb::server

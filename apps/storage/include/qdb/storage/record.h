@@ -10,57 +10,56 @@
 namespace qdb::storage {
 
 struct RecordAddress {
-    uint32_t page_idx;
-    uint32_t slot_idx;
+    std::uint32_t page_index;
+    std::uint32_t slot_idx;
 
     auto operator==(const RecordAddress& other) const -> bool;
 
     auto operator!=(const RecordAddress& other) const -> bool;
 
-    friend std::ostream& operator<<(std::ostream& os, const RecordAddress& record_addr);
+    friend auto operator<<(std::ostream& ostream, const RecordAddress& address) -> std::ostream&;
 };
 
 class Record final {
-    uint32_t _id;
-    std::vector<Value> _fields;
-    std::optional<RecordAddress> _address;
+public:
+    Record(std::uint32_t id, std::uint32_t values_count);
+
+    Record(std::uint32_t id, std::vector<Value> values);
+
+    Record(std::uint32_t id, std::vector<Value> values, RecordAddress address);
 
 public:
-    Record(uint32_t id, uint32_t n);
+    static auto FromBinary(const std::uint8_t* data, std::uint32_t size, std::uint32_t record_id,
+                           const Schema& schema, Interner& interner) -> Record;
 
-    Record(uint32_t id, std::vector<Value> values);
+public:
+    auto Id() const -> std::uint32_t;
 
-    Record(uint32_t id, std::vector<Value> values, RecordAddress addr);
-
-    auto operator==(const Record& other) const -> bool;
-
-    auto Size() const -> uint32_t;
-
-    auto operator[](size_t index) -> Value&;
-
-    auto operator[](size_t index) const -> const Value&;
-
-    auto Id() const -> uint32_t;
-
-    auto HasAddress() const -> bool;
+    auto Size() const -> std::uint32_t;
 
     auto Address() const -> RecordAddress;
 
     auto SetAddress(RecordAddress address) -> void;
 
-    auto SerializedSize() const -> uint32_t;
+    auto HasAddress() const -> bool;
 
-    auto Serialize() const -> std::vector<uint8_t>;
+    auto SerializedSize() const -> std::uint32_t;
 
-    static auto FromBinary(
-        const uint8_t* data,
-        uint32_t size,
-        uint32_t record_id,
-        const Schema& schema,
-        Interner& interner
-    ) -> Record;
+    auto Serialize() const -> std::vector<std::uint8_t>;
 
-    friend std::ostream& operator<<(std::ostream& os, const Record& record);
+public:
+    auto operator==(const Record& other) const -> bool;
+
+    auto operator[](const std::size_t &index) -> Value&;
+
+    auto operator[](const std::size_t &index) const -> const Value&;
+
+private:
+    std::uint32_t _id;
+
+    std::vector<Value> _fields;
+
+    std::optional<RecordAddress> _address;
 };
 
 }  // namespace qdb::storage

@@ -258,4 +258,139 @@ TEST(ApplicationTest, AsyncQueryPollingError) {
     EXPECT_TRUE(Contains(capture.Str(), "Task failed: timeout"));
 }
 
+TEST(ApplicationTest, LogoutRequestsLoginAgain) {
+    ScopedTempFile file("LOGOUT;\nSELECT 1;\n");
+    const auto port = FindFreePort();
+    if (port == 0) {
+        GTEST_SKIP() << "Loopback TCP bind is unavailable";
+    }
+    qdb::core::TcpServer server("127.0.0.1", port);
+    if (!server.Start()) {
+        GTEST_SKIP() << "Loopback TCP bind is unavailable";
+    }
+
+    std::atomic<bool> server_ok{true};
+
+    std::thread server_thread([&server, &server_ok]() {
+        auto client = server.Accept();
+        if (!client) {
+            server_ok.store(false);
+            server.Stop();
+            return;
+        }
+
+        auto request = client->ReceiveRequest();
+        ASSERT_TRUE(request.has_value());
+        ASSERT_EQ(request->Action(), "handshake");
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
+            .Message("Handshake complete")
+            .Data({{"auth_required", true}, {"setup_required", false}})
+            .Build()));
+
+        request = client->ReceiveRequest();
+        ASSERT_TRUE(request.has_value());
+        server_ok.store(server_ok.load() && request->Action() == "login");
+        server_ok.store(server_ok.load() && request->Data().value("username", "") == "first");
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
+            .Message("Login successful")
+            .Data({{"token", "token-1"}})
+            .Build()));
+
+        request = client->ReceiveRequest();
+        ASSERT_TRUE(request.has_value());
+        server_ok.store(server_ok.load() && request->Action() == "login");
+        server_ok.store(server_ok.load() && request->Data().value("username", "") == "second");
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
+            .Message("Login successful")
+            .Data({{"token", "token-2"}})
+            .Build()));
+
+        request = client->ReceiveRequest();
+        ASSERT_TRUE(request.has_value());
+        server_ok.store(server_ok.load() && request->Action() == "query");
+        server_ok.store(server_ok.load() && request->Token() == "token-2");
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
+            .Message("Query executed")
+            .Build()));
+
+        client->Disconnect();
+        server.Stop();
+    });
+
+    const auto config = Config::New("127.0.0.1", port, file.Path().string());
+    auto application = Application::New(config);
+
+    InputRedirect input("first\npass\nsecond\npass\n");
+    OutputCapture capture(std::cout);
+    const auto result = application->Run();
+
+    server.Stop();
+    if (server_thread.joinable()) {
+        server_thread.join();
+    }
+
+    EXPECT_EQ(result, 0);
+    EXPECT_TRUE(server_ok.load());
+    EXPECT_TRUE(Contains(capture.Str(), "Logged out"));
+}
+
+TEST(ApplicationTest, SendsTelemetryCommand) {
+    ScopedTempFile file("TELEMETRY;\n");
+    const auto port = FindFreePort();
+    if (port == 0) {
+        GTEST_SKIP() << "Loopback TCP bind is unavailable";
+    }
+    qdb::core::TcpServer server("127.0.0.1", port);
+    if (!server.Start()) {
+        GTEST_SKIP() << "Loopback TCP bind is unavailable";
+    }
+
+    std::atomic<bool> server_ok{true};
+
+    std::thread server_thread([&server, &server_ok]() {
+        auto client = server.Accept();
+        if (!client) {
+            server_ok.store(false);
+            server.Stop();
+            return;
+        }
+
+        auto request = client->ReceiveRequest();
+        ASSERT_TRUE(request.has_value());
+        ASSERT_EQ(request->Action(), "handshake");
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
+            .Message("Handshake complete")
+            .Data({{"auth_required", false}, {"setup_required", false}})
+            .Build()));
+
+        request = client->ReceiveRequest();
+        ASSERT_TRUE(request.has_value());
+        server_ok.store(server_ok.load() && request->Action() == "telemetry");
+
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
+            .Message("Telemetry")
+            .Data({{"total_requests", 1}, {"total_errors", 0}})
+            .Build()));
+
+        client->Disconnect();
+        server.Stop();
+    });
+
+    const auto config = Config::New("127.0.0.1", port, file.Path().string());
+    auto application = Application::New(config);
+
+    OutputCapture capture(std::cout);
+    const auto result = application->Run();
+
+    server.Stop();
+    if (server_thread.joinable()) {
+        server_thread.join();
+    }
+
+    EXPECT_EQ(result, 0);
+    EXPECT_TRUE(server_ok.load());
+    EXPECT_TRUE(Contains(capture.Str(), "Telemetry"));
+    EXPECT_TRUE(Contains(capture.Str(), "total_requests"));
+}
+
 }  // namespace qdb::client::test

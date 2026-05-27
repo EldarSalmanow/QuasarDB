@@ -1,4 +1,6 @@
-#include "../include/qdb/storage/pager.h"
+#include <qdb/storage/pager.h>
+
+#include <cassert>
 
 namespace qdb::storage {
 

@@ -13,7 +13,6 @@
 #include <qdb/storage/table.h>
 
 #include <memory>
-#include <optional>
 
 
 namespace qdb::storage {

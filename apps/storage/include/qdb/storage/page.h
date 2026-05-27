@@ -1,10 +1,9 @@
 #ifndef QUASARDB_PAGE_H
 #define QUASARDB_PAGE_H
 
-#include "pager.h"
-#include "record.h"
-#include "schema.h"
-
+#include <qdb/storage/pager.h>
+#include <qdb/storage/record.h>
+#include <qdb/storage/schema.h>
 
 namespace qdb::storage {
 
@@ -35,10 +34,6 @@ public:
 
     static constexpr uint32_t MAX_RECORD_SIZE = PAGE_SIZE - sizeof(PageHeader) - sizeof(Cell);
 
-    Pager* _pager;
-    DataPage _data;
-    Interner* _interner;
-
 public:
     TablePage(uint32_t id, Pager* pager, Interner* interner);
 
@@ -61,6 +56,13 @@ public:
     std::optional<Record> read_record(uint32_t slot_idx, const Schema& schema) const;
 
     void delete_record(uint32_t slot_idx);
+
+private:
+    Pager* _pager;
+
+    DataPage _data;
+
+    Interner* _interner;
 };
 
 }  // namespace qdb::storage

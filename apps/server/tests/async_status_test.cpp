@@ -1,4 +1,4 @@
-#include <qdb/server/async_status.h>
+#include <qdb/server/task_processor.h>
 
 #include <gtest/gtest.h>
 
@@ -7,7 +7,7 @@
 
 namespace qdb::server {
 
-static auto MakeHandler(std::atomic<int>& counter, int delay_ms = 0) -> TaskTracker::Handler {
+static auto MakeHandler(std::atomic<int>& counter, int delay_ms = 0) -> TaskProcessor::Handler {
     return [&counter, delay_ms](const Statement&) -> qdb::core::Response {
         counter.fetch_add(1, std::memory_order_relaxed);
         if (delay_ms > 0) {
@@ -19,7 +19,7 @@ static auto MakeHandler(std::atomic<int>& counter, int delay_ms = 0) -> TaskTrac
 
 TEST(AsyncStatusTest, SubmitReturnsGuid) {
     std::atomic<int> counter{0};
-    TaskTracker tracker(MakeHandler(counter));
+    TaskProcessor tracker(MakeHandler(counter));
 
     auto guid = tracker.Submit(std::make_unique<SelectStmt>(true, std::vector<SelectItem>{}, TableRef{"users"}));
     ASSERT_FALSE(guid.empty());
@@ -29,13 +29,13 @@ TEST(AsyncStatusTest, SubmitReturnsGuid) {
 
 TEST(AsyncStatusTest, GetStatusPending) {
     std::atomic<int> counter{0};
-    TaskTracker tracker(MakeHandler(counter, 5000));
+    TaskProcessor tracker(MakeHandler(counter, 5000));
 
     auto guid = tracker.Submit(std::make_unique<SelectStmt>(true, std::vector<SelectItem>{}, TableRef{"users"}));
 
-    auto result = tracker.GetStatus(guid);
+    auto result = tracker.Get(guid);
     ASSERT_TRUE(result.has_value());
-    ASSERT_EQ(result->guid, guid);
+    ASSERT_EQ(result->id, guid);
     ASSERT_TRUE(result->status == TaskStatus::Pending || result->status == TaskStatus::Running);
 
     tracker.Stop();
@@ -43,13 +43,13 @@ TEST(AsyncStatusTest, GetStatusPending) {
 
 TEST(AsyncStatusTest, GetStatusCompleted) {
     std::atomic<int> counter{0};
-    TaskTracker tracker(MakeHandler(counter, 10));
+    TaskProcessor tracker(MakeHandler(counter, 10));
 
     auto guid = tracker.Submit(std::make_unique<SelectStmt>(true, std::vector<SelectItem>{}, TableRef{"users"}));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    auto result = tracker.GetStatus(guid);
+    auto result = tracker.Get(guid);
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(result->status, TaskStatus::Completed);
 
@@ -58,9 +58,9 @@ TEST(AsyncStatusTest, GetStatusCompleted) {
 
 TEST(AsyncStatusTest, GetStatusNonexistent) {
     std::atomic<int> counter{0};
-    TaskTracker tracker(MakeHandler(counter));
+    TaskProcessor tracker(MakeHandler(counter));
 
-    auto result = tracker.GetStatus("nonexistent-guid");
+    auto result = tracker.Get("nonexistent-guid");
     ASSERT_FALSE(result.has_value());
 
     tracker.Stop();
@@ -68,14 +68,14 @@ TEST(AsyncStatusTest, GetStatusNonexistent) {
 
 TEST(AsyncStatusTest, CancelTask) {
     std::atomic<int> counter{0};
-    TaskTracker tracker(MakeHandler(counter, 500));
+    TaskProcessor tracker(MakeHandler(counter, 500));
 
     auto guid = tracker.Submit(std::make_unique<SelectStmt>(true, std::vector<SelectItem>{}, TableRef{"users"}));
 
     auto cancelled = tracker.Cancel(guid);
     ASSERT_TRUE(cancelled);
 
-    auto result = tracker.GetStatus(guid);
+    auto result = tracker.Get(guid);
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(result->status, TaskStatus::Failed);
     ASSERT_TRUE(result->error.has_value());
@@ -86,7 +86,7 @@ TEST(AsyncStatusTest, CancelTask) {
 
 TEST(AsyncStatusTest, MultipleSubmissions) {
     std::atomic<int> counter{0};
-    TaskTracker tracker(MakeHandler(counter, 10), 4);
+    TaskProcessor tracker(MakeHandler(counter, 10), 4);
 
     std::vector<std::string> guids;
     for (int i = 0; i < 5; ++i) {
