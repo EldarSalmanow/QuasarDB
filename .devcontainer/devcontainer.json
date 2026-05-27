@@ -1,0 +1,44 @@
+{
+  "name": "QuasarDB DevContainer",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "cs128.cs128-clang-tidy",
+        "github.vscode-pull-request-github",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.makefile-tools",
+        "xaver.clang-format"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": false,
+        "cmake.generator": "Ninja",
+        "cmake.buildDirectory": "${workspaceFolder}/build/Debug",
+        "cmake.sourceDirectory": "${workspaceFolder}",
+        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+        "C_Cpp.formatting": "clangFormat",
+        "C_Cpp.clang_format_path": "/usr/bin/clang-format",
+        "[cpp]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "xaver.clang-format"
+        },
+        "[c]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "xaver.clang-format"
+        }
+      }
+    }
+  },
+  "postCreateCommand": "bash -lc 'make build'",
+  "remoteUser": "vscode",
+  "runArgs": [
+    "--cap-add=SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined"
+  ]
+}
+

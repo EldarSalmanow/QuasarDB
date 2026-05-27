@@ -1,0 +1,25 @@
+BasedOnStyle: Google
+DerivePointerAlignment: false
+IncludeBlocks: Preserve
+AttributeMacros: ["noexcept"]
+ColumnLimit: 120
+IndentWidth: 4
+TabWidth: 4
+AccessModifierOffset: -4
+BinPackParameters: false
+BinPackArguments: false
+AlignAfterOpenBracket: BlockIndent
+AlwaysBreakAfterDefinitionReturnType: None
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllArgumentsOnNextLine: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterControlStatement: MultiLine
+PenaltyBreakOpenParenthesis: 5000000
+PenaltyIndentedWhitespace: 100000
+PenaltyBreakFirstLessLess: 0
+PenaltyBreakAssignment: 10000
+PenaltyExcessCharacter: 1000000000
+PenaltyBreakBeforeFirstCallParameter: 1
+PenaltyReturnTypeOnItsOwnLine: 10000000
+IndentWrappedFunctionNames: false

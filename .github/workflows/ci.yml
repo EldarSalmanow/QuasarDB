@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    name: Check Formatting and Static Analysis
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: make setup
+
+      - name: Run quality checks
+        run: make check
+
+  build-test:
+    runs-on: ubuntu-22.04
+    name: Build and Test
+    needs: check
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: make setup
+
+      - name: Run build and tests
+        run: make test

@@ -1,0 +1,15 @@
+Checks: >
+  -*,
+  bugprone-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  -readability-function-cognitive-complexity,
+  -readability-magic-numbers,
+  -readability-redundant-access-specifiers,
+  -performance-avoid-endl
+
+WarningsAsErrors: '*'
+HeaderFilterRegex: '^(apps|libs)/.*'
