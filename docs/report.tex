@@ -8,6 +8,10 @@
 \setsansfont{Arial}
 \setmonofont{Consolas}[Script=Cyrillic]
 \newfontfamily\cyrillicfonttt{Consolas}[Script=Cyrillic]
+\newfontfamily\englishfont{Times New Roman}
+
+% Inline code should use the main text font.
+\renewcommand{\texttt}[1]{\textrm{#1}}
 
 \usepackage[left=20mm,right=15mm,top=15mm,bottom=15mm]{geometry}
 \usepackage{setspace}
@@ -27,6 +31,7 @@
 \usepackage{xcolor}
 \usepackage{xurl}
 \usepackage{hyperref}
+\usepackage{pdfpages}
 
 \hypersetup{
     colorlinks=false,
@@ -104,42 +109,8 @@
 
 \begin{document}
 
-\begin{titlepage}
-    \thispagestyle{empty}
-    \begin{center}
-        Министерство науки и высшего образования Российской Федерации\\
-        Федеральное государственное автономное образовательное учреждение\\
-        высшего образования\\
-        «\University»\\
-        \Department
+\includepdf[pages=1,pagecommand={\thispagestyle{empty}}]{\detokenize{Титульный лист.pdf}}
 
-        \vfill
-
-        \textbf{\CourseName}\\[1.5cm]
-        \textbf{\WorkTitle}\\[0.5cm]
-        Пояснительная записка
-
-        \vfill
-
-        \begin{flushright}
-            Выполнили: \Team\\
-            \Group\\[0.5cm]
-            Проверил: \Supervisor
-        \end{flushright}
-
-        \vfill
-
-        Москва, 2026
-    \end{center}
-\end{titlepage}
-
-\clearpage
-\section*{Реферат}
-\addcontentsline{toc}{section}{Реферат}
-
-Пояснительная записка посвящена разработке QuasarDB — учебной клиент-серверной системы управления базами данных на языке C++20. В работе описаны требования к системе, архитектура комплекса приложений, SQL-подобный язык запросов, организация хранения данных на диске, индексирование на основе B*+-дерева, журналирование изменений, механизм темпорального отката, сетевой протокол, аутентификация, разграничение доступа, логирование и телеметрия.
-
-Цель работы — реализовать СУБД, поддерживающую целочисленные и строковые типы данных, двухуровневую иерархию баз данных и таблиц, интерактивный и пакетный режимы работы, синтаксическую и семантическую валидацию запросов, JSON-формат результата и оптимизацию выборок с использованием индексов.
 
 \clearpage
 \tableofcontents
@@ -283,8 +254,8 @@ QuasarDB построена как набор CMake-таргетов. Общие
 \texttt{std::unique\_ptr}, RAII & Владение серверами, узлами дерева, клиентскими соединениями и автоматическое закрытие ресурсов в деструкторах. \\
 \texttt{std::variant} & Представление значений \texttt{NULL}, \texttt{INT}, \texttt{STRING} в едином типе \texttt{Value}. \\
 \texttt{std::filesystem} & Создание каталогов баз данных, путей таблиц, файлов схем, журналов и индексов. \\
-\texttt{std::thread}, атомарные счетчики & Обработка клиентских подключений, heartbeat-мониторинг, фоновые задачи и телеметрия. \\
-Шаблоны и concepts & Обобщенная реализация B*+-дерева для целочисленных, строковых и адресных ключей. \\
+\texttt{std::thread},\\
+\texttt{std::atomic} & Обработка клиентских подключений, heartbeat-мониторинг, фоновые задачи и телеметрия. \\
 \texttt{std::optional} & Возврат отсутствующих записей, токенов, задач и необязательных частей AST без специальных sentinel-значений. \\
 \texttt{nlohmann::json} & Единый формат публичного и внутреннего сетевого API, результатов выборок и конфигурационных файлов. \\
 \bottomrule
@@ -514,8 +485,6 @@ Core & TCP-клиент, TCP-сервер, сокеты, JSON-файлы, thread
 \addcontentsline{toc}{section}{Список использованных источников}
 
 \begin{enumerate}[label={\arabic*.}]
-    \item ГОСТ 7.32--2017. Система стандартов по информации, библиотечному и издательскому делу. Отчет о научно-исследовательской работе. Структура и правила оформления. Москва: Стандартинформ, 2017.
-    \item ГОСТ Р 7.0.100--2018. Система стандартов по информации, библиотечному и издательскому делу. Библиографическая запись. Библиографическое описание. Общие требования и правила составления. Москва: Стандартинформ, 2018.
     \item ISO/IEC 14882:2020. Programming languages -- C++. Geneva: International Organization for Standardization, 2020.
     \item CMake Documentation. URL: \url{https://cmake.org/documentation/} (дата обращения: 27.05.2026).
     \item nlohmann/json: JSON for Modern C++. URL: \url{https://github.com/nlohmann/json} (дата обращения: 27.05.2026).
@@ -526,6 +495,7 @@ Core & TCP-клиент, TCP-сервер, сокеты, JSON-файлы, thread
 
 \clearpage
 \appendix
+\renewcommand{\thesection}{\arabic{section}}
 \section{Грамматика основных команд}
 
 \begin{lstlisting}[style=qdbcpp,caption={Фрагмент EBNF-грамматики языка QuasarDB}]
