@@ -1,0 +1,6 @@
+- [x] add installation of executables to specified path
+- [] review infrastructure code
+- [] rewrite readme
+- [] add examples of using
+- [] rewrite tests
+- [] add united documentation & remove old markdowns
