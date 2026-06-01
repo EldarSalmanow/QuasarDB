@@ -9,16 +9,7 @@
 
 namespace qdb::server {
 
-enum class TokenType {
-    Keyword,
-    Identifier,
-    StringLiteral,
-    IntegerLiteral,
-    Operator,
-    Punctuation,
-    EndOfFile,
-    Invalid
-};
+enum class TokenType { Keyword, Identifier, StringLiteral, IntegerLiteral, Operator, Punctuation, EndOfFile, Invalid };
 
 struct Token {
     TokenType type;

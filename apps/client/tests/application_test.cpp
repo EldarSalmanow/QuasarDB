@@ -50,10 +50,12 @@ TEST(ApplicationTest, ExecutesFileAndReceivesResponse) {
         auto request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "handshake");
-        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
-            .Message("Handshake complete")
-            .Data({{"auth_required", false}, {"setup_required", false}})
-            .Build()));
+        ASSERT_TRUE(client->SendResponse(
+            qdb::core::ResponseBuilder::Success()
+                .Message("Handshake complete")
+                .Data({{"auth_required", false}, {"setup_required", false}})
+                .Build()
+        ));
 
         request = client->ReceiveRequest();
         if (request) {
@@ -65,10 +67,11 @@ TEST(ApplicationTest, ExecutesFileAndReceivesResponse) {
             return;
         }
 
-        auto response = qdb::core::ResponseBuilder::Success()
-                            .Message("Query executed")
-                            .Data(nlohmann::json::parse(R"([{"id":1,"name":"Alice"}])"))
-                            .Build();
+        auto response =
+            qdb::core::ResponseBuilder::Success()
+                .Message("Query executed")
+                .Data(nlohmann::json::parse(R"([{"id":1,"name":"Alice"}])"))
+                .Build();
 
         server_ok.store(server_ok.load() && client->SendResponse(response));
         client->Disconnect();
@@ -131,19 +134,22 @@ TEST(ApplicationTest, AsyncQueryPollingCompletes) {
         auto request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "handshake");
-        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
-            .Message("Handshake complete")
-            .Data({{"auth_required", false}, {"setup_required", false}})
-            .Build()));
+        ASSERT_TRUE(client->SendResponse(
+            qdb::core::ResponseBuilder::Success()
+                .Message("Handshake complete")
+                .Data({{"auth_required", false}, {"setup_required", false}})
+                .Build()
+        ));
 
         request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "query");
 
-        auto pending = qdb::core::ResponseBuilder::Pending()
-                           .Message("Operation is running in background")
-                           .Data({{"task_id", "550e8400-e29b-41d4-a716-446655440000"}})
-                           .Build();
+        auto pending =
+            qdb::core::ResponseBuilder::Pending()
+                .Message("Operation is running in background")
+                .Data({{"task_id", "550e8400-e29b-41d4-a716-446655440000"}})
+                .Build();
         ASSERT_TRUE(client->SendResponse(pending));
 
         for (int i = 0; i < 3; ++i) {
@@ -152,10 +158,11 @@ TEST(ApplicationTest, AsyncQueryPollingCompletes) {
             ASSERT_EQ(request->Action(), "check_task");
             ++poll_count;
 
-            auto still_pending = qdb::core::ResponseBuilder::Pending()
-                                    .Message("Operation is still running")
-                                    .Data({{"task_id", "550e8400-e29b-41d4-a716-446655440000"}})
-                                    .Build();
+            auto still_pending =
+                qdb::core::ResponseBuilder::Pending()
+                    .Message("Operation is still running")
+                    .Data({{"task_id", "550e8400-e29b-41d4-a716-446655440000"}})
+                    .Build();
             ASSERT_TRUE(client->SendResponse(still_pending));
         }
 
@@ -164,10 +171,11 @@ TEST(ApplicationTest, AsyncQueryPollingCompletes) {
         ASSERT_EQ(request->Action(), "check_task");
         ++poll_count;
 
-        auto completed = qdb::core::ResponseBuilder::Success()
-                             .Message("Query executed")
-                             .Data(nlohmann::json::parse(R"([{"count":5}])"))
-                             .Build();
+        auto completed =
+            qdb::core::ResponseBuilder::Success()
+                .Message("Query executed")
+                .Data(nlohmann::json::parse(R"([{"count":5}])"))
+                .Build();
         ASSERT_TRUE(client->SendResponse(completed));
 
         client->Disconnect();
@@ -214,28 +222,29 @@ TEST(ApplicationTest, AsyncQueryPollingError) {
         auto request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "handshake");
-        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
-            .Message("Handshake complete")
-            .Data({{"auth_required", false}, {"setup_required", false}})
-            .Build()));
+        ASSERT_TRUE(client->SendResponse(
+            qdb::core::ResponseBuilder::Success()
+                .Message("Handshake complete")
+                .Data({{"auth_required", false}, {"setup_required", false}})
+                .Build()
+        ));
 
         request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "query");
 
-        auto pending = qdb::core::ResponseBuilder::Pending()
-                           .Message("Operation is running in background")
-                           .Data({{"task_id", "550e8400-e29b-41d4-a716-446655440001"}})
-                           .Build();
+        auto pending =
+            qdb::core::ResponseBuilder::Pending()
+                .Message("Operation is running in background")
+                .Data({{"task_id", "550e8400-e29b-41d4-a716-446655440001"}})
+                .Build();
         ASSERT_TRUE(client->SendResponse(pending));
 
         request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "check_task");
 
-        auto error = qdb::core::ResponseBuilder::Error()
-                         .Message("Task failed: timeout")
-                         .Build();
+        auto error = qdb::core::ResponseBuilder::Error().Message("Task failed: timeout").Build();
         ASSERT_TRUE(client->SendResponse(error));
 
         client->Disconnect();
@@ -282,36 +291,34 @@ TEST(ApplicationTest, LogoutRequestsLoginAgain) {
         auto request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "handshake");
-        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
-            .Message("Handshake complete")
-            .Data({{"auth_required", true}, {"setup_required", false}})
-            .Build()));
+        ASSERT_TRUE(client->SendResponse(
+            qdb::core::ResponseBuilder::Success()
+                .Message("Handshake complete")
+                .Data({{"auth_required", true}, {"setup_required", false}})
+                .Build()
+        ));
 
         request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         server_ok.store(server_ok.load() && request->Action() == "login");
         server_ok.store(server_ok.load() && request->Data().value("username", "") == "first");
-        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
-            .Message("Login successful")
-            .Data({{"token", "token-1"}})
-            .Build()));
+        ASSERT_TRUE(client->SendResponse(
+            qdb::core::ResponseBuilder::Success().Message("Login successful").Data({{"token", "token-1"}}).Build()
+        ));
 
         request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         server_ok.store(server_ok.load() && request->Action() == "login");
         server_ok.store(server_ok.load() && request->Data().value("username", "") == "second");
-        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
-            .Message("Login successful")
-            .Data({{"token", "token-2"}})
-            .Build()));
+        ASSERT_TRUE(client->SendResponse(
+            qdb::core::ResponseBuilder::Success().Message("Login successful").Data({{"token", "token-2"}}).Build()
+        ));
 
         request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         server_ok.store(server_ok.load() && request->Action() == "query");
         server_ok.store(server_ok.load() && request->Token() == "token-2");
-        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
-            .Message("Query executed")
-            .Build()));
+        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success().Message("Query executed").Build()));
 
         client->Disconnect();
         server.Stop();
@@ -358,19 +365,23 @@ TEST(ApplicationTest, SendsTelemetryCommand) {
         auto request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         ASSERT_EQ(request->Action(), "handshake");
-        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
-            .Message("Handshake complete")
-            .Data({{"auth_required", false}, {"setup_required", false}})
-            .Build()));
+        ASSERT_TRUE(client->SendResponse(
+            qdb::core::ResponseBuilder::Success()
+                .Message("Handshake complete")
+                .Data({{"auth_required", false}, {"setup_required", false}})
+                .Build()
+        ));
 
         request = client->ReceiveRequest();
         ASSERT_TRUE(request.has_value());
         server_ok.store(server_ok.load() && request->Action() == "telemetry");
 
-        ASSERT_TRUE(client->SendResponse(qdb::core::ResponseBuilder::Success()
-            .Message("Telemetry")
-            .Data({{"total_requests", 1}, {"total_errors", 0}})
-            .Build()));
+        ASSERT_TRUE(client->SendResponse(
+            qdb::core::ResponseBuilder::Success()
+                .Message("Telemetry")
+                .Data({{"total_requests", 1}, {"total_errors", 0}})
+                .Build()
+        ));
 
         client->Disconnect();
         server.Stop();

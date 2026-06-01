@@ -3,8 +3,7 @@
 namespace qdb::storage {
 
 IndexSet::IndexSet(std::filesystem::path root, std::string table_name)
-    : root_(std::move(root)), table_name_(std::move(table_name)) {
-}
+    : root_(std::move(root)), table_name_(std::move(table_name)) {}
 
 void IndexSet::Open(const Schema& schema) {
     indexes_.clear();
@@ -59,71 +58,88 @@ auto IndexSet::Find(const Schema& schema, const std::string& column_name, const 
         throw std::runtime_error("Index not found for column " + column_name + ".");
     }
 
-    return std::visit([&](auto& tree) -> std::vector<RecordAddress> {
-        using Key = typename std::decay_t<decltype(tree)>::key_type;
-        if constexpr (std::is_same_v<Key, int32_t>) {
-            return tree.search(value.AsInt());
-        } else {
-            return tree.search(value.AsString());
-        }
-    }, it->second);
+    return std::visit(
+        [&](auto& tree) -> std::vector<RecordAddress> {
+            using Key = typename std::decay_t<decltype(tree)>::key_type;
+            if constexpr (std::is_same_v<Key, int32_t>) {
+                return tree.search(value.AsInt());
+            } else {
+                return tree.search(value.AsString());
+            }
+        },
+        it->second
+    );
 }
 
-auto IndexSet::HasDuplicate(const Schema& schema, const Record& record, std::size_t column_index, const Value& value,
-                            const Reader& reader) -> bool {
+auto IndexSet::HasDuplicate(
+    const Schema& schema,
+    const Record& record,
+    std::size_t column_index,
+    const Value& value,
+    const Reader& reader
+) -> bool {
     bool found = false;
     ForEach(schema, record, [&](std::size_t i, const Column&, const Value& indexed_value, Tree& index) {
         if (i != column_index || indexed_value.IsNull()) {
             return;
         }
-        found = std::visit([&](auto& tree) {
-            using Key = typename std::decay_t<decltype(tree)>::key_type;
-            auto addresses = [&] {
-                if constexpr (std::is_same_v<Key, int32_t>) {
-                    return tree.search(indexed_value.AsInt());
-                } else {
-                    return tree.search(indexed_value.AsString());
-                }
-            }();
+        found = std::visit(
+            [&](auto& tree) {
+                using Key = typename std::decay_t<decltype(tree)>::key_type;
+                auto addresses = [&] {
+                    if constexpr (std::is_same_v<Key, int32_t>) {
+                        return tree.search(indexed_value.AsInt());
+                    } else {
+                        return tree.search(indexed_value.AsString());
+                    }
+                }();
 
-            for (auto address : addresses) {
-                if (record.HasAddress() && address == record.Address()) {
-                    continue;
+                for (auto address : addresses) {
+                    if (record.HasAddress() && address == record.Address()) {
+                        continue;
+                    }
+                    auto existing = reader(address);
+                    if (existing && (*existing)[column_index].StrictEq(value)) {
+                        return true;
+                    }
                 }
-                auto existing = reader(address);
-                if (existing && (*existing)[column_index].StrictEq(value)) {
-                    return true;
-                }
-            }
-            return false;
-        }, index);
+                return false;
+            },
+            index
+        );
     });
     return found;
 }
 
 void IndexSet::Insert(const Schema& schema, const Record& record) {
     ForEach(schema, record, [&](std::size_t, const Column&, const Value& value, Tree& index) {
-        std::visit([&](auto& tree) {
-            using Key = typename std::decay_t<decltype(tree)>::key_type;
-            if constexpr (std::is_same_v<Key, int32_t>) {
-                tree.insert(value.AsInt(), record.Address());
-            } else {
-                tree.insert(value.AsString(), record.Address());
-            }
-        }, index);
+        std::visit(
+            [&](auto& tree) {
+                using Key = typename std::decay_t<decltype(tree)>::key_type;
+                if constexpr (std::is_same_v<Key, int32_t>) {
+                    tree.insert(value.AsInt(), record.Address());
+                } else {
+                    tree.insert(value.AsString(), record.Address());
+                }
+            },
+            index
+        );
     });
 }
 
 void IndexSet::Remove(const Schema& schema, const Record& record) {
     ForEach(schema, record, [&](std::size_t, const Column&, const Value& value, Tree& index) {
-        std::visit([&](auto& tree) {
-            using Key = typename std::decay_t<decltype(tree)>::key_type;
-            if constexpr (std::is_same_v<Key, int32_t>) {
-                tree.remove(value.AsInt());
-            } else {
-                tree.remove(value.AsString());
-            }
-        }, index);
+        std::visit(
+            [&](auto& tree) {
+                using Key = typename std::decay_t<decltype(tree)>::key_type;
+                if constexpr (std::is_same_v<Key, int32_t>) {
+                    tree.remove(value.AsInt());
+                } else {
+                    tree.remove(value.AsString());
+                }
+            },
+            index
+        );
     });
 }
 
@@ -144,16 +160,19 @@ void IndexSet::Update(const Schema& schema, const Record& old_record, const Reco
             continue;
         }
         auto& index = it->second;
-        std::visit([&](auto& tree) {
-            using Key = typename std::decay_t<decltype(tree)>::key_type;
-            if constexpr (std::is_same_v<Key, int32_t>) {
-                if (!old_value.IsNull()) tree.remove(old_value.AsInt());
-                if (!new_value.IsNull()) tree.insert(new_value.AsInt(), new_record.Address());
-            } else {
-                if (!old_value.IsNull()) tree.remove(old_value.AsString());
-                if (!new_value.IsNull()) tree.insert(new_value.AsString(), new_record.Address());
-            }
-        }, index);
+        std::visit(
+            [&](auto& tree) {
+                using Key = typename std::decay_t<decltype(tree)>::key_type;
+                if constexpr (std::is_same_v<Key, int32_t>) {
+                    if (!old_value.IsNull()) tree.remove(old_value.AsInt());
+                    if (!new_value.IsNull()) tree.insert(new_value.AsInt(), new_record.Address());
+                } else {
+                    if (!old_value.IsNull()) tree.remove(old_value.AsString());
+                    if (!new_value.IsNull()) tree.insert(new_value.AsString(), new_record.Address());
+                }
+            },
+            index
+        );
     }
 }
 

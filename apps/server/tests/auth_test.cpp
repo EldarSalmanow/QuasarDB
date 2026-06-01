@@ -16,9 +16,10 @@ namespace qdb::server {
 namespace {
 auto MakeTempPath(const std::string& name) -> std::string {
     static int counter = 0;
-    return (std::filesystem::temp_directory_path() / ("qdb_" + name + "_" + std::to_string(++counter) + ".json")).string();
+    return (std::filesystem::temp_directory_path() / ("qdb_" + name + "_" + std::to_string(++counter) + ".json"))
+        .string();
 }
-}
+}  // namespace
 
 TEST(AuthTest, Sha256Basic) {
     auto empty_hash = ComputeSha256({});
@@ -76,9 +77,7 @@ TEST(AuthTest, Base64UrlRoundtrip) {
     std::string input = "Hello, World! This is a test with URL unsafe chars: +/";
     auto data = std::vector<std::uint8_t>(input.begin(), input.end());
     auto encoded = Base64UrlEncode(data);
-    ASSERT_TRUE(std::none_of(encoded.begin(), encoded.end(), [](char c) {
-        return c == '+' || c == '/' || c == '=';
-    }));
+    ASSERT_TRUE(std::none_of(encoded.begin(), encoded.end(), [](char c) { return c == '+' || c == '/' || c == '='; }));
 
     auto decoded = Base64UrlDecode(encoded);
     auto result = std::string(decoded.begin(), decoded.end());

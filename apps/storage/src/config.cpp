@@ -5,17 +5,13 @@
 namespace qdb::storage {
 
 Config::Config(std::string host, std::uint32_t port, std::string root)
-    : host_(std::move(host)),
-      port_(port),
-      root_(std::move(root)) {}
+    : host_(std::move(host)), port_(port), root_(std::move(root)) {}
 
 Config Config::New(std::string host, std::uint32_t port, std::string root) {
-    return Config {
-        std::move(host), port, std::move(root)
-    };
+    return Config{std::move(host), port, std::move(root)};
 }
 
-auto Config::FromArguments(int argc, char **argv) -> std::optional<Config> {
+auto Config::FromArguments(int argc, char** argv) -> std::optional<Config> {
     args::ArgumentParser parser("QuasarDB storage");
     args::HelpFlag help(parser, "help", "Display this help", {'?', "help"});
     args::ValueFlag<std::string> host(parser, "host", "Bind host (default: 127.0.0.1)", {'H', "host"}, "127.0.0.1");
@@ -39,16 +35,10 @@ auto Config::FromArguments(int argc, char **argv) -> std::optional<Config> {
     return Config::New(host.Get(), static_cast<std::uint32_t>(port.Get()), root.Get());
 }
 
-auto Config::Host() const -> const std::string & {
-    return host_;
-}
+auto Config::Host() const -> const std::string& { return host_; }
 
-auto Config::Port() const -> std::uint32_t {
-    return port_;
-}
+auto Config::Port() const -> std::uint32_t { return port_; }
 
-auto Config::Root() const -> const std::string & {
-    return root_;
-}
+auto Config::Root() const -> const std::string& { return root_; }
 
-}
+}  // namespace qdb::storage

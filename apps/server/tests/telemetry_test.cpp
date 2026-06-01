@@ -67,8 +67,12 @@ TEST(TelemetryTest, AllErrors) {
 
 TEST(TelemetryTest, ConcurrentRequests) {
     Telemetry t;
-    std::thread t1([&] { for (int i = 0; i < 100; ++i) t.RecordRequest(5, true); });
-    std::thread t2([&] { for (int i = 0; i < 100; ++i) t.RecordRequest(10, false); });
+    std::thread t1([&] {
+        for (int i = 0; i < 100; ++i) t.RecordRequest(5, true);
+    });
+    std::thread t2([&] {
+        for (int i = 0; i < 100; ++i) t.RecordRequest(10, false);
+    });
     t1.join();
     t2.join();
     ASSERT_EQ(t.GetTotalRequests(), 200);

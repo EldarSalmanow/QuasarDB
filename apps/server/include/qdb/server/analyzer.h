@@ -5,7 +5,6 @@
 
 #include <optional>
 
-
 namespace qdb::server {
 
 class Analyzer {

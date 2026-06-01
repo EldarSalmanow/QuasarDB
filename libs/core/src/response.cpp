@@ -2,25 +2,22 @@
 
 #include <nlohmann/json.hpp>
 
-
 namespace qdb::core {
 
 Response::Response() = default;
 
 Response::Response(std::string status, std::string message, nlohmann::json data)
-        : status_(std::move(status)), message_(std::move(message)), data_(std::move(data)) {}
+    : status_(std::move(status)), message_(std::move(message)), data_(std::move(data)) {}
 
 auto Response::FromJson(std::string string) -> Response {
     try {
         return FromJsonObject(nlohmann::json::parse(std::move(string)));
-    } catch (const std::exception &exception) {
-        return ResponseBuilder::Error()
-            .Message(std::string("Failed to parse JSON: ") + exception.what())
-            .Build();
+    } catch (const std::exception& exception) {
+        return ResponseBuilder::Error().Message(std::string("Failed to parse JSON: ") + exception.what()).Build();
     }
 }
 
-auto Response::FromJsonObject(const nlohmann::json &json) -> Response {
+auto Response::FromJsonObject(const nlohmann::json& json) -> Response {
     Response response;
 
     try {
@@ -35,7 +32,7 @@ auto Response::FromJsonObject(const nlohmann::json &json) -> Response {
         if (json.contains("data")) {
             response.data_ = json["data"];
         }
-    } catch (const std::exception &exception) {
+    } catch (const std::exception& exception) {
         return ResponseBuilder::Error()
             .Message(std::string("Failed to parse response object: ") + exception.what())
             .Build();
@@ -44,16 +41,10 @@ auto Response::FromJsonObject(const nlohmann::json &json) -> Response {
     return response;
 }
 
-auto Response::ToJson() const -> std::string {
-    return ToJsonObject().dump();
-}
+auto Response::ToJson() const -> std::string { return ToJsonObject().dump(); }
 
 auto Response::ToJsonObject() const -> nlohmann::json {
-    auto json = nlohmann::json{
-        {"status", status_},
-        {"message", message_},
-        {"data", data_}
-    };
+    auto json = nlohmann::json{{"status", status_}, {"message", message_}, {"data", data_}};
 
     return json;
 }
@@ -78,39 +69,31 @@ auto Response::GetDataObject() const -> const nlohmann::json& { return data_; }
 
 ResponseBuilder::ResponseBuilder() = default;
 
-auto ResponseBuilder::Success() -> ResponseBuilder {
-    return ResponseBuilder{}.Status("success");
-}
+auto ResponseBuilder::Success() -> ResponseBuilder { return ResponseBuilder{}.Status("success"); }
 
-auto ResponseBuilder::Pending() -> ResponseBuilder {
-    return ResponseBuilder{}.Status("pending");
-}
+auto ResponseBuilder::Pending() -> ResponseBuilder { return ResponseBuilder{}.Status("pending"); }
 
-auto ResponseBuilder::Error() -> ResponseBuilder {
-    return ResponseBuilder{}.Status("error");
-}
+auto ResponseBuilder::Error() -> ResponseBuilder { return ResponseBuilder{}.Status("error"); }
 
-auto ResponseBuilder::Status(std::string status) -> ResponseBuilder & {
+auto ResponseBuilder::Status(std::string status) -> ResponseBuilder& {
     response_.status_ = std::move(status);
 
     return *this;
 }
 
-auto ResponseBuilder::Message(std::string message) -> ResponseBuilder & {
+auto ResponseBuilder::Message(std::string message) -> ResponseBuilder& {
     response_.message_ = std::move(message);
 
     return *this;
 }
 
-auto ResponseBuilder::Data(nlohmann::json data) -> ResponseBuilder & {
+auto ResponseBuilder::Data(nlohmann::json data) -> ResponseBuilder& {
     response_.data_ = std::move(data);
 
     return *this;
 }
 
-auto ResponseBuilder::Build() const -> Response {
-    return response_;
-}
+auto ResponseBuilder::Build() const -> Response { return response_; }
 
 auto Success(std::string message, nlohmann::json data) -> Response {
     return ResponseBuilder::Success().Message(std::move(message)).Data(std::move(data)).Build();

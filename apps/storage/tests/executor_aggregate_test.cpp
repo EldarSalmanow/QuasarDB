@@ -9,9 +9,7 @@ namespace {
 
 using namespace qdb::server;
 
-auto Id(std::string name) -> std::unique_ptr<Expression> {
-    return std::make_unique<IdentifierExpr>(std::move(name));
-}
+auto Id(std::string name) -> std::unique_ptr<Expression> { return std::make_unique<IdentifierExpr>(std::move(name)); }
 
 auto Int(int value) -> std::unique_ptr<Expression> {
     return std::make_unique<LiteralExpr>(std::make_unique<Literal>(Literal::Type::Integer, std::to_string(value)));
@@ -29,11 +27,16 @@ TEST(ExecutorAggregateTest, SelectAggregatesWithWhere) {
     std::filesystem::create_directories(root);
 
     Interner interner;
-    Table table("users", root, Schema({
-        Column("id", Column::ColumnType::INT),
-        Column("age", Column::ColumnType::INT),
-        Column("name", Column::ColumnType::STRING),
-    }), &interner);
+    Table table(
+        "users",
+        root,
+        Schema({
+            Column("id", Column::ColumnType::INT),
+            Column("age", Column::ColumnType::INT),
+            Column("name", Column::ColumnType::STRING),
+        }),
+        &interner
+    );
     table.insert_record({Value(1), Value(17), interner.Intern("Ann")});
     table.insert_record({Value(2), Value(18), interner.Intern("Bob")});
     table.insert_record({Value(3), Value(30), interner.Intern("Cara")});
@@ -45,11 +48,7 @@ TEST(ExecutorAggregateTest, SelectAggregatesWithWhere) {
     items.push_back(Agg(AggregateExpr::Function::Sum, "age", "sum_age"));
     items.push_back(Agg(AggregateExpr::Function::Avg, "age", "avg_age"));
 
-    auto where = std::make_unique<ComparisonCondition>(
-        Id("age"),
-        ComparisonCondition::Operator::GreaterEqual,
-        Int(18)
-    );
+    auto where = std::make_unique<ComparisonCondition>(Id("age"), ComparisonCondition::Operator::GreaterEqual, Int(18));
     SelectStmt select(false, std::move(items), TableRef("users"), std::move(where));
 
     auto response = executor.Execute(select);

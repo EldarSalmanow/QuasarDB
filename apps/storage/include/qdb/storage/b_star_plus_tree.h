@@ -14,7 +14,6 @@
 #include <string_view>
 #include <vector>
 
-
 namespace qdb::storage {
 
 template <BTreeKey K_t, BTreeValue V_t>
@@ -872,15 +871,13 @@ private:
         std::string indent(depth * 2, ' ');
         auto node = std::make_unique<Node<K_t, V_t>>(node_id, &pager);
         if (node->is_leaf()) {
-            os << indent << "-"
-               << " Leaf[" << node->id() << "](" << node->size() << "): ";
+            os << indent << "-" << " Leaf[" << node->id() << "](" << node->size() << "): ";
             for (node_size_t i = 0; i < node->size(); ++i) {
                 os << node->get_key(i) << " ";
             }
             os << "\n";
         } else {
-            os << indent << "-"
-               << " Internal[" << node->id() << "](" << node->size() << "); ";
+            os << indent << "-" << " Internal[" << node->id() << "](" << node->size() << "); ";
             for (node_size_t i = 0; i < node->size(); ++i) {
                 os << node->get_key(i) << " ";
             }
@@ -936,8 +933,7 @@ private:
                 if (DEBUG) {
                     std::cout
                         << "IntegrityError: node[" << node->id() << "].get_key(" << i << ")==" << node->get_key(i)
-                        << " >= "
-                        << "node.get_key(" << i + 1 << ")==" << node->get_key(i + 1) << std::endl;
+                        << " >= " << "node.get_key(" << i + 1 << ")==" << node->get_key(i + 1) << std::endl;
                 }
                 result = false;
             }

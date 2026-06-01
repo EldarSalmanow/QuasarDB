@@ -162,8 +162,7 @@ TEST_F(TableTest, InsertNullInIndexedValidation) {
     std::string table_name = "table_name";
     auto table = Table(table_name, table_root, schema, &interner);
 
-    std::vector<Value> values_without_nulls =
-        {Value(10), Value(20), interner.Intern("abc"), interner.Intern("def")};
+    std::vector<Value> values_without_nulls = {Value(10), Value(20), interner.Intern("abc"), interner.Intern("def")};
     EXPECT_NO_THROW(table.insert_record(values_without_nulls));
 
     std::vector<Value> values_with_correct_nulls = {Value(), Value(30), Value(), interner.Intern("ghi")};
@@ -241,43 +240,18 @@ TEST_F(TableTest, CRUD_test) {
     std::string table_name = "table_name_2";
     auto table = Table(table_name, table_root, schema, &interner);
 
-    std::vector<Value> values_1 = {
-        Value(10),
-        Value(10),
-        Value(10),
-        interner.Intern("a"),
-        interner.Intern("b"),
-        interner.Intern("z")};
+    std::vector<Value> values_1 =
+        {Value(10), Value(10), Value(10), interner.Intern("a"), interner.Intern("b"), interner.Intern("z")};
     std::vector<Value> values_2 =
         {Value(10), Value(20), Value(20), Value(), interner.Intern("c"), interner.Intern("y")};
-    std::vector<Value> values_3 = {
-        Value(),
-        Value(20),
-        Value(30),
-        interner.Intern("a"),
-        interner.Intern("d"),
-        interner.Intern("x")};
-    std::vector<Value> values_4 = {
-        Value(20),
-        Value(20),
-        Value(40),
-        interner.Intern("a"),
-        interner.Intern("d"),
-        interner.Intern("w")};
-    std::vector<Value> values_5 = {
-        Value(20),
-        Value(30),
-        Value(50),
-        interner.Intern("b"),
-        interner.Intern("f"),
-        interner.Intern("v")};
-    std::vector<Value> values_6 = {
-        Value(30),
-        Value(30),
-        Value(60),
-        interner.Intern("c"),
-        interner.Intern("f"),
-        interner.Intern("u")};
+    std::vector<Value> values_3 =
+        {Value(), Value(20), Value(30), interner.Intern("a"), interner.Intern("d"), interner.Intern("x")};
+    std::vector<Value> values_4 =
+        {Value(20), Value(20), Value(40), interner.Intern("a"), interner.Intern("d"), interner.Intern("w")};
+    std::vector<Value> values_5 =
+        {Value(20), Value(30), Value(50), interner.Intern("b"), interner.Intern("f"), interner.Intern("v")};
+    std::vector<Value> values_6 =
+        {Value(30), Value(30), Value(60), interner.Intern("c"), interner.Intern("f"), interner.Intern("u")};
     auto record_1 = table.insert_record(values_1);
     auto record_2 = table.insert_record(values_2);
     auto record_3 = table.insert_record(values_3);
@@ -354,43 +328,18 @@ TEST_F(TableTest, RevertTest) {
         return out.str();
     };
 
-    std::vector<Value> values_1 = {
-        Value(10),
-        Value(10),
-        Value(10),
-        interner.Intern("a"),
-        interner.Intern("b"),
-        interner.Intern("z")};
+    std::vector<Value> values_1 =
+        {Value(10), Value(10), Value(10), interner.Intern("a"), interner.Intern("b"), interner.Intern("z")};
     std::vector<Value> values_2 =
         {Value(10), Value(20), Value(20), Value(), interner.Intern("c"), interner.Intern("y")};
-    std::vector<Value> values_3 = {
-        Value(),
-        Value(20),
-        Value(30),
-        interner.Intern("a"),
-        interner.Intern("d"),
-        interner.Intern("x")};
-    std::vector<Value> values_4 = {
-        Value(20),
-        Value(20),
-        Value(40),
-        interner.Intern("a"),
-        interner.Intern("d"),
-        interner.Intern("w")};
-    std::vector<Value> values_5 = {
-        Value(20),
-        Value(30),
-        Value(50),
-        interner.Intern("b"),
-        interner.Intern("f"),
-        interner.Intern("v")};
-    std::vector<Value> values_6 = {
-        Value(30),
-        Value(30),
-        Value(60),
-        interner.Intern("c"),
-        interner.Intern("f"),
-        interner.Intern("u")};
+    std::vector<Value> values_3 =
+        {Value(), Value(20), Value(30), interner.Intern("a"), interner.Intern("d"), interner.Intern("x")};
+    std::vector<Value> values_4 =
+        {Value(20), Value(20), Value(40), interner.Intern("a"), interner.Intern("d"), interner.Intern("w")};
+    std::vector<Value> values_5 =
+        {Value(20), Value(30), Value(50), interner.Intern("b"), interner.Intern("f"), interner.Intern("v")};
+    std::vector<Value> values_6 =
+        {Value(30), Value(30), Value(60), interner.Intern("c"), interner.Intern("f"), interner.Intern("u")};
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     auto before_1 = Journal::Track::get_now();

@@ -7,10 +7,10 @@ namespace qdb::storage {
 Schema::Schema() = default;
 
 Schema::Schema(std::vector<Column> columns, std::uint32_t record_id_count)
-        : columns_(std::move(columns)), record_id_count_(record_id_count) {
+    : columns_(std::move(columns)), record_id_count_(record_id_count) {
     std::unordered_set<std::string> column_names;
 
-    for (const auto &column : columns_) {
+    for (const auto& column : columns_) {
         if (!column_names.insert(column.Name()).second) {
             throw std::runtime_error("[ERROR in qdb::storage::Schema]: Columns can`t have same names!");
         }
@@ -63,13 +63,9 @@ auto Schema::ToBinary(std::ostream& stream) const -> bool {
     return !stream.fail();
 }
 
-auto Schema::IncrementRecordIdCount() -> void {
-    ++record_id_count_;
-}
+auto Schema::IncrementRecordIdCount() -> void { ++record_id_count_; }
 
-auto Schema::DecrementRecordIdCount() -> void {
-    --record_id_count_;
-}
+auto Schema::DecrementRecordIdCount() -> void { --record_id_count_; }
 
 auto Schema::ColumnIndex(const std::string& column_name) const -> int32_t {
     for (size_t index = 0; index < columns_.size(); ++index) {
@@ -81,20 +77,14 @@ auto Schema::ColumnIndex(const std::string& column_name) const -> int32_t {
     return -1;
 }
 
-auto Schema::Size() const -> std::size_t {
-    return columns_.size();
-}
+auto Schema::Size() const -> std::size_t { return columns_.size(); }
 
-auto Schema::RecordIdCount() const -> std::uint32_t {
-    return record_id_count_;
-}
+auto Schema::RecordIdCount() const -> std::uint32_t { return record_id_count_; }
 
 auto Schema::operator==(const Schema& other) const -> bool {
     return columns_ == other.columns_ && record_id_count_ == other.record_id_count_;
 }
 
-auto Schema::operator[](const std::size_t &index) const -> const Column& {
-    return columns_[index];
-}
+auto Schema::operator[](const std::size_t& index) const -> const Column& { return columns_[index]; }
 
 }  // namespace qdb::storage

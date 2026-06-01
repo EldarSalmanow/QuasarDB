@@ -1,5 +1,5 @@
 - [x] add installation of executables to specified path
-- [] review infrastructure code
+- [x] review infrastructure code
 - [] rewrite readme
 - [] add examples of using
 - [] rewrite tests

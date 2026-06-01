@@ -9,9 +9,7 @@ namespace {
 
 using namespace qdb::server;
 
-auto Id(std::string name) -> std::unique_ptr<Expression> {
-    return std::make_unique<IdentifierExpr>(std::move(name));
-}
+auto Id(std::string name) -> std::unique_ptr<Expression> { return std::make_unique<IdentifierExpr>(std::move(name)); }
 
 auto LitInt(int value) -> std::unique_ptr<Literal> {
     return std::make_unique<Literal>(Literal::Type::Integer, std::to_string(value));
@@ -21,9 +19,7 @@ auto LitStr(std::string value) -> std::unique_ptr<Literal> {
     return std::make_unique<Literal>(Literal::Type::String, std::move(value));
 }
 
-auto Int(int value) -> std::unique_ptr<Expression> {
-    return std::make_unique<LiteralExpr>(LitInt(value));
-}
+auto Int(int value) -> std::unique_ptr<Expression> { return std::make_unique<LiteralExpr>(LitInt(value)); }
 
 auto Str(std::string value) -> std::unique_ptr<Expression> {
     return std::make_unique<LiteralExpr>(LitStr(std::move(value)));
@@ -73,9 +69,7 @@ protected:
         std::filesystem::remove_all(root);
     }
 
-    auto Exec(const Statement& statement) -> nlohmann::json {
-        return executor->Execute(statement);
-    }
+    auto Exec(const Statement& statement) -> nlohmann::json { return executor->Execute(statement); }
 };
 
 }  // namespace
@@ -97,8 +91,12 @@ TEST_F(ExecutorTest, CreateInsertSelectUpdateDelete) {
     std::vector<SelectItem> items;
     items.emplace_back(Id("id"));
     items.emplace_back(Id("name"), "user_name");
-    SelectStmt select(false, std::move(items), TableRef("users"),
-                      Cmp("age", ComparisonCondition::Operator::GreaterEqual, Int(18)));
+    SelectStmt select(
+        false,
+        std::move(items),
+        TableRef("users"),
+        Cmp("age", ComparisonCondition::Operator::GreaterEqual, Int(18))
+    );
     auto selected = Exec(select);
     ASSERT_EQ(selected["status"], "success");
     ASSERT_EQ(selected["data"]["result"].size(), 2);
@@ -107,8 +105,8 @@ TEST_F(ExecutorTest, CreateInsertSelectUpdateDelete) {
 
     std::vector<std::pair<std::string, std::unique_ptr<Expression>>> assignments;
     assignments.emplace_back("name", Str("Bob"));
-    UpdateStmt update(TableRef("users"), std::move(assignments),
-                      Cmp("id", ComparisonCondition::Operator::Equal, Int(2)));
+    UpdateStmt
+        update(TableRef("users"), std::move(assignments), Cmp("id", ComparisonCondition::Operator::Equal, Int(2)));
     auto updated = Exec(update);
     EXPECT_EQ(updated["data"]["rows_affected"], 1);
 
@@ -144,8 +142,12 @@ TEST_F(ExecutorTest, SelectAggregatesWithWhere) {
     items.push_back(Agg(AggregateExpr::Function::Count, "id", "count_id"));
     items.push_back(Agg(AggregateExpr::Function::Sum, "age", "sum_age"));
     items.push_back(Agg(AggregateExpr::Function::Avg, "age", "avg_age"));
-    SelectStmt select(false, std::move(items), TableRef("users"),
-                      Cmp("age", ComparisonCondition::Operator::GreaterEqual, Int(18)));
+    SelectStmt select(
+        false,
+        std::move(items),
+        TableRef("users"),
+        Cmp("age", ComparisonCondition::Operator::GreaterEqual, Int(18))
+    );
     auto response = Exec(select);
 
     ASSERT_EQ(response["status"], "success");

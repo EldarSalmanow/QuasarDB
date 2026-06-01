@@ -4,11 +4,10 @@
 #include <qdb/server/ast.h>
 #include <qdb/server/lexer.h>
 
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <memory>
-
 
 namespace qdb::server {
 

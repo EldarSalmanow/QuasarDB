@@ -9,9 +9,7 @@
 
 namespace qdb::server {
 
-TaskProcessor::TaskProcessor(Handler handler, std::size_t workers)
-    : handler_(std::move(handler)), pool_(workers) {
-}
+TaskProcessor::TaskProcessor(Handler handler, std::size_t workers) : handler_(std::move(handler)), pool_(workers) {}
 
 auto TaskProcessor::Submit(std::unique_ptr<Statement> statement) -> std::string {
     auto id = GenerateId();
@@ -53,9 +51,7 @@ auto TaskProcessor::Cancel(const std::string& id) -> bool {
     return true;
 }
 
-void TaskProcessor::Stop() {
-    pool_.Stop();
-}
+void TaskProcessor::Stop() { pool_.Stop(); }
 
 auto TaskProcessor::GenerateId() const -> std::string {
     std::array<unsigned char, 16> bytes{};
@@ -79,8 +75,12 @@ auto TaskProcessor::GenerateId() const -> std::string {
     return output.str();
 }
 
-void TaskProcessor::Update(const std::string& id, TaskStatus status, std::optional<qdb::core::Response> response,
-                           std::optional<std::string> error) {
+void TaskProcessor::Update(
+    const std::string& id,
+    TaskStatus status,
+    std::optional<qdb::core::Response> response,
+    std::optional<std::string> error
+) {
     std::lock_guard lock(mutex_);
     auto it = tasks_.find(id);
     if (it == tasks_.end() || it->second.status == TaskStatus::Failed) {

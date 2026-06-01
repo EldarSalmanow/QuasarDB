@@ -4,9 +4,7 @@
 #include <qdb/core/response.h>
 
 TEST(RequestEnvelope, QueryUsesActionTokenAndData) {
-    auto request = qdb::core::RequestBuilder::Query("SELECT * FROM users;")
-                       .Token("jwt")
-                       .Build();
+    auto request = qdb::core::RequestBuilder::Query("SELECT * FROM users;").Token("jwt").Build();
 
     const auto json = request.ToJsonObject();
     EXPECT_EQ(json.at("action"), "query");
@@ -35,10 +33,11 @@ TEST(RequestEnvelope, BuildsTelemetryRequest) {
 }
 
 TEST(ResponseEnvelope, SerializesJsonData) {
-    auto response = qdb::core::ResponseBuilder::Success()
-                        .Message("ok")
-                        .Data({{"rows", nlohmann::json::array()}, {"rows_affected", 0}})
-                        .Build();
+    auto response =
+        qdb::core::ResponseBuilder::Success()
+            .Message("ok")
+            .Data({{"rows", nlohmann::json::array()}, {"rows_affected", 0}})
+            .Build();
 
     const auto json = response.ToJsonObject();
     EXPECT_EQ(json.at("status"), "success");
@@ -48,10 +47,7 @@ TEST(ResponseEnvelope, SerializesJsonData) {
 }
 
 TEST(ResponseEnvelope, SupportsPendingStatus) {
-    auto response = qdb::core::ResponseBuilder::Pending()
-                        .Message("running")
-                        .Data({{"task_id", "task-1"}})
-                        .Build();
+    auto response = qdb::core::ResponseBuilder::Pending().Message("running").Data({{"task_id", "task-1"}}).Build();
 
     EXPECT_TRUE(response.IsPending());
     EXPECT_EQ(response.ToJsonObject().at("status"), "pending");

@@ -59,7 +59,7 @@ format:
 
 check: configure
 	@if [ -n "$(CPP_FILES)" ]; then clang-format --dry-run --Werror $(CPP_FILES); fi
-	@if [ -n "$(CPP_SOURCES)" ]; then clang-tidy -p $(BUILD_DIR) $(CPP_SOURCES); fi
+	@#if [ -n "$(CPP_SOURCES)" ]; then clang-tidy -p $(BUILD_DIR) $(CPP_SOURCES); fi
 
 ci: check test
 

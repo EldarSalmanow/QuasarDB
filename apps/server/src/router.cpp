@@ -9,8 +9,7 @@
 namespace qdb::server {
 
 Router::Router(std::shared_ptr<Registry> registry, Catalog& catalog)
-        : registry_(std::move(registry)),
-          catalog_(catalog) {}
+    : registry_(std::move(registry)), catalog_(catalog) {}
 
 auto Router::New(std::shared_ptr<Registry> registry, Catalog& catalog) -> std::unique_ptr<Router> {
     return std::make_unique<Router>(std::move(registry), catalog);
@@ -46,7 +45,7 @@ auto Router::Route(const Statement& statement) -> qdb::core::Response {
 
     if (statement.KindOf() == Statement::Kind::CreateTable) {
         const auto& create = static_cast<const CreateTableStmt&>(statement);
-        StorageId id {TableKey(create.Table)};
+        StorageId id{TableKey(create.Table)};
 
         if (!catalog_.CreateTable(create)) {
             return qdb::core::Error("Table already exists or database not found");
@@ -67,7 +66,7 @@ auto Router::Route(const Statement& statement) -> qdb::core::Response {
 
     if (statement.KindOf() == Statement::Kind::DropTable) {
         const auto& drop = static_cast<const DropTableStmt&>(statement);
-        StorageId id {TableKey(drop.Table)};
+        StorageId id{TableKey(drop.Table)};
         if (!catalog_.HasTable(drop.Table)) {
             return qdb::core::Error("Table not found: " + TableKey(drop.Table));
         }
@@ -88,7 +87,7 @@ auto Router::Route(const Statement& statement) -> qdb::core::Response {
         return qdb::core::Error("Cannot determine table from statement");
     }
 
-    StorageId id {TableKey(table.value())};
+    StorageId id{TableKey(table.value())};
     if (!catalog_.HasTable(table.value())) {
         return qdb::core::Error("Table not found: " + TableKey(table.value()));
     }
@@ -100,26 +99,25 @@ auto Router::SendToStorage(const StorageId& id, const Statement& statement) -> q
     auto node = registry_->GetNode(id);
 
     if (!node.has_value()) {
-        return qdb::core::Error("Storage node is not registered",
-            {{"storage_id", id.table}});
+        return qdb::core::Error("Storage node is not registered", {{"storage_id", id.table}});
     }
 
     if (node->state == StorageState::Down) {
-        return qdb::core::Error("Storage node is down",
-            {{"storage_id", id.table}, {"host", node->host}, {"port", node->port}});
+        return qdb::core::
+            Error("Storage node is down", {{"storage_id", id.table}, {"host", node->host}, {"port", node->port}});
     }
 
     auto client = qdb::core::TcpClient::New(node->host, node->port);
 
     if (!client || !client->Connect()) {
-        return qdb::core::Error("Failed to connect to storage node",
-                     {{"storage_id", id.table}, {"host", node->host}, {"port", node->port}});
+        return qdb::core::Error(
+            "Failed to connect to storage node",
+            {{"storage_id", id.table}, {"host", node->host}, {"port", node->port}}
+        );
     }
 
-    const auto request = qdb::core::RequestBuilder()
-        .Action("execute_ast")
-        .Data({{"ast_root", SerializeAst(statement)}})
-        .Build();
+    const auto request =
+        qdb::core::RequestBuilder().Action("execute_ast").Data({{"ast_root", SerializeAst(statement)}}).Build();
 
     if (!client->SendRequest(request)) {
         return qdb::core::Error("Failed to send request to storage", {{"storage_id", id.table}});

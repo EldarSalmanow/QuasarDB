@@ -14,8 +14,14 @@ auto TestConfig(const std::string& name) -> Config {
     std::filesystem::remove_all(base);
     std::filesystem::create_directories(base);
 
-    return Config::New("127.0.0.1", 9000, false, "test-secret", (base / "accounts.json").string(),
-                       (base / "rbac.json").string(), false);
+    return Config::
+        New("127.0.0.1",
+            9000,
+            false,
+            "test-secret",
+            (base / "accounts.json").string(),
+            (base / "rbac.json").string(),
+            false);
 }
 
 auto AuthConfig(const std::string& name) -> Config {
@@ -23,8 +29,14 @@ auto AuthConfig(const std::string& name) -> Config {
     std::filesystem::remove_all(base);
     std::filesystem::create_directories(base);
 
-    return Config::New("127.0.0.1", 9000, true, "test-secret", (base / "accounts.json").string(),
-                       (base / "rbac.json").string(), false);
+    return Config::
+        New("127.0.0.1",
+            9000,
+            true,
+            "test-secret",
+            (base / "accounts.json").string(),
+            (base / "rbac.json").string(),
+            false);
 }
 
 }  // namespace
@@ -35,9 +47,11 @@ TEST(ServerPipelineTest, QueryToUnavailableStorageReturnsError) {
     auto db_response = application.Process(qdb::core::RequestBuilder::Query("CREATE DATABASE shop;").Build());
     ASSERT_TRUE(db_response.IsSuccess());
 
-    auto create_response = application.Process(
-        qdb::core::RequestBuilder::Query("CREATE TABLE shop.users (id INT NOT_NULL, name STRING DEFAULT \"anon\");")
-            .Build());
+    auto create_response =
+        application
+            .Process(qdb::core::RequestBuilder::Query("CREATE TABLE shop.users (id INT NOT_NULL, name STRING "
+                                                      "DEFAULT \"anon\");")
+                         .Build());
     ASSERT_TRUE(create_response.IsError());
     EXPECT_EQ(create_response.GetMessage(), "Failed to connect to storage node");
 }
@@ -86,8 +100,8 @@ TEST(ServerPipelineTest, UseStoresDatabaseInSession) {
     auto use = application.Process(qdb::core::RequestBuilder::Query("USE shop;").Build(), session);
     ASSERT_TRUE(use.IsSuccess());
 
-    auto create_table = application.Process(
-        qdb::core::RequestBuilder::Query("CREATE TABLE users (id INT);").Build(), session);
+    auto create_table =
+        application.Process(qdb::core::RequestBuilder::Query("CREATE TABLE users (id INT);").Build(), session);
     ASSERT_TRUE(create_table.IsError());
     EXPECT_EQ(create_table.GetMessage(), "Failed to connect to storage node");
 }
@@ -98,14 +112,18 @@ TEST(ServerPipelineTest, UnqualifiedTableRequiresUse) {
     auto response = application.Process(qdb::core::RequestBuilder::Query("CREATE TABLE users (id INT);").Build());
 
     ASSERT_TRUE(response.IsError());
-    EXPECT_EQ(response.GetMessage(), "No database selected; run USE <database> or qualify the table as <database>.<table>");
+    EXPECT_EQ(
+        response.GetMessage(),
+        "No database selected; run USE <database> or qualify the table as <database>.<table>"
+    );
 }
 
 TEST(ServerPipelineTest, UnknownActionsAreRejected) {
     Application application(TestConfig("async"));
 
-    auto submit = application.Process(
-        qdb::core::RequestBuilder{}.Action("unknown").Data({{"query", "SELECT * FROM users;"}}).Build());
+    auto submit =
+        application.Process(qdb::core::RequestBuilder{}.Action("unknown").Data({{"query", "SELECT * FROM users;"}}
+        ).Build());
     ASSERT_TRUE(submit.IsError());
     EXPECT_EQ(submit.GetMessage(), "Unsupported action: unknown");
 }
@@ -151,8 +169,8 @@ TEST(ServerPipelineTest, FirstLoginCanCreateSuperuserAndToken) {
     ASSERT_TRUE(without_token.IsError());
     EXPECT_EQ(without_token.GetMessage(), "Valid token is required");
 
-    auto with_token = application.Process(
-        qdb::core::RequestBuilder::Query("CREATE DATABASE shop;").Token(token).Build());
+    auto with_token = application.Process(qdb::core::RequestBuilder::Query("CREATE DATABASE shop;").Token(token).Build()
+    );
     ASSERT_TRUE(with_token.IsSuccess());
 }
 

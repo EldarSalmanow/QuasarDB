@@ -6,7 +6,6 @@
 #include <optional>
 #include <string>
 
-
 namespace qdb::core {
 
 class Request {
@@ -21,22 +20,22 @@ public:
 public:
     static auto FromJson(std::string string) -> Request;
 
-    static auto FromJsonObject(const nlohmann::json &json) -> Request;
+    static auto FromJsonObject(const nlohmann::json& json) -> Request;
 
 public:
     auto ToJson() const -> std::string;
 
     auto ToJsonObject() const -> nlohmann::json;
 
-    auto Action() const -> const std::string &;
+    auto Action() const -> const std::string&;
 
-    auto Data() const -> const nlohmann::json &;
+    auto Data() const -> const nlohmann::json&;
 
     auto Query() const -> std::string;
 
     auto TaskId() const -> std::optional<std::string>;
 
-    auto Token() const -> const std::string &;
+    auto Token() const -> const std::string&;
 
 private:
     std::string action_;
@@ -64,13 +63,13 @@ public:
     static auto Telemetry() -> RequestBuilder;
 
 public:
-    auto Action(std::string action) -> RequestBuilder &;
+    auto Action(std::string action) -> RequestBuilder&;
 
-    auto Data(nlohmann::json data) -> RequestBuilder &;
+    auto Data(nlohmann::json data) -> RequestBuilder&;
 
-    auto Token(std::string token) -> RequestBuilder &;
+    auto Token(std::string token) -> RequestBuilder&;
 
-    auto TaskId(std::string task_id) -> RequestBuilder &;
+    auto TaskId(std::string task_id) -> RequestBuilder&;
 
     auto Build() const -> Request;
 

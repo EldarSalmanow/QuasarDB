@@ -66,14 +66,22 @@ auto Analyzer::ValidateStatement(const Statement& statement) -> void {
 
 auto Analyzer::TableFromStatement(const Statement& statement) -> std::optional<TableRef> {
     switch (statement.KindOf()) {
-        case Statement::Kind::CreateTable: return static_cast<const CreateTableStmt&>(statement).Table;
-        case Statement::Kind::DropTable: return static_cast<const DropTableStmt&>(statement).Table;
-        case Statement::Kind::Insert: return static_cast<const InsertStmt&>(statement).Table;
-        case Statement::Kind::Update: return static_cast<const UpdateStmt&>(statement).Table;
-        case Statement::Kind::Delete: return static_cast<const DeleteStmt&>(statement).Table;
-        case Statement::Kind::Select: return static_cast<const SelectStmt&>(statement).Table;
-        case Statement::Kind::Revert: return static_cast<const RevertStmt&>(statement).Table;
-        default: return std::nullopt;
+        case Statement::Kind::CreateTable:
+            return static_cast<const CreateTableStmt&>(statement).Table;
+        case Statement::Kind::DropTable:
+            return static_cast<const DropTableStmt&>(statement).Table;
+        case Statement::Kind::Insert:
+            return static_cast<const InsertStmt&>(statement).Table;
+        case Statement::Kind::Update:
+            return static_cast<const UpdateStmt&>(statement).Table;
+        case Statement::Kind::Delete:
+            return static_cast<const DeleteStmt&>(statement).Table;
+        case Statement::Kind::Select:
+            return static_cast<const SelectStmt&>(statement).Table;
+        case Statement::Kind::Revert:
+            return static_cast<const RevertStmt&>(statement).Table;
+        default:
+            return std::nullopt;
     }
 }
 

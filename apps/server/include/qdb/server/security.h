@@ -41,7 +41,8 @@ private:
 };
 
 auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t>;
-auto ComputeHmacSha256(const std::vector<std::uint8_t>& key, const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t>;
+auto ComputeHmacSha256(const std::vector<std::uint8_t>& key, const std::vector<std::uint8_t>& data)
+    -> std::vector<std::uint8_t>;
 auto GenerateSalt(size_t byte_length = 16) -> std::string;
 auto HashPassword(const std::string& password, const std::string& salt) -> std::string;
 auto Base64UrlEncode(const std::vector<std::uint8_t>& data) -> std::string;
@@ -51,7 +52,8 @@ class JwtHandler {
 public:
     explicit JwtHandler(std::string secret_key);
 
-    auto GenerateToken(const std::string& username, std::chrono::seconds ttl = std::chrono::hours(24)) const -> std::string;
+    auto GenerateToken(const std::string& username, std::chrono::seconds ttl = std::chrono::hours(24)) const
+        -> std::string;
     auto ValidateToken(const std::string& token) const -> std::optional<std::string>;
 
 private:

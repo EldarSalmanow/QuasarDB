@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-
 namespace qdb::server {
 
 // Forward declarations
@@ -90,8 +89,11 @@ struct BetweenCondition : Condition {
     std::unique_ptr<Expression> Lower;
     std::unique_ptr<Expression> Upper;
 
-    BetweenCondition(std::unique_ptr<Expression> value, std::unique_ptr<Expression> lower,
-                     std::unique_ptr<Expression> upper);
+    BetweenCondition(
+        std::unique_ptr<Expression> value,
+        std::unique_ptr<Expression> lower,
+        std::unique_ptr<Expression> upper
+    );
 
     auto KindOf() const -> Kind override;
 };
@@ -263,8 +265,11 @@ struct InsertStmt : Statement {
     std::vector<std::string> Columns;
     std::vector<std::vector<std::unique_ptr<Literal>>> Values;
 
-    InsertStmt(TableRef table, std::vector<std::string> columns,
-               std::vector<std::vector<std::unique_ptr<Literal>>> values);
+    InsertStmt(
+        TableRef table,
+        std::vector<std::string> columns,
+        std::vector<std::vector<std::unique_ptr<Literal>>> values
+    );
 
     auto KindOf() const -> Kind override;
 };
@@ -274,8 +279,11 @@ struct UpdateStmt : Statement {
     std::vector<std::pair<std::string, std::unique_ptr<Expression>>> Assignments;
     std::unique_ptr<Condition> WhereClause;
 
-    UpdateStmt(TableRef table, std::vector<std::pair<std::string, std::unique_ptr<Expression>>> assigns,
-               std::unique_ptr<Condition> where);
+    UpdateStmt(
+        TableRef table,
+        std::vector<std::pair<std::string, std::unique_ptr<Expression>>> assigns,
+        std::unique_ptr<Condition> where
+    );
 
     auto KindOf() const -> Kind override;
 };
@@ -295,8 +303,7 @@ struct SelectStmt : Statement {
     TableRef Table;
     std::unique_ptr<Condition> WhereClause;
 
-    SelectStmt(bool all, std::vector<SelectItem> items, TableRef table,
-               std::unique_ptr<Condition> where = nullptr);
+    SelectStmt(bool all, std::vector<SelectItem> items, TableRef table, std::unique_ptr<Condition> where = nullptr);
 
     auto KindOf() const -> Kind override;
 };
