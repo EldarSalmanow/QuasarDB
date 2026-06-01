@@ -9,21 +9,18 @@
 
 namespace qdb::server {
 
-enum class Permission {
-    INVALID,
-    READ,
-    WRITE,
-    CREATE,
-    DELETE
-};
+enum class Permission { INVALID, READ, WRITE, CREATE, DELETE };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(Permission, {
-    {Permission::INVALID, "INVALID"},
-    {Permission::READ, "READ"},
-    {Permission::WRITE, "WRITE"},
-    {Permission::CREATE, "CREATE"},
-    {Permission::DELETE, "DELETE"},
-})
+NLOHMANN_JSON_SERIALIZE_ENUM(
+    Permission,
+    {
+        {Permission::INVALID, "INVALID"},
+        {Permission::READ, "READ"},
+        {Permission::WRITE, "WRITE"},
+        {Permission::CREATE, "CREATE"},
+        {Permission::DELETE, "DELETE"},
+    }
+)
 
 struct AccessRule {
     std::string user_id;
@@ -39,14 +36,26 @@ class RBACManager {
 public:
     explicit RBACManager(std::string storage_path);
 
-    auto CheckPermission(const std::string& username, const std::string& database,
-                         const std::string& table, Permission perm) const -> bool;
+    auto CheckPermission(
+        const std::string& username,
+        const std::string& database,
+        const std::string& table,
+        Permission perm
+    ) const -> bool;
 
-    auto GrantPermission(const std::string& username, const std::string& database,
-                         const std::string& table, Permission perm) -> void;
+    auto GrantPermission(
+        const std::string& username,
+        const std::string& database,
+        const std::string& table,
+        Permission perm
+    ) -> void;
 
-    auto RevokePermission(const std::string& username, const std::string& database,
-                          const std::string& table, Permission perm) -> void;
+    auto RevokePermission(
+        const std::string& username,
+        const std::string& database,
+        const std::string& table,
+        Permission perm
+    ) -> void;
 
     auto GetUserPermissions(const std::string& username) const -> std::vector<AccessRule>;
 

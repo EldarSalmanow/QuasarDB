@@ -2,9 +2,7 @@
 
 namespace qdb::server {
 
-Telemetry::Telemetry()
-    : output_thread_([this] { OutputLoop(); }) {
-}
+Telemetry::Telemetry() : output_thread_([this] { OutputLoop(); }) {}
 
 Telemetry::~Telemetry() {
     running_.store(false, std::memory_order_relaxed);
@@ -29,13 +27,9 @@ auto Telemetry::GetCurrentRPS() const -> double {
     return static_cast<double>(current == 0 ? current_rps_.load(std::memory_order_relaxed) : current);
 }
 
-auto Telemetry::GetAvgRPS10min() const -> double {
-    return rps_10min_.Avg();
-}
+auto Telemetry::GetAvgRPS10min() const -> double { return rps_10min_.Avg(); }
 
-auto Telemetry::GetMaxRPS10min() const -> std::uint64_t {
-    return rps_10min_.Max();
-}
+auto Telemetry::GetMaxRPS10min() const -> std::uint64_t { return rps_10min_.Max(); }
 
 auto Telemetry::GetAvgDuration() const -> double {
     auto count = duration_count_10s_.Sum() + current_second_requests_.load(std::memory_order_relaxed);
@@ -51,13 +45,9 @@ auto Telemetry::GetErrorRate() const -> double {
     return static_cast<double>(errors) / requests;
 }
 
-auto Telemetry::GetTotalRequests() const -> std::uint64_t {
-    return total_requests_.load(std::memory_order_relaxed);
-}
+auto Telemetry::GetTotalRequests() const -> std::uint64_t { return total_requests_.load(std::memory_order_relaxed); }
 
-auto Telemetry::GetTotalErrors() const -> std::uint64_t {
-    return total_errors_.load(std::memory_order_relaxed);
-}
+auto Telemetry::GetTotalErrors() const -> std::uint64_t { return total_errors_.load(std::memory_order_relaxed); }
 
 void Telemetry::OutputLoop() {
     auto next = std::chrono::steady_clock::now() + std::chrono::seconds(1);

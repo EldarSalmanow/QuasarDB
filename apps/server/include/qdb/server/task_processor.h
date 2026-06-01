@@ -41,8 +41,12 @@ public:
 
 private:
     auto GenerateId() const -> std::string;
-    void Update(const std::string& id, TaskStatus status, std::optional<qdb::core::Response> response = std::nullopt,
-                std::optional<std::string> error = std::nullopt);
+    void Update(
+        const std::string& id,
+        TaskStatus status,
+        std::optional<qdb::core::Response> response = std::nullopt,
+        std::optional<std::string> error = std::nullopt
+    );
 
     Handler handler_;
     qdb::core::ThreadPool pool_;

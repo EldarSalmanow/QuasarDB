@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 
-
 namespace qdb::server {
 
 class Router {

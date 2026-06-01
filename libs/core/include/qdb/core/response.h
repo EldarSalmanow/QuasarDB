@@ -5,7 +5,6 @@
 
 #include <string>
 
-
 namespace qdb::core {
 
 class Response {
@@ -20,7 +19,7 @@ public:
 public:
     static auto FromJson(std::string string) -> Response;
 
-    static auto FromJsonObject(const nlohmann::json &json) -> Response;
+    static auto FromJsonObject(const nlohmann::json& json) -> Response;
 
 public:
     auto ToJson() const -> std::string;
@@ -59,11 +58,11 @@ public:
     static auto Error() -> ResponseBuilder;
 
 public:
-    auto Status(std::string status) -> ResponseBuilder &;
+    auto Status(std::string status) -> ResponseBuilder&;
 
-    auto Message(std::string message) -> ResponseBuilder &;
+    auto Message(std::string message) -> ResponseBuilder&;
 
-    auto Data(nlohmann::json data) -> ResponseBuilder &;
+    auto Data(nlohmann::json data) -> ResponseBuilder&;
 
     auto Build() const -> Response;
 

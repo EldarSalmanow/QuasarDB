@@ -23,9 +23,7 @@ auto ToHex(const unsigned char* data, size_t size) -> std::string {
     return out.str();
 }
 
-auto ToHex(const std::vector<unsigned char>& data) -> std::string {
-    return ToHex(data.data(), data.size());
-}
+auto ToHex(const std::vector<unsigned char>& data) -> std::string { return ToHex(data.data(), data.size()); }
 
 void to_json(nlohmann::json& j, const Account& a) {
     j = nlohmann::json{{"username", a.username}, {"password_hash", a.password_hash}, {"salt", a.salt}};
@@ -37,9 +35,7 @@ void from_json(const nlohmann::json& j, Account& a) {
     j.at("salt").get_to(a.salt);
 }
 
-AccountStore::AccountStore(std::string storage_path) : storage_path_(std::move(storage_path)) {
-    Load();
-}
+AccountStore::AccountStore(std::string storage_path) : storage_path_(std::move(storage_path)) { Load(); }
 
 auto AccountStore::CreateAccount(const std::string& username, const std::string& password) -> bool {
     if (username.empty() || password.empty() || username == "*") return false;
@@ -79,9 +75,7 @@ auto AccountStore::HasAccount(const std::string& username) const -> bool {
     return accounts_.find(username) != accounts_.end();
 }
 
-auto AccountStore::Empty() const -> bool {
-    return accounts_.empty();
-}
+auto AccountStore::Empty() const -> bool { return accounts_.empty(); }
 
 auto AccountStore::Load() -> bool {
     try {
@@ -110,12 +104,13 @@ auto ComputeSha256(const std::vector<std::uint8_t>& data) -> std::vector<std::ui
     return result;
 }
 
-auto ComputeHmacSha256(const std::vector<std::uint8_t>& key, const std::vector<std::uint8_t>& data) -> std::vector<std::uint8_t> {
+auto ComputeHmacSha256(const std::vector<std::uint8_t>& key, const std::vector<std::uint8_t>& data)
+    -> std::vector<std::uint8_t> {
     std::vector<std::uint8_t> result(EVP_MAX_MD_SIZE);
     unsigned int len = 0;
 
-    auto* hmac_result = HMAC(EVP_sha256(), key.data(), static_cast<int>(key.size()),
-         data.data(), data.size(), result.data(), &len);
+    auto* hmac_result =
+        HMAC(EVP_sha256(), key.data(), static_cast<int>(key.size()), data.data(), data.size(), result.data(), &len);
     if (hmac_result == nullptr) return {};
 
     result.resize(len);
@@ -132,10 +127,16 @@ auto GenerateSalt(size_t byte_length) -> std::string {
 
 auto HashPassword(const std::string& password, const std::string& salt) -> std::string {
     std::vector<unsigned char> hash(32);
-    int rc = PKCS5_PBKDF2_HMAC(password.data(), static_cast<int>(password.size()),
-                                reinterpret_cast<const unsigned char*>(salt.data()),
-                                static_cast<int>(salt.size()), 600000,
-                                EVP_sha256(), 32, hash.data());
+    int rc = PKCS5_PBKDF2_HMAC(
+        password.data(),
+        static_cast<int>(password.size()),
+        reinterpret_cast<const unsigned char*>(salt.data()),
+        static_cast<int>(salt.size()),
+        600000,
+        EVP_sha256(),
+        32,
+        hash.data()
+    );
     if (rc != 1) return {};
     return ToHex(hash);
 }
@@ -148,8 +149,10 @@ auto Base64UrlEncode(const std::vector<std::uint8_t>& data) -> std::string {
 
     std::string result(reinterpret_cast<char*>(buf.data()), actual);
     for (auto& c : result) {
-        if (c == '+') c = '-';
-        else if (c == '/') c = '_';
+        if (c == '+')
+            c = '-';
+        else if (c == '/')
+            c = '_';
     }
 
     auto pos = result.find_last_not_of('=');
@@ -163,8 +166,10 @@ auto Base64UrlEncode(const std::vector<std::uint8_t>& data) -> std::string {
 auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t> {
     std::string normalized = input;
     for (auto& c : normalized) {
-        if (c == '-') c = '+';
-        else if (c == '_') c = '/';
+        if (c == '-')
+            c = '+';
+        else if (c == '_')
+            c = '/';
     }
 
     auto eq_pos = normalized.find('=');
@@ -179,8 +184,11 @@ auto Base64UrlDecode(const std::string& input) -> std::vector<std::uint8_t> {
     normalized.append(padding, '=');
 
     std::vector<unsigned char> buf(normalized.size());
-    int actual = EVP_DecodeBlock(buf.data(), reinterpret_cast<const unsigned char*>(normalized.data()),
-                                 static_cast<int>(normalized.size()));
+    int actual = EVP_DecodeBlock(
+        buf.data(),
+        reinterpret_cast<const unsigned char*>(normalized.data()),
+        static_cast<int>(normalized.size())
+    );
 
     if (actual < 0) return {};
 

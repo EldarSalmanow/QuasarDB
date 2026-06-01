@@ -54,9 +54,6 @@ TEST(ConfigTest, HelpPrintsUsageAndReturnsNullopt) {
     EXPECT_TRUE(Contains(capture.Str(), "--file"));
 }
 
-TEST(ConfigTest, InvalidPortThrows) {
-    EXPECT_THROW((Parse({"qdb-client", "-p", "0"})), std::runtime_error);
-}
+TEST(ConfigTest, InvalidPortThrows) { EXPECT_THROW((Parse({"qdb-client", "-p", "0"})), std::runtime_error); }
 
 }  // namespace qdb::client::test
-

@@ -30,9 +30,7 @@ TEST(RendererTest, ErrorResponseIsPrintedInRed) {
 
 TEST(RendererTest, ErrorResponseRenderedViaResponseObject) {
     Renderer renderer;
-    const auto response = qdb::core::ResponseBuilder::Error()
-                              .Message("Bad query")
-                              .Build();
+    const auto response = qdb::core::ResponseBuilder::Error().Message("Bad query").Build();
     OutputCapture capture(std::cout);
 
     renderer.RenderResponse(response);
@@ -42,10 +40,11 @@ TEST(RendererTest, ErrorResponseRenderedViaResponseObject) {
 
 TEST(RendererTest, SuccessfulSelectResponseRendersTable) {
     Renderer renderer;
-    const auto response = qdb::core::ResponseBuilder::Success()
-                             .Message("Query executed")
-                             .Data(nlohmann::json::parse(R"([{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}])"))
-                             .Build();
+    const auto response =
+        qdb::core::ResponseBuilder::Success()
+            .Message("Query executed")
+            .Data(nlohmann::json::parse(R"([{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}])"))
+            .Build();
     OutputCapture capture(std::cout);
 
     renderer.RenderResponse(response);
@@ -61,10 +60,11 @@ TEST(RendererTest, SuccessfulSelectResponseRendersTable) {
 
 TEST(RendererTest, JsonObjectIsPrintedPretty) {
     Renderer renderer;
-    const auto response = qdb::core::ResponseBuilder::Success()
-                             .Message("Insert successful")
-                             .Data(nlohmann::json::parse(R"({"affected_rows":1})"))
-                             .Build();
+    const auto response =
+        qdb::core::ResponseBuilder::Success()
+            .Message("Insert successful")
+            .Data(nlohmann::json::parse(R"({"affected_rows":1})"))
+            .Build();
     OutputCapture capture(std::cout);
 
     renderer.RenderResponse(response);

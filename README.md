@@ -1,6 +1,10 @@
 # QuasarDB
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/EldarSalmanow/QuasarDB/.github%2Fworkflows%2Fci.yml)
+
 Team course project of DBMS on the course "System Programming" of Moscow Aviation Institute (MAI).
+
+To see more detailed information about project, please refer to [docs/](./docs/).
 
 ## Dev Container
 
@@ -22,6 +26,12 @@ make build
 make test
 ```
 
+### Install
+
+```bash
+make install
+```
+
 ### Check
 
 ```bash
@@ -36,9 +46,12 @@ make format
 
 ## Project Structure
 
-- `apps/client` - CLI client terminal
-- `apps/server` - Entrypoint server (routing, security, observability)
-- `apps/storage` - Storage node (data, indexes, journal)
-- `libs/core` - Shared code and network primitives
+- `apps/client/` - CLI client terminal
+- `apps/server/` - Entrypoint server (routing, security, observability)
+- `apps/storage/` - Storage node (data, indexes, journal)
 - `docs/` - Documentation, tasks and report
+- `examples/` - Example usage of client
 - `external/` - Dependency manifests
+- `libs/core/` - Shared code and network primitives
+- `scripts/` - Utility scripts for development and testing
+- `tests/` - Integration tests'

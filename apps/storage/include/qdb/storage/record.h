@@ -29,8 +29,13 @@ public:
     Record(std::uint32_t id, std::vector<Value> values, RecordAddress address);
 
 public:
-    static auto FromBinary(const std::uint8_t* data, std::uint32_t size, std::uint32_t record_id,
-                           const Schema& schema, Interner& interner) -> Record;
+    static auto FromBinary(
+        const std::uint8_t* data,
+        std::uint32_t size,
+        std::uint32_t record_id,
+        const Schema& schema,
+        Interner& interner
+    ) -> Record;
 
 public:
     auto Id() const -> std::uint32_t;
@@ -50,9 +55,9 @@ public:
 public:
     auto operator==(const Record& other) const -> bool;
 
-    auto operator[](const std::size_t &index) -> Value&;
+    auto operator[](const std::size_t& index) -> Value&;
 
-    auto operator[](const std::size_t &index) const -> const Value&;
+    auto operator[](const std::size_t& index) const -> const Value&;
 
 private:
     std::uint32_t _id;

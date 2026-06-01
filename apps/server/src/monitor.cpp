@@ -7,27 +7,17 @@
 
 namespace qdb::server {
 
-Monitor::Monitor()
-        : Monitor(Registry::New()) {}
+Monitor::Monitor() : Monitor(Registry::New()) {}
 
-Monitor::Monitor(std::shared_ptr<Registry> registry,
-                 std::chrono::milliseconds interval,
-                 std::uint32_t dead_threshold)
-        : registry_(std::move(registry)),
-          interval_(interval),
-          dead_threshold_(dead_threshold == 0 ? 1 : dead_threshold) {}
+Monitor::Monitor(std::shared_ptr<Registry> registry, std::chrono::milliseconds interval, std::uint32_t dead_threshold)
+    : registry_(std::move(registry)), interval_(interval), dead_threshold_(dead_threshold == 0 ? 1 : dead_threshold) {}
 
-Monitor::~Monitor() {
-    Stop();
-}
+Monitor::~Monitor() { Stop(); }
 
-auto Monitor::New() -> std::unique_ptr<Monitor> {
-    return std::make_unique<Monitor>();
-}
+auto Monitor::New() -> std::unique_ptr<Monitor> { return std::make_unique<Monitor>(); }
 
-auto Monitor::New(std::shared_ptr<Registry> registry,
-                  std::chrono::milliseconds interval,
-                  std::uint32_t dead_threshold) -> std::unique_ptr<Monitor> {
+auto Monitor::New(std::shared_ptr<Registry> registry, std::chrono::milliseconds interval, std::uint32_t dead_threshold)
+    -> std::unique_ptr<Monitor> {
     return std::make_unique<Monitor>(std::move(registry), interval, dead_threshold);
 }
 

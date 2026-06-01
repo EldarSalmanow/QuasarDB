@@ -14,14 +14,14 @@ public:
 public:
     static auto New(std::string host, std::uint32_t port, std::string root) -> Config;
 
-    static auto FromArguments(int argc, char **argv) -> std::optional<Config>;
+    static auto FromArguments(int argc, char** argv) -> std::optional<Config>;
 
 public:
-    auto Host() const -> const std::string &;
+    auto Host() const -> const std::string&;
 
     auto Port() const -> std::uint32_t;
 
-    auto Root() const -> const std::string &;
+    auto Root() const -> const std::string&;
 
 private:
     std::string host_;
@@ -31,6 +31,6 @@ private:
     std::string root_;
 };
 
-}
+}  // namespace qdb::storage
 
 #endif  // QUASARDB_CONFIG_H

@@ -1,10 +1,10 @@
 #include "../include/qdb/storage/journal.h"
 
+#include <fcntl.h>
+#include <unistd.h>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
-#include <fcntl.h>
-#include <unistd.h>
 
 namespace qdb::storage {
 
@@ -51,9 +51,7 @@ void Journal::drop() {
     fs::remove(_path);
 }
 
-std::string Journal::save_insertion(const Record& record) {
-    return write_track(Track::Type::DELETE, record.Id());
-}
+std::string Journal::save_insertion(const Record& record) { return write_track(Track::Type::DELETE, record.Id()); }
 
 std::string Journal::save_updation(const Record& old_record) {
     return write_track(Track::Type::UPDATE, old_record.Id(), old_record.Serialize());

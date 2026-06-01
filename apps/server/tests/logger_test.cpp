@@ -93,8 +93,7 @@ TEST(LoggerTest, TimestampFormat) {
             std::ifstream file(entry.path());
             std::string line;
             std::getline(file, line);
-            ASSERT_TRUE(line.front() == '[' || std::isdigit(line[0])
-                || line[0] == '2');
+            ASSERT_TRUE(line.front() == '[' || std::isdigit(line[0]) || line[0] == '2');
         }
     }
 

@@ -6,8 +6,8 @@
 #include <qdb/core/request.h>
 #include <qdb/core/response.h>
 
-#include <optional>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace qdb::core {

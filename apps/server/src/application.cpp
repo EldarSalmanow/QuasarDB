@@ -34,9 +34,7 @@ auto IsLongRunning(const Statement& statement) -> bool {
     return HasAggregate(static_cast<const SelectStmt&>(statement));
 }
 
-auto DatabaseName(const TableRef& table) -> std::string {
-    return table.Database;
-}
+auto DatabaseName(const TableRef& table) -> std::string { return table.Database; }
 
 auto PermissionFor(const Statement& statement) -> Permission {
     switch (statement.KindOf()) {
@@ -93,14 +91,22 @@ auto ApplyDatabase(TableRef& table, const Session& session) -> bool {
 
 auto ApplyDatabase(Statement& statement, const Session& session) -> bool {
     switch (statement.KindOf()) {
-        case Statement::Kind::CreateTable: return ApplyDatabase(static_cast<CreateTableStmt&>(statement).Table, session);
-        case Statement::Kind::DropTable: return ApplyDatabase(static_cast<DropTableStmt&>(statement).Table, session);
-        case Statement::Kind::Insert: return ApplyDatabase(static_cast<InsertStmt&>(statement).Table, session);
-        case Statement::Kind::Update: return ApplyDatabase(static_cast<UpdateStmt&>(statement).Table, session);
-        case Statement::Kind::Delete: return ApplyDatabase(static_cast<DeleteStmt&>(statement).Table, session);
-        case Statement::Kind::Select: return ApplyDatabase(static_cast<SelectStmt&>(statement).Table, session);
-        case Statement::Kind::Revert: return ApplyDatabase(static_cast<RevertStmt&>(statement).Table, session);
-        default: return true;
+        case Statement::Kind::CreateTable:
+            return ApplyDatabase(static_cast<CreateTableStmt&>(statement).Table, session);
+        case Statement::Kind::DropTable:
+            return ApplyDatabase(static_cast<DropTableStmt&>(statement).Table, session);
+        case Statement::Kind::Insert:
+            return ApplyDatabase(static_cast<InsertStmt&>(statement).Table, session);
+        case Statement::Kind::Update:
+            return ApplyDatabase(static_cast<UpdateStmt&>(statement).Table, session);
+        case Statement::Kind::Delete:
+            return ApplyDatabase(static_cast<DeleteStmt&>(statement).Table, session);
+        case Statement::Kind::Select:
+            return ApplyDatabase(static_cast<SelectStmt&>(statement).Table, session);
+        case Statement::Kind::Revert:
+            return ApplyDatabase(static_cast<RevertStmt&>(statement).Table, session);
+        default:
+            return true;
     }
 }
 
@@ -167,7 +173,8 @@ auto Application::Process(const qdb::core::Request& request, Session& session) -
         if (request.Action().empty()) {
             response = Error("Request must contain string field 'action'");
         } else if (config_.AuthRequired() && accounts_.Empty() && request.Action() != "login" &&
-                   request.Action() != "handshake") {
+                   request.Action() != "handshake")
+        {
             response = SetupRequired();
         } else if (request.Action() == "handshake") {
             response = HandleHandshake();
@@ -186,21 +193,25 @@ auto Application::Process(const qdb::core::Request& request, Session& session) -
         response = Error(exception.what());
     }
 
-    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - started
-    ).count();
+    const auto elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
     telemetry_.RecordRequest(static_cast<std::uint64_t>(elapsed), response.IsSuccess() || response.IsPending());
     const auto status = response.IsSuccess() ? "success" : (response.IsPending() ? "pending" : "error");
-    logger_.LogQuery(user, HandlerId(), request.Query().empty() ? request.Action() : request.Query(),
-                     static_cast<std::uint64_t>(elapsed), status);
+    logger_.LogQuery(
+        user,
+        HandlerId(),
+        request.Query().empty() ? request.Action() : request.Query(),
+        static_cast<std::uint64_t>(elapsed),
+        status
+    );
     return response;
 }
 
 auto Application::HandleHandshake() const -> qdb::core::Response {
-    return Ok("Handshake complete", {
-        {"auth_required", config_.AuthRequired()},
-        {"setup_required", config_.AuthRequired() && accounts_.Empty()}
-    });
+    return Ok(
+        "Handshake complete",
+        {{"auth_required", config_.AuthRequired()}, {"setup_required", config_.AuthRequired() && accounts_.Empty()}}
+    );
 }
 
 auto Application::HandleLogin(const qdb::core::Request& request) -> qdb::core::Response {
@@ -254,7 +265,8 @@ auto Application::HandleExecute(const qdb::core::Request& request, Session& sess
 
     auto tokens = lexer.Tokenize();
 
-    if (std::any_of(tokens.begin(), tokens.end(), [](const Token& token) { return token.type == TokenType::Invalid; })) {
+    if (std::any_of(tokens.begin(), tokens.end(), [](const Token& token) { return token.type == TokenType::Invalid; }))
+    {
         return Error("Invalid token in SQL query");
     }
 
@@ -335,15 +347,16 @@ auto Application::HandleTelemetry(const qdb::core::Request& request) const -> qd
         return Error("Valid token is required");
     }
 
-    return Ok("Telemetry", {
-        {"total_requests", telemetry_.GetTotalRequests()},
-        {"total_errors", telemetry_.GetTotalErrors()},
-        {"error_rate", telemetry_.GetErrorRate()},
-        {"current_rps", telemetry_.GetCurrentRPS()},
-        {"avg_rps_10min", telemetry_.GetAvgRPS10min()},
-        {"max_rps_10min", telemetry_.GetMaxRPS10min()},
-        {"avg_duration_ms", telemetry_.GetAvgDuration()}
-    });
+    return Ok(
+        "Telemetry",
+        {{"total_requests", telemetry_.GetTotalRequests()},
+         {"total_errors", telemetry_.GetTotalErrors()},
+         {"error_rate", telemetry_.GetErrorRate()},
+         {"current_rps", telemetry_.GetCurrentRPS()},
+         {"avg_rps_10min", telemetry_.GetAvgRPS10min()},
+         {"max_rps_10min", telemetry_.GetMaxRPS10min()},
+         {"avg_duration_ms", telemetry_.GetAvgDuration()}}
+    );
 }
 
 auto Application::Authenticate(const qdb::core::Request& request) const -> std::optional<std::string> {
@@ -361,10 +374,12 @@ auto Application::Authenticate(const qdb::core::Request& request) const -> std::
 auto Application::CheckAccess(const std::string& user, const Statement& statement) const -> bool {
     const auto permission = PermissionFor(statement);
     if (statement.KindOf() == Statement::Kind::CreateDatabase) {
-        return rbac_.CheckPermission(user, static_cast<const CreateDatabaseStmt&>(statement).DatabaseName, "*", permission);
+        return rbac_
+            .CheckPermission(user, static_cast<const CreateDatabaseStmt&>(statement).DatabaseName, "*", permission);
     }
     if (statement.KindOf() == Statement::Kind::DropDatabase) {
-        return rbac_.CheckPermission(user, static_cast<const DropDatabaseStmt&>(statement).DatabaseName, "*", permission);
+        return rbac_
+            .CheckPermission(user, static_cast<const DropDatabaseStmt&>(statement).DatabaseName, "*", permission);
     }
 
     auto table = Analyzer::TableFromStatement(statement);
@@ -388,7 +403,9 @@ auto Application::HandleSecurityStatement(const std::string& user, const Stateme
     }
 
     const auto apply = [&](const auto& stmt, bool grant) -> qdb::core::Response {
-        if (config_.AuthRequired() && !rbac_.CheckPermission(user, stmt.Scope.Database, stmt.Scope.Table, Permission::CREATE)) {
+        if (config_.AuthRequired() &&
+            !rbac_.CheckPermission(user, stmt.Scope.Database, stmt.Scope.Table, Permission::CREATE))
+        {
             return Error("Permission denied");
         }
         if (!accounts_.HasAccount(stmt.Username)) {

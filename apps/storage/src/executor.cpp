@@ -36,8 +36,12 @@ auto LiteralValue(const qdb::server::Literal& literal, Interner& interner) -> Va
     return interner.Intern(literal.Value);
 }
 
-auto ExpressionValue(const qdb::server::Expression& expression, const Schema& schema, const Record& record,
-                     Interner& interner) -> Value {
+auto ExpressionValue(
+    const qdb::server::Expression& expression,
+    const Schema& schema,
+    const Record& record,
+    Interner& interner
+) -> Value {
     using Kind = qdb::server::Expression::Kind;
 
     if (expression.KindOf() == Kind::Literal) {
@@ -49,35 +53,50 @@ auto ExpressionValue(const qdb::server::Expression& expression, const Schema& sc
         const auto index = schema.ColumnIndex(id.Name);
 
         if (index < 0) {
-            throw std::runtime_error("[ERROR in qdb::storage::ExpressionValue]: "
-                                     "Unknown column '" + id.Name + "'!");
+            throw std::runtime_error(
+                "[ERROR in qdb::storage::ExpressionValue]: "
+                "Unknown column '" +
+                id.Name + "'!"
+            );
         }
 
         return record[index];
     }
 
-    throw std::runtime_error("[ERROR in qdb::storage::ExpressionValue]: "
-                             "Unsupported expression!");
+    throw std::runtime_error(
+        "[ERROR in qdb::storage::ExpressionValue]: "
+        "Unsupported expression!"
+    );
 }
 
-auto CompareStrings(std::string_view left, std::string_view right,
-                    qdb::server::ComparisonCondition::Operator op) -> SqlBool {
+auto CompareStrings(std::string_view left, std::string_view right, qdb::server::ComparisonCondition::Operator op)
+    -> SqlBool {
     using Operator = qdb::server::ComparisonCondition::Operator;
 
     switch (op) {
-        case Operator::Equal: return left == right ? SqlBool::TRUE : SqlBool::FALSE;
-        case Operator::NotEqual: return left != right ? SqlBool::TRUE : SqlBool::FALSE;
-        case Operator::Less: return left < right ? SqlBool::TRUE : SqlBool::FALSE;
-        case Operator::Greater: return left > right ? SqlBool::TRUE : SqlBool::FALSE;
-        case Operator::LessEqual: return left <= right ? SqlBool::TRUE : SqlBool::FALSE;
-        case Operator::GreaterEqual: return left >= right ? SqlBool::TRUE : SqlBool::FALSE;
+        case Operator::Equal:
+            return left == right ? SqlBool::TRUE : SqlBool::FALSE;
+        case Operator::NotEqual:
+            return left != right ? SqlBool::TRUE : SqlBool::FALSE;
+        case Operator::Less:
+            return left < right ? SqlBool::TRUE : SqlBool::FALSE;
+        case Operator::Greater:
+            return left > right ? SqlBool::TRUE : SqlBool::FALSE;
+        case Operator::LessEqual:
+            return left <= right ? SqlBool::TRUE : SqlBool::FALSE;
+        case Operator::GreaterEqual:
+            return left >= right ? SqlBool::TRUE : SqlBool::FALSE;
     }
 
     return SqlBool::UNKNOWN;
 }
 
-auto EvaluateCondition(const qdb::server::Condition& condition, const Schema& schema, const Record& record,
-                       Interner& interner) -> SqlBool {
+auto EvaluateCondition(
+    const qdb::server::Condition& condition,
+    const Schema& schema,
+    const Record& record,
+    Interner& interner
+) -> SqlBool {
     using namespace qdb::server;
 
     if (condition.KindOf() == Condition::Kind::Comparison) {
@@ -94,12 +113,18 @@ auto EvaluateCondition(const qdb::server::Condition& condition, const Schema& sc
         }
 
         switch (node.Op) {
-            case ComparisonCondition::Operator::Equal: return left == right;
-            case ComparisonCondition::Operator::NotEqual: return left != right;
-            case ComparisonCondition::Operator::Less: return left < right;
-            case ComparisonCondition::Operator::Greater: return left > right;
-            case ComparisonCondition::Operator::LessEqual: return left <= right;
-            case ComparisonCondition::Operator::GreaterEqual: return left >= right;
+            case ComparisonCondition::Operator::Equal:
+                return left == right;
+            case ComparisonCondition::Operator::NotEqual:
+                return left != right;
+            case ComparisonCondition::Operator::Less:
+                return left < right;
+            case ComparisonCondition::Operator::Greater:
+                return left > right;
+            case ComparisonCondition::Operator::LessEqual:
+                return left <= right;
+            case ComparisonCondition::Operator::GreaterEqual:
+                return left >= right;
         }
     }
 
@@ -124,8 +149,8 @@ auto EvaluateCondition(const qdb::server::Condition& condition, const Schema& sc
         }
 
         return std::regex_match(std::string(interner.View(value.AsString())), std::regex(node.Pattern))
-            ? SqlBool::TRUE
-            : SqlBool::FALSE;
+                   ? SqlBool::TRUE
+                   : SqlBool::FALSE;
     }
 
     if (condition.KindOf() == Condition::Kind::And) {
@@ -146,9 +171,12 @@ auto EvaluateCondition(const qdb::server::Condition& condition, const Schema& sc
 
 auto AggregateName(qdb::server::AggregateExpr::Function function) -> std::string {
     switch (function) {
-        case qdb::server::AggregateExpr::Function::Sum: return "SUM";
-        case qdb::server::AggregateExpr::Function::Count: return "COUNT";
-        case qdb::server::AggregateExpr::Function::Avg: return "AVG";
+        case qdb::server::AggregateExpr::Function::Sum:
+            return "SUM";
+        case qdb::server::AggregateExpr::Function::Count:
+            return "COUNT";
+        case qdb::server::AggregateExpr::Function::Avg:
+            return "AVG";
     }
 
     return "AGG";
@@ -162,8 +190,8 @@ auto ColumnName(const qdb::server::SelectItem& item, const qdb::server::Identifi
     return item.Alias.empty() ? id.Name : item.Alias;
 }
 
-auto IndexedRecords(Table& table, Interner& interner,
-                    const qdb::server::Condition& condition) -> std::optional<std::vector<Record>> {
+auto IndexedRecords(Table& table, Interner& interner, const qdb::server::Condition& condition)
+    -> std::optional<std::vector<Record>> {
     using namespace qdb::server;
 
     if (condition.KindOf() == Condition::Kind::And) {
@@ -233,8 +261,7 @@ auto MatchingRecords(Table& table, Interner& interner, const qdb::server::Condit
     return result;
 }
 
-Executor::Executor(Table& table, Interner& interner)
-        : table_(table), interner_(interner) {}
+Executor::Executor(Table& table, Interner& interner) : table_(table), interner_(interner) {}
 
 auto Executor::Execute(const qdb::server::Statement& statement) -> nlohmann::json {
     using namespace qdb::server;
@@ -308,15 +335,15 @@ auto Executor::Execute(const qdb::server::Statement& statement) -> nlohmann::jso
         return qdb::core::SuccessJson("Table reverted", {{"rows_affected", 0}});
     }
 
-    if (statement.KindOf() == Statement::Kind::CreateUser
-     || statement.KindOf() == Statement::Kind::Grant
-     || statement.KindOf() == Statement::Kind::Revoke) {
+    if (statement.KindOf() == Statement::Kind::CreateUser || statement.KindOf() == Statement::Kind::Grant ||
+        statement.KindOf() == Statement::Kind::Revoke)
+    {
         return qdb::core::ErrorJson("Storage shard does not manage users or permissions");
     }
 
-    if (statement.KindOf() == Statement::Kind::CreateDatabase
-     || statement.KindOf() == Statement::Kind::DropDatabase
-     || statement.KindOf() == Statement::Kind::UseDatabase) {
+    if (statement.KindOf() == Statement::Kind::CreateDatabase || statement.KindOf() == Statement::Kind::DropDatabase ||
+        statement.KindOf() == Statement::Kind::UseDatabase)
+    {
         return qdb::core::ErrorJson("Storage shard does not manage databases");
     }
 
@@ -357,8 +384,10 @@ auto Executor::SelectRows(const qdb::server::SelectStmt& node, Interner& interne
         } else {
             for (const auto& item : node.SelectItems) {
                 if (item.Expr->KindOf() != qdb::server::Expression::Kind::Identifier) {
-                    throw std::runtime_error("[ERROR in qdb::storage::SelectRows]: "
-                                             "Only column expressions are supported in SELECT!");
+                    throw std::runtime_error(
+                        "[ERROR in qdb::storage::SelectRows]: "
+                        "Only column expressions are supported in SELECT!"
+                    );
                 }
 
                 const auto& id = static_cast<const qdb::server::IdentifierExpr&>(*item.Expr);
@@ -372,22 +401,28 @@ auto Executor::SelectRows(const qdb::server::SelectStmt& node, Interner& interne
     return result;
 }
 
-auto Executor::AggregateSelect(const qdb::server::SelectStmt& node, Interner& interner, Table& table) -> nlohmann::json {
+auto Executor::AggregateSelect(const qdb::server::SelectStmt& node, Interner& interner, Table& table)
+    -> nlohmann::json {
     nlohmann::json row = nlohmann::json::object();
     const auto records = MatchingRecords(table, interner, node.WhereClause.get());
 
     for (const auto& item : node.SelectItems) {
         if (item.Expr->KindOf() != qdb::server::Expression::Kind::Aggregate) {
-            throw std::runtime_error("[ERROR in qdb::storage::AggregateSelect]: "
-                                     "Only aggregate SELECT is implemented!");
+            throw std::runtime_error(
+                "[ERROR in qdb::storage::AggregateSelect]: "
+                "Only aggregate SELECT is implemented!"
+            );
         }
 
         const auto* aggregate = static_cast<const qdb::server::AggregateExpr*>(item.Expr.get());
 
         const auto column_index = table.schema().ColumnIndex(aggregate->Column);
         if (column_index < 0) {
-            throw std::runtime_error("[ERROR in qdb::storage::AggregateSelect]: "
-                                     "Unknown column '" + aggregate->Column + "'!");
+            throw std::runtime_error(
+                "[ERROR in qdb::storage::AggregateSelect]: "
+                "Unknown column '" +
+                aggregate->Column + "'!"
+            );
         }
 
         int64_t sum = 0;
@@ -406,8 +441,11 @@ auto Executor::AggregateSelect(const qdb::server::SelectStmt& node, Interner& in
             }
 
             if (!value.IsInt()) {
-                throw std::runtime_error("[ERROR in qdb::storage::AggregateSelect]: "
-                                         "Aggregate expects INT column '" + aggregate->Column + "'!");
+                throw std::runtime_error(
+                    "[ERROR in qdb::storage::AggregateSelect]: "
+                    "Aggregate expects INT column '" +
+                    aggregate->Column + "'!"
+                );
             }
 
             sum += value.AsInt();

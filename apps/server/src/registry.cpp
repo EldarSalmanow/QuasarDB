@@ -2,16 +2,16 @@
 
 #include <qdb/core/tcp_client.h>
 
-#include <chrono>
-#include <cctype>
-#include <csignal>
 #include <fcntl.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <cctype>
+#include <chrono>
+#include <csignal>
 #include <filesystem>
 #include <mutex>
 #include <thread>
 #include <utility>
-#include <sys/wait.h>
-#include <unistd.h>
 
 namespace qdb::server {
 
@@ -29,21 +29,18 @@ auto SanitizedPath(std::string value) -> std::filesystem::path {
     return path / (part.empty() ? "_" : part);
 }
 
-StorageId::StorageId(std::string table)
-        : table(std::move(table)) {}
+StorageId::StorageId(std::string table) : table(std::move(table)) {}
 
-auto StorageId::operator==(const StorageId& other) const -> bool {
-    return table == other.table;
-}
+auto StorageId::operator==(const StorageId& other) const -> bool { return table == other.table; }
 
 StorageNode::StorageNode(std::string host, std::uint32_t port, StorageState state)
-        : host(std::move(host)), port(port), state(state) {}
+    : host(std::move(host)), port(port), state(state) {}
 
 Registry::Registry(bool auto_start_storage, std::string storage_binary, std::string storage_root)
-        : next_port_(9001),
-          auto_start_storage_(auto_start_storage),
-          storage_binary_(std::move(storage_binary)),
-          storage_root_(std::move(storage_root)) {}
+    : next_port_(9001),
+      auto_start_storage_(auto_start_storage),
+      storage_binary_(std::move(storage_binary)),
+      storage_root_(std::move(storage_root)) {}
 
 Registry::~Registry() {
     std::unique_lock lock(nodes_mutex_);
@@ -52,11 +49,12 @@ Registry::~Registry() {
     }
 }
 
-auto Registry::New(bool auto_start_storage, std::string storage_binary, std::string storage_root) -> std::shared_ptr<Registry> {
+auto Registry::New(bool auto_start_storage, std::string storage_binary, std::string storage_root)
+    -> std::shared_ptr<Registry> {
     return std::make_shared<Registry>(auto_start_storage, std::move(storage_binary), std::move(storage_root));
 }
 
-auto Registry::CreateNode(const StorageId &id) -> bool {
+auto Registry::CreateNode(const StorageId& id) -> bool {
     std::unique_lock lock(nodes_mutex_);
 
     if (HasNodeNonSync(id)) {
@@ -73,7 +71,7 @@ auto Registry::CreateNode(const StorageId &id) -> bool {
     return true;
 }
 
-auto Registry::GetNode(const StorageId &id) const -> std::optional<StorageNode> {
+auto Registry::GetNode(const StorageId& id) const -> std::optional<StorageNode> {
     std::shared_lock lock(nodes_mutex_);
 
     auto iterator = nodes_.find(id);
@@ -85,13 +83,13 @@ auto Registry::GetNode(const StorageId &id) const -> std::optional<StorageNode> 
     return iterator->second;
 }
 
-auto Registry::HasNode(const StorageId &id) const -> bool {
+auto Registry::HasNode(const StorageId& id) const -> bool {
     std::shared_lock lock(nodes_mutex_);
 
     return HasNodeNonSync(id);
 }
 
-auto Registry::UpdateNode(const StorageId &id, StorageState state) -> bool {
+auto Registry::UpdateNode(const StorageId& id, StorageState state) -> bool {
     std::unique_lock lock(nodes_mutex_);
 
     if (!HasNodeNonSync(id)) {
@@ -120,7 +118,7 @@ auto Registry::RestartNode(const StorageId& id) -> bool {
     return true;
 }
 
-auto Registry::DropNode(const StorageId &id) -> bool {
+auto Registry::DropNode(const StorageId& id) -> bool {
     std::unique_lock lock(nodes_mutex_);
 
     if (!HasNodeNonSync(id)) {
@@ -146,9 +144,7 @@ auto Registry::GetNodes() const -> std::vector<std::pair<StorageId, StorageNode>
     return nodes;
 }
 
-auto Registry::HasNodeNonSync(const StorageId &id) const -> bool {
-    return nodes_.find(id) != nodes_.end();
-}
+auto Registry::HasNodeNonSync(const StorageId& id) const -> bool { return nodes_.find(id) != nodes_.end(); }
 
 auto Registry::StartProcessNonSync(const StorageId& id, const StorageNode& node) -> bool {
     const auto binary = ResolveStorageBinary();
@@ -174,11 +170,17 @@ auto Registry::StartProcessNonSync(const StorageId& id, const StorageNode& node)
             close(dev_null);
         }
 
-        execl(binary.c_str(), binary.c_str(),
-              "--host", node.host.c_str(),
-              "--port", port.c_str(),
-              "--root", data_dir.c_str(),
-              static_cast<char*>(nullptr));
+        execl(
+            binary.c_str(),
+            binary.c_str(),
+            "--host",
+            node.host.c_str(),
+            "--port",
+            port.c_str(),
+            "--root",
+            data_dir.c_str(),
+            static_cast<char*>(nullptr)
+        );
         _exit(127);
     }
 

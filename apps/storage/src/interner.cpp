@@ -18,8 +18,11 @@ auto Interner::UseStorage(const std::filesystem::path& path) -> void {
         storage_.open(path_, std::ios::out | std::ios::binary | std::ios::trunc);
 
         if (!storage_.is_open()) {
-            throw std::runtime_error("[ERROR in qdb::storage::Interner]: "
-                                     "Cannot create file '" + path_.string() + "'!");
+            throw std::runtime_error(
+                "[ERROR in qdb::storage::Interner]: "
+                "Cannot create file '" +
+                path_.string() + "'!"
+            );
         }
 
         storage_.close();
@@ -27,20 +30,26 @@ auto Interner::UseStorage(const std::filesystem::path& path) -> void {
     }
 
     if (!storage_.is_open()) {
-        throw std::runtime_error("[ERROR in qdb::storage::Interner]: "
-                                 "Cannot open file '" + path_.string() + "'!");
+        throw std::runtime_error(
+            "[ERROR in qdb::storage::Interner]: "
+            "Cannot open file '" +
+            path_.string() + "'!"
+        );
     }
 
     LoadStorage();
 }
 
-auto Interner::View(const StringId &id) -> std::string_view {
+auto Interner::View(const StringId& id) -> std::string_view {
     if (auto iterator = id_to_view_.find(id.value); iterator != id_to_view_.end()) {
         return iterator->second;
     }
 
-    throw std::runtime_error("[ERROR in qdb::storage::Interner]: "
-                             "Unknown string id '" + std::to_string(id.value) + "'!");
+    throw std::runtime_error(
+        "[ERROR in qdb::storage::Interner]: "
+        "Unknown string id '" +
+        std::to_string(id.value) + "'!"
+    );
 }
 
 auto Interner::Intern(std::string_view str_view) -> Value {
@@ -63,11 +72,11 @@ auto Interner::Intern(std::string_view str_view) -> Value {
     string_to_id_.emplace(std::move(key), id);
     id_to_view_.emplace(id.value, view);
 
-    return Value { id };
+    return Value{id};
 }
 
-auto Interner::Get(const StringId &id) -> Value {
-    (void) View(id);
+auto Interner::Get(const StringId& id) -> Value {
+    (void)View(id);
 
     return Value(id);
 }
@@ -119,7 +128,7 @@ auto Interner::LoadStorage() -> void {
     }
 }
 
-auto Interner::AddLoadedString(const StringId &id, std::string value) -> std::string_view {
+auto Interner::AddLoadedString(const StringId& id, std::string value) -> std::string_view {
     next_id_ = std::max(next_id_, id.value + 1);
     string_storage_.push_back(std::move(value));
 
@@ -131,14 +140,15 @@ auto Interner::AddLoadedString(const StringId &id, std::string value) -> std::st
     return view;
 }
 
-auto Interner::AppendToDisk(const StringId &id, std::string_view str) -> void {
+auto Interner::AppendToDisk(const StringId& id, std::string_view str) -> void {
     storage_.clear();
     storage_.seekp(0, std::ios::end);
 
     uint64_t size = str.size();
     if (!storage_.write(reinterpret_cast<const char*>(&id.value), sizeof(id.value)) ||
         !storage_.write(reinterpret_cast<const char*>(&size), sizeof(size)) ||
-        !storage_.write(str.data(), static_cast<std::streamsize>(str.size()))) {
+        !storage_.write(str.data(), static_cast<std::streamsize>(str.size())))
+    {
         throw std::runtime_error("[ERROR in qdb::storage::Interner]: Failed to write string data!");
     }
 

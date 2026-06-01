@@ -5,11 +5,22 @@
       "name": "dev-container-debug",
       "displayName": "Debug",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/debug",
+      "binaryDir": "${sourceDir}/build/Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON", 
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/Debug/conan_toolchain.cmake"
+      }
+    },
+    {
+      "name": "dev-container-release",
+      "displayName": "Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/Release/conan_toolchain.cmake"
       }
     }
   ],
@@ -17,6 +28,10 @@
     {
       "name": "dev-container-debug",
       "configurePreset": "dev-container-debug"
+    },
+    {
+      "name": "dev-container-release",
+      "configurePreset": "dev-container-release"
     }
   ]
 }

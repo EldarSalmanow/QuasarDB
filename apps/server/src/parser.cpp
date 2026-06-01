@@ -2,7 +2,6 @@
 
 #include <utility>
 
-
 namespace qdb::server {
 
 ParseError::ParseError(const std::string& message) : std::runtime_error(message) {}
@@ -22,17 +21,28 @@ auto Parser::ParseStatement() -> std::unique_ptr<Statement> {
     const std::string& keyword = current.value;
     std::unique_ptr<Statement> stmt;
 
-    if (keyword == "CREATE") stmt = ParseCreateStatement();
-    else if (keyword == "DROP") stmt = ParseDropStatement();
-    else if (keyword == "USE") stmt = ParseUseStatement();
-    else if (keyword == "GRANT") stmt = ParseGrantStatement();
-    else if (keyword == "REVOKE") stmt = ParseRevokeStatement();
-    else if (keyword == "REVERT") stmt = ParseRevertStatement();
-    else if (keyword == "INSERT") stmt = ParseInsertStatement();
-    else if (keyword == "UPDATE") stmt = ParseUpdateStatement();
-    else if (keyword == "DELETE") stmt = ParseDeleteStatement();
-    else if (keyword == "SELECT") stmt = ParseSelectStatement();
-    else throw ParseError("Unknown statement: " + keyword);
+    if (keyword == "CREATE")
+        stmt = ParseCreateStatement();
+    else if (keyword == "DROP")
+        stmt = ParseDropStatement();
+    else if (keyword == "USE")
+        stmt = ParseUseStatement();
+    else if (keyword == "GRANT")
+        stmt = ParseGrantStatement();
+    else if (keyword == "REVOKE")
+        stmt = ParseRevokeStatement();
+    else if (keyword == "REVERT")
+        stmt = ParseRevertStatement();
+    else if (keyword == "INSERT")
+        stmt = ParseInsertStatement();
+    else if (keyword == "UPDATE")
+        stmt = ParseUpdateStatement();
+    else if (keyword == "DELETE")
+        stmt = ParseDeleteStatement();
+    else if (keyword == "SELECT")
+        stmt = ParseSelectStatement();
+    else
+        throw ParseError("Unknown statement: " + keyword);
 
     if (Match(TokenType::Punctuation, ";")) {
         Advance();
@@ -45,9 +55,7 @@ auto Parser::ParseStatement() -> std::unique_ptr<Statement> {
     return stmt;
 }
 
-auto Parser::IsAtEnd() const -> bool {
-    return pos_ >= tokens_.size() || Peek().type == TokenType::EndOfFile;
-}
+auto Parser::IsAtEnd() const -> bool { return pos_ >= tokens_.size() || Peek().type == TokenType::EndOfFile; }
 
 auto Parser::Peek() const -> Token {
     if (pos_ >= tokens_.size()) {
@@ -146,7 +154,8 @@ auto Parser::ParsePermissions() -> std::vector<std::string> {
     std::vector<std::string> permissions;
     while (true) {
         if (!Match(TokenType::Keyword, "READ") && !Match(TokenType::Keyword, "WRITE") &&
-            !Match(TokenType::Keyword, "CREATE") && !Match(TokenType::Keyword, "DELETE")) {
+            !Match(TokenType::Keyword, "CREATE") && !Match(TokenType::Keyword, "DELETE"))
+        {
             throw ParseError("Expected permission READ, WRITE, CREATE, or DELETE");
         }
         permissions.push_back(Advance().value);
@@ -164,8 +173,7 @@ auto Parser::ParseTimestampPart(const std::string& name, std::size_t expected_le
 
     std::string value = Advance().value;
     if (value.size() != expected_length) {
-        throw ParseError("Expected " + std::to_string(expected_length) + " digits for " + name +
-                         " in timestamp");
+        throw ParseError("Expected " + std::to_string(expected_length) + " digits for " + name + " in timestamp");
     }
 
     return value;
@@ -234,8 +242,7 @@ auto Parser::ParseAggregateFunction(const std::string& func) -> AggregateExpr::F
 }
 
 auto Parser::ParseExpression() -> std::unique_ptr<Expression> {
-    if (Match(TokenType::Keyword, "SUM") || Match(TokenType::Keyword, "COUNT") ||
-        Match(TokenType::Keyword, "AVG")) {
+    if (Match(TokenType::Keyword, "SUM") || Match(TokenType::Keyword, "COUNT") || Match(TokenType::Keyword, "AVG")) {
         std::string func = Advance().value;
         ExpectPunctuation("(");
         std::string column = ParseIdentifier();
@@ -246,9 +253,7 @@ auto Parser::ParseExpression() -> std::unique_ptr<Expression> {
     return ParseValue();
 }
 
-auto Parser::ParseCondition() -> std::unique_ptr<Condition> {
-    return ParseOrCondition();
-}
+auto Parser::ParseCondition() -> std::unique_ptr<Condition> { return ParseOrCondition(); }
 
 auto Parser::ParseOrCondition() -> std::unique_ptr<Condition> {
     auto left = ParseAndCondition();
@@ -299,8 +304,7 @@ auto Parser::ParsePredicate() -> std::unique_ptr<Condition> {
         auto lower = ParseValue();
         ExpectKeyword("AND");
         auto upper = ParseValue();
-        return std::make_unique<BetweenCondition>(std::move(value), std::move(lower),
-                                                  std::move(upper));
+        return std::make_unique<BetweenCondition>(std::move(value), std::move(lower), std::move(upper));
     }
 
     if (Match(TokenType::Keyword, "LIKE")) {
@@ -315,9 +319,7 @@ auto Parser::ParsePredicate() -> std::unique_ptr<Condition> {
     if (Match(TokenType::Operator)) {
         std::string op = Advance().value;
         auto right = ParseValue();
-        return std::make_unique<ComparisonCondition>(std::move(value),
-                                                     ParseComparisonOperator(op),
-                                                     std::move(right));
+        return std::make_unique<ComparisonCondition>(std::move(value), ParseComparisonOperator(op), std::move(right));
     }
 
     throw ParseError("Expected comparison operator, BETWEEN, or LIKE");
@@ -557,4 +559,3 @@ auto Parser::ParseSelectStatement() -> std::unique_ptr<Statement> {
 }
 
 }  // namespace qdb::server
-

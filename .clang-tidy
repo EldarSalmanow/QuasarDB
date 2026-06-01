@@ -4,6 +4,7 @@ Checks: >
   modernize-*,
   performance-*,
   readability-*,
+  -clang-format-violations,
   -modernize-use-trailing-return-type,
   -modernize-use-nodiscard,
   -readability-function-cognitive-complexity,

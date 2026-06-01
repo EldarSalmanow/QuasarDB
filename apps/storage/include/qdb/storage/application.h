@@ -5,15 +5,14 @@
 
 #include <qdb/core/request.h>
 #include <qdb/core/response.h>
-#include <qdb/core/tcp_server.h>
 #include <qdb/core/tcp_client.h>
+#include <qdb/core/tcp_server.h>
 #include <qdb/server/ast.h>
 #include <qdb/storage/config.h>
 #include <qdb/storage/interner.h>
 #include <qdb/storage/table.h>
 
 #include <memory>
-
 
 namespace qdb::storage {
 

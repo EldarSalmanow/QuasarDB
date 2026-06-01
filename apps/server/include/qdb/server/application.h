@@ -4,8 +4,8 @@
 #include <qdb/core/request.h>
 #include <qdb/core/response.h>
 #include <qdb/core/tcp_server.h>
-#include <qdb/server/config.h>
 #include <qdb/server/catalog.h>
+#include <qdb/server/config.h>
 #include <qdb/server/logger.h>
 #include <qdb/server/monitor.h>
 #include <qdb/server/rbac.h>
@@ -17,7 +17,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-
 
 namespace qdb::server {
 
@@ -53,7 +52,8 @@ private:
 
     auto CheckAccess(const std::string& user, const Statement& statement) const -> bool;
 
-    auto HandleSecurityStatement(const std::string& user, const Statement& statement) -> std::optional<qdb::core::Response>;
+    auto HandleSecurityStatement(const std::string& user, const Statement& statement)
+        -> std::optional<qdb::core::Response>;
 
 private:
     Config config_;

@@ -15,9 +15,11 @@ class Monitor {
 public:
     Monitor();
 
-    explicit Monitor(std::shared_ptr<Registry> registry,
-                     std::chrono::milliseconds interval = std::chrono::seconds(5),
-                     std::uint32_t dead_threshold = 3);
+    explicit Monitor(
+        std::shared_ptr<Registry> registry,
+        std::chrono::milliseconds interval = std::chrono::seconds(5),
+        std::uint32_t dead_threshold = 3
+    );
 
     ~Monitor();
 
@@ -32,9 +34,11 @@ public:
 public:
     static auto New() -> std::unique_ptr<Monitor>;
 
-    static auto New(std::shared_ptr<Registry> registry,
-                    std::chrono::milliseconds interval = std::chrono::seconds(5),
-                    std::uint32_t dead_threshold = 3) -> std::unique_ptr<Monitor>;
+    static auto New(
+        std::shared_ptr<Registry> registry,
+        std::chrono::milliseconds interval = std::chrono::seconds(5),
+        std::uint32_t dead_threshold = 3
+    ) -> std::unique_ptr<Monitor>;
 
 public:
     auto Start() -> void;

@@ -3,7 +3,6 @@
 #include <iostream>
 #include <string_view>
 
-
 namespace qdb::client {
 
 namespace {
@@ -61,14 +60,9 @@ std::optional<std::string> ConsoleReader::ReadCommand() {
     }
 }
 
-bool ConsoleReader::HasMore() const {
-    return !std::cin.eof();
-}
+bool ConsoleReader::HasMore() const { return !std::cin.eof(); }
 
-FileReader::FileReader(const std::string& file_path)
-        : file_path_(file_path) {
-    file_stream_.open(file_path_);
-}
+FileReader::FileReader(const std::string& file_path) : file_path_(file_path) { file_stream_.open(file_path_); }
 
 FileReader::~FileReader() {
     if (file_stream_.is_open()) {
@@ -106,7 +100,7 @@ bool FileReader::HasMore() const {
         return false;
     }
 
-    auto &stream = const_cast<std::ifstream &>(file_stream_);
+    auto& stream = const_cast<std::ifstream&>(file_stream_);
     const std::streampos current_pos = stream.tellg();
     const std::ios::iostate current_state = stream.rdstate();
 

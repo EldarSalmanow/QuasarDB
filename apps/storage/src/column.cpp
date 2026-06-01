@@ -5,10 +5,20 @@ namespace qdb::storage {
 Column::Column(std::string name, ColumnType type, uint8_t flags)
     : Column(std::move(name), type, flags, DefaultType::NONE, 0, "") {}
 
-Column::Column(std::string name, ColumnType type, uint8_t flags,
-               DefaultType default_type, int32_t default_int, std::string default_string)
-        : name_(std::move(name)), type_(type), flags_(flags),
-          default_type_(default_type), default_int_(default_int), default_string_(std::move(default_string)) {
+Column::Column(
+    std::string name,
+    ColumnType type,
+    uint8_t flags,
+    DefaultType default_type,
+    int32_t default_int,
+    std::string default_string
+)
+    : name_(std::move(name)),
+      type_(type),
+      flags_(flags),
+      default_type_(default_type),
+      default_int_(default_int),
+      default_string_(std::move(default_string)) {
     if (REQUIRE_NOTNULL_FOR_INDEXED && ((flags_ & INDEXED_FLAG) != 0)) {
         flags_ |= NOT_NULL_FLAG;
     }
@@ -53,7 +63,8 @@ auto Column::FromBinary(std::istream& stream) -> std::optional<Column> {
     } else if (default_type == DefaultType::STRING) {
         uint32_t default_len;
         if (!stream.read(reinterpret_cast<char*>(&default_len), sizeof(default_len)) ||
-            default_len > MAX_SERIALIZED_STRING_SIZE) {
+            default_len > MAX_SERIALIZED_STRING_SIZE)
+        {
             return std::nullopt;
         }
 
@@ -92,40 +103,26 @@ auto Column::ToBinary(std::ostream& stream) const -> bool {
     return !stream.fail();
 }
 
-auto Column::Name() const -> std::string {
-    return name_;
-}
+auto Column::Name() const -> std::string { return name_; }
 
-auto Column::IsInt() const -> bool {
-    return type_ == ColumnType::INT;
-}
+auto Column::IsInt() const -> bool { return type_ == ColumnType::INT; }
 
-auto Column::IsString() const -> bool {
-    return type_ == ColumnType::STRING;
-}
+auto Column::IsString() const -> bool { return type_ == ColumnType::STRING; }
 
-auto Column::IsNotNull() const -> bool {
-    return (flags_ & NOT_NULL_FLAG) != 0;
-}
+auto Column::IsNotNull() const -> bool { return (flags_ & NOT_NULL_FLAG) != 0; }
 
-auto Column::IsIndexed() const -> bool {
-    return (flags_ & INDEXED_FLAG) != 0;
-}
+auto Column::IsIndexed() const -> bool { return (flags_ & INDEXED_FLAG) != 0; }
 
-auto Column::HasDefault() const -> bool {
-    return default_type_ != DefaultType::NONE;
-}
+auto Column::HasDefault() const -> bool { return default_type_ != DefaultType::NONE; }
 
-auto Column::GetDefaultType() const -> DefaultType {
-    return default_type_;
-}
+auto Column::GetDefaultType() const -> DefaultType { return default_type_; }
 
 auto Column::DefaultValue(Interner& interner) const -> Value {
     switch (default_type_) {
         case DefaultType::NULL_VALUE:
-            return Value {};
+            return Value{};
         case DefaultType::INT:
-            return Value { default_int_ };
+            return Value{default_int_};
         case DefaultType::STRING:
             return interner.Intern(default_string_);
         case DefaultType::NONE:
@@ -144,24 +141,33 @@ auto Column::ValidateDefault() const -> void {
         }
         case DefaultType::NULL_VALUE: {
             if (IsNotNull()) {
-                throw std::invalid_argument("[ERROR in qdb::storage::Column]: "
-                                            "Column '" + name_ + "' cannot have DEFAULT NULL and NOT_NULL!");
+                throw std::invalid_argument(
+                    "[ERROR in qdb::storage::Column]: "
+                    "Column '" +
+                    name_ + "' cannot have DEFAULT NULL and NOT_NULL!"
+                );
             }
 
             return;
         }
         case DefaultType::INT: {
             if (!IsInt()) {
-                throw std::invalid_argument("[ERROR in qdb::storage::Column]: "
-                                            "Column '" + name_ + "' expects STRING default!");
+                throw std::invalid_argument(
+                    "[ERROR in qdb::storage::Column]: "
+                    "Column '" +
+                    name_ + "' expects STRING default!"
+                );
             }
 
             return;
         }
         case DefaultType::STRING: {
             if (!IsString()) {
-                throw std::invalid_argument("[ERROR in qdb::storage::Column]: "
-                                            "Column '" + name_ + "' expects INT default!");
+                throw std::invalid_argument(
+                    "[ERROR in qdb::storage::Column]: "
+                    "Column '" +
+                    name_ + "' expects INT default!"
+                );
             }
 
             return;
