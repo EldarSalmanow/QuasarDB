@@ -1,5 +1,7 @@
 # QuasarDB
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/EldarSalmanow/QuasarDB/.github%2Fworkflows%2Fci.yml)
+
 Team course project of DBMS on the course "System Programming" of Moscow Aviation Institute (MAI).
 
 To see more detailed information about project, please refer to [docs/](./docs/).
