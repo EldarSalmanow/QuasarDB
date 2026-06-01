@@ -31,3 +31,7 @@ if(BUILD_TESTING AND STORAGE_TESTS)
 
 	gtest_discover_tests(qdb-storage-tests)
 endif()
+
+install(TARGETS ${EXECUTABLE_NAME}
+		RUNTIME DESTINATION .
+)
