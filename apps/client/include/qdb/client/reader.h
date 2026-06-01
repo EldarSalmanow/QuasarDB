@@ -29,7 +29,7 @@ public:
 
 class FileReader : public IReader {
 public:
-    explicit FileReader(const std::string &file_path);
+    explicit FileReader(const std::string& file_path);
 
 public:
     ~FileReader() override;

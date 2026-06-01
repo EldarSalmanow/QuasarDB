@@ -25,9 +25,15 @@ public:
     void Close() noexcept;
     void Drop();
 
-    auto Find(const Schema& schema, const std::string& column_name, const Value& value) -> std::optional<std::vector<RecordAddress>>;
-    auto HasDuplicate(const Schema& schema, const Record& record, std::size_t column_index, const Value& value,
-                      const Reader& reader) -> bool;
+    auto Find(const Schema& schema, const std::string& column_name, const Value& value)
+        -> std::optional<std::vector<RecordAddress>>;
+    auto HasDuplicate(
+        const Schema& schema,
+        const Record& record,
+        std::size_t column_index,
+        const Value& value,
+        const Reader& reader
+    ) -> bool;
 
     void Insert(const Schema& schema, const Record& record);
     void Remove(const Schema& schema, const Record& record);

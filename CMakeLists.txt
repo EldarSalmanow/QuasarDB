@@ -34,18 +34,24 @@ endif()
 
 if(ENABLE_CLANG_TIDY)
 	find_program(CLANG_TIDY_EXE NAMES clang-tidy REQUIRED)
+
 	set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
+
 	message(STATUS "clang-tidy enabled: ${CLANG_TIDY_EXE}")
 endif()
 
 include(CTest)
+include(GNUInstallDirs)
 
 find_package(nlohmann_json REQUIRED CONFIG)
 find_package(args REQUIRED CONFIG)
 
 if(BUILD_TESTING)
 	find_package(GTest REQUIRED CONFIG)
+
 	include(GoogleTest)
+
+	add_subdirectory(tests)
 endif()
 
 add_library(qdb-thirdparty INTERFACE)
@@ -77,3 +83,14 @@ add_subdirectory(libs/core)
 add_subdirectory(apps/client)
 add_subdirectory(apps/server)
 add_subdirectory(apps/storage)
+
+install(FILES
+	${PROJECT_DIR}/README.md
+	${PROJECT_DIR}/LICENSE
+	DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/quasardb
+)
+
+install(DIRECTORY ${PROJECT_DIR}/docs/
+	DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/quasardb/docs
+	FILES_MATCHING PATTERN "*.md"
+)

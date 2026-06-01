@@ -33,8 +33,14 @@ private:
 public:
     Column(std::string name, ColumnType type, uint8_t flags = 0);
 
-    Column(std::string name, ColumnType type, uint8_t flags,
-           DefaultType default_type, int32_t default_int = 0, std::string default_string = "");
+    Column(
+        std::string name,
+        ColumnType type,
+        uint8_t flags,
+        DefaultType default_type,
+        int32_t default_int = 0,
+        std::string default_string = ""
+    );
 
 public:
     static auto FromBinary(std::istream& stream) -> std::optional<Column>;

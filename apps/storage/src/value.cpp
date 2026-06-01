@@ -4,9 +4,7 @@
 
 namespace qdb::storage {
 
-auto operator==(SqlBool first, SqlBool second) -> bool {
-    return static_cast<int>(first) == static_cast<int>(second);
-}
+auto operator==(SqlBool first, SqlBool second) -> bool { return static_cast<int>(first) == static_cast<int>(second); }
 
 auto operator&&(SqlBool first, SqlBool second) -> SqlBool {
     if (first == SqlBool::FALSE || second == SqlBool::FALSE) {
@@ -43,26 +41,17 @@ auto operator!(SqlBool first) -> SqlBool {
     }
 }
 
-Value::Value()
-        : data_(nullptr) {}
+Value::Value() : data_(nullptr) {}
 
-Value::Value(std::int32_t value)
-        : data_(value) {}
+Value::Value(std::int32_t value) : data_(value) {}
 
-Value::Value(StringId value)
-        : data_(value) {}
+Value::Value(StringId value) : data_(value) {}
 
-auto Value::IsNull() const -> bool {
-    return std::holds_alternative<std::nullptr_t>(data_);
-}
+auto Value::IsNull() const -> bool { return std::holds_alternative<std::nullptr_t>(data_); }
 
-auto Value::IsInt() const -> bool {
-    return std::holds_alternative<int32_t>(data_);
-}
+auto Value::IsInt() const -> bool { return std::holds_alternative<int32_t>(data_); }
 
-auto Value::IsString() const -> bool {
-    return std::holds_alternative<StringId>(data_);
-}
+auto Value::IsString() const -> bool { return std::holds_alternative<StringId>(data_); }
 
 auto Value::GetType() const -> Type {
     if (IsNull()) {
@@ -188,20 +177,12 @@ auto Value::operator<(const Value& other) const -> SqlBool {
     throw std::runtime_error("[FATAL in qdb::storage::Value]: Unexpected type!");
 }
 
-auto Value::operator<=(const Value& other) const -> SqlBool {
-    return (*this < other) || (*this == other);
-}
+auto Value::operator<=(const Value& other) const -> SqlBool { return (*this < other) || (*this == other); }
 
-auto Value::operator>(const Value& other) const -> SqlBool {
-    return !(*this <= other);
-}
+auto Value::operator>(const Value& other) const -> SqlBool { return !(*this <= other); }
 
-auto Value::operator>=(const Value& other) const -> SqlBool {
-    return !(*this < other);
-}
+auto Value::operator>=(const Value& other) const -> SqlBool { return !(*this < other); }
 
-auto Value::operator!=(const Value& other) const -> SqlBool {
-    return !(*this == other);
-}
+auto Value::operator!=(const Value& other) const -> SqlBool { return !(*this == other); }
 
 }  // namespace qdb::storage

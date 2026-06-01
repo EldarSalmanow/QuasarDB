@@ -37,8 +37,7 @@ TEST(ColumnTest, BinarySerialization) {
 }
 
 TEST(ColumnTest, DefaultBinarySerialization) {
-    Column original("name", Column::ColumnType::STRING, Column::NOT_NULL_FLAG,
-                    Column::DefaultType::STRING, 0, "anon");
+    Column original("name", Column::ColumnType::STRING, Column::NOT_NULL_FLAG, Column::DefaultType::STRING, 0, "anon");
 
     std::stringstream ss;
     ASSERT_TRUE(original.ToBinary(ss));
@@ -53,10 +52,14 @@ TEST(ColumnTest, DefaultBinarySerialization) {
 }
 
 TEST(ColumnTest, RejectsInvalidDefault) {
-    EXPECT_THROW(Column("id", Column::ColumnType::INT, 0, Column::DefaultType::STRING, 0, "oops"),
-                 std::invalid_argument);
-    EXPECT_THROW(Column("id", Column::ColumnType::INT, Column::NOT_NULL_FLAG, Column::DefaultType::NULL_VALUE),
-                 std::invalid_argument);
+    EXPECT_THROW(
+        Column("id", Column::ColumnType::INT, 0, Column::DefaultType::STRING, 0, "oops"),
+        std::invalid_argument
+    );
+    EXPECT_THROW(
+        Column("id", Column::ColumnType::INT, Column::NOT_NULL_FLAG, Column::DefaultType::NULL_VALUE),
+        std::invalid_argument
+    );
 }
 
 TEST(ColumnTest, RejectsOversizedDefaultStringOnSerialization) {

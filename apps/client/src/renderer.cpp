@@ -53,7 +53,7 @@ void Renderer::RenderPollingProgress(char spinner_char, std::size_t attempt) con
 void Renderer::RenderTable(const std::string& json_data) const {
     try {
         nlohmann::json parsed;
-        
+
         try {
             parsed = nlohmann::json::parse(json_data);
         } catch (...) {
@@ -129,7 +129,7 @@ void Renderer::RenderTable(const std::string& json_data) const {
 
         std::cout << parsed.dump(2) << std::endl;
 
-    } catch (const std::exception &exception) {
+    } catch (const std::exception& exception) {
         std::cout << "Data: " << json_data << std::endl;
     }
 }

@@ -27,3 +27,7 @@ if(BUILD_TESTING AND CLIENT_TESTS)
 
 	gtest_discover_tests(qdb-client-tests)
 endif()
+
+install(TARGETS ${EXECUTABLE_NAME}
+		RUNTIME DESTINATION .
+)

@@ -9,8 +9,11 @@ JOBS ?= $(shell nproc)
 CONAN := python3 -m conans.conan
 CONANFILE ?= external/conanfile.txt
 TOOLCHAIN_FILE := $(BUILD_DIR)/conan_toolchain.cmake
+INSTALL_DIR ?= $(CURDIR)/bin
+INSTALL_SHARE_DIR := $(INSTALL_DIR)/share/quasardb
+INSTALL_DOCS_DIR := $(INSTALL_SHARE_DIR)/docs
 
-.PHONY: help all setup deps configure build test format check ci clean
+.PHONY: help all setup deps configure build test format check ci clean install
 
 help:
 	@echo "Targets:"
@@ -22,7 +25,9 @@ help:
 	@echo "  make format        # Apply clang-format"
 	@echo "  make check         # Validate formatting and run clang-tidy"
 	@echo "  make ci            # check + test"
+	@echo "  make install       # Install binaries and docs"
 	@echo "Variables: BUILD_TYPE=Debug/Release (default Debug)"
+	@echo "          INSTALL_DIR=path (default ./bin)"
 
 all: check test
 
@@ -37,10 +42,14 @@ configure: deps
 	cmake -S . -B $(BUILD_DIR) -G Ninja \
     	-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) \
     	-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+    	-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) \
     	-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 build: configure
 	cmake --build $(BUILD_DIR) -j $(JOBS)
+
+install: build
+	cmake --install $(BUILD_DIR)
 
 test: build
 	ctest --test-dir $(BUILD_DIR) -j $(JOBS) --output-on-failure
@@ -49,8 +58,8 @@ format:
 	@if [ -n "$(CPP_FILES)" ]; then clang-format -i $(CPP_FILES); fi
 
 check: configure
-#	@if [ -n "$(CPP_FILES)" ]; then clang-format --dry-run --Werror $(CPP_FILES); fi
-#	@if [ -n "$(CPP_SOURCES)" ]; then clang-tidy -p $(BUILD_DIR) $(CPP_SOURCES); fi
+	@if [ -n "$(CPP_FILES)" ]; then clang-format --dry-run --Werror $(CPP_FILES); fi
+	@#if [ -n "$(CPP_SOURCES)" ]; then clang-tidy -p $(BUILD_DIR) $(CPP_SOURCES); fi
 
 ci: check test
 

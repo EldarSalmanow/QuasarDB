@@ -5,7 +5,6 @@
 #include <iostream>
 #include <stdexcept>
 
-
 namespace qdb::client {
 
 Config::Config(std::string host, std::uint32_t port, std::string file)
@@ -24,11 +23,11 @@ auto Config::FromArguments(int argc, char** argv) -> std::optional<Config> {
 
     try {
         parser.ParseCLI(argc, argv);
-    } catch (const args::Help &) {
+    } catch (const args::Help&) {
         std::cout << parser;
 
         return std::nullopt;
-    } catch (const args::ParseError &exception) {
+    } catch (const args::ParseError& exception) {
         throw std::runtime_error(std::string("Argument parse error: ") + exception.what());
     }
 
@@ -39,17 +38,10 @@ auto Config::FromArguments(int argc, char** argv) -> std::optional<Config> {
     return Config(host.Get(), static_cast<std::uint32_t>(port.Get()), file.Get());
 }
 
-auto Config::Host() const -> const std::string& {
-    return host_;
-}
+auto Config::Host() const -> const std::string& { return host_; }
 
-auto Config::Port() const -> std::uint32_t {
-    return port_;
-}
+auto Config::Port() const -> std::uint32_t { return port_; }
 
-auto Config::File() const -> const std::string& {
-    return file_;
-}
+auto Config::File() const -> const std::string& { return file_; }
 
 }  // namespace qdb::client
-

@@ -20,9 +20,13 @@ Logger::~Logger() {
     }
 }
 
-void Logger::LogQuery(const std::string& client_id, const std::string& handler_id,
-                      const std::string& query, std::uint64_t duration_ms,
-                      const std::string& status) {
+void Logger::LogQuery(
+    const std::string& client_id,
+    const std::string& handler_id,
+    const std::string& query,
+    std::uint64_t duration_ms,
+    const std::string& status
+) {
     LogEntry entry;
     entry.timestamp = std::chrono::system_clock::now();
     entry.client_id = client_id;
@@ -50,9 +54,7 @@ void Logger::Flush() {
 void Logger::WriteLoop() {
     while (running_.load(std::memory_order_relaxed) || pending_writes_.load(std::memory_order_relaxed) > 0) {
         std::unique_lock<std::mutex> lock(mutex_);
-        cv_.wait(lock, [this] {
-            return !queue_.empty() || !running_.load(std::memory_order_relaxed);
-        });
+        cv_.wait(lock, [this] { return !queue_.empty() || !running_.load(std::memory_order_relaxed); });
 
         while (!queue_.empty()) {
             auto entry = std::move(queue_.front());
@@ -93,17 +95,12 @@ void Logger::RotateIfNeeded() {
 
 auto Logger::FormatEntry(const LogEntry& entry) -> std::string {
     auto tt = std::chrono::system_clock::to_time_t(entry.timestamp);
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        entry.timestamp.time_since_epoch()).count() % 1000;
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(entry.timestamp.time_since_epoch()).count() % 1000;
 
     std::ostringstream oss;
-    oss << std::put_time(std::gmtime(&tt), "%Y-%m-%dT%H:%M:%S.")
-        << std::setw(3) << std::setfill('0') << ms << "Z"
-        << " client_id=" << entry.client_id
-        << " handler_id=" << entry.handler_id
-        << " query=\"" << entry.query << "\""
-        << " duration_ms=" << entry.duration_ms
-        << " status=" << entry.status;
+    oss << std::put_time(std::gmtime(&tt), "%Y-%m-%dT%H:%M:%S.") << std::setw(3) << std::setfill('0') << ms << "Z"
+        << " client_id=" << entry.client_id << " handler_id=" << entry.handler_id << " query=\"" << entry.query << "\""
+        << " duration_ms=" << entry.duration_ms << " status=" << entry.status;
     return oss.str();
 }
 
@@ -113,9 +110,7 @@ auto Logger::CurrentFilePath() -> std::string {
     std::tm tm = *std::gmtime(&tt);
 
     std::ostringstream oss;
-    oss << log_dir_ << "/access_"
-        << std::put_time(&tm, "%Y-%m-%d")
-        << "_" << file_index_ << ".log";
+    oss << log_dir_ << "/access_" << std::put_time(&tm, "%Y-%m-%d") << "_" << file_index_ << ".log";
     return oss.str();
 }
 

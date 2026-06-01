@@ -306,9 +306,8 @@ void Table::validate_record(const Record& record) {
                 throw std::runtime_error("Column '" + column.Name() + "' expects STRING, got " + value.GetTypeName());
             }
         }
-        if (column.IsIndexed() && _indexes.HasDuplicate(_schema, record, i, value, [this](auto address) {
-                return read_record(address);
-            }))
+        if (column.IsIndexed() &&
+            _indexes.HasDuplicate(_schema, record, i, value, [this](auto address) { return read_record(address); }))
         {
             auto text = value.IsString() ? std::string(_interner->View(value.AsString())) : value.ToString();
             throw std::runtime_error("Duplicate value for indexed column '" + column.Name() + "': " + text);

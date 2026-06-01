@@ -1,8 +1,8 @@
 #include <qdb/storage/application.h>
 
-#include <filesystem>
-#include <qdb/storage/executor.h>
 #include <qdb/server/ast.h>
+#include <qdb/storage/executor.h>
+#include <filesystem>
 
 namespace qdb::storage {
 
@@ -10,8 +10,8 @@ auto ToSchema(const std::vector<qdb::server::ColumnDef>& source) -> Schema {
     std::vector<Column> columns;
     columns.reserve(source.size());
     for (const auto& column : source) {
-        auto flags = static_cast<std::uint8_t>((column.NotNull ? Column::NOT_NULL_FLAG : 0) |
-                                               (column.Indexed ? Column::INDEXED_FLAG : 0));
+        auto flags = static_cast<
+            std::uint8_t>((column.NotNull ? Column::NOT_NULL_FLAG : 0) | (column.Indexed ? Column::INDEXED_FLAG : 0));
         auto type = column.ColumnType == qdb::server::ColumnDef::Type::Int ? Column::INT : Column::STRING;
         if (!column.DefaultValue) {
             columns.emplace_back(column.Name, type, flags);
@@ -34,8 +34,7 @@ auto ToSchema(const std::vector<qdb::server::ColumnDef>& source) -> Schema {
 }
 
 Application::Application(Config config)
-    : config_(std::move(config)),
-      server_(qdb::core::TcpServer::New(config_.Host(), config_.Port())) {
+    : config_(std::move(config)), server_(qdb::core::TcpServer::New(config_.Host(), config_.Port())) {
     OpenExistingTable();
 }
 
@@ -106,7 +105,8 @@ auto Application::ExecuteAst(const nlohmann::json& ast) -> qdb::core::Response {
         }
         if (stmt->KindOf() == qdb::server::Statement::Kind::CreateDatabase ||
             stmt->KindOf() == qdb::server::Statement::Kind::DropDatabase ||
-            stmt->KindOf() == qdb::server::Statement::Kind::UseDatabase) {
+            stmt->KindOf() == qdb::server::Statement::Kind::UseDatabase)
+        {
             return qdb::core::Error("Storage shard does not manage databases");
         }
         if (!table_) {

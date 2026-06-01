@@ -26,6 +26,6 @@ private:
     Interner& interner_;
 };
 
-}
+}  // namespace qdb::storage
 
 #endif  // QUASARDB_EXECUTOR_H

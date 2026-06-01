@@ -3,6 +3,9 @@
 .vscode
 cmake-build-*
 
+# Bin directories
+bin
+
 # Build directories
 build
 

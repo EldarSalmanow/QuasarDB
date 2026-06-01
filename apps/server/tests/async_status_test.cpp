@@ -90,7 +90,8 @@ TEST(AsyncStatusTest, MultipleSubmissions) {
 
     std::vector<std::string> guids;
     for (int i = 0; i < 5; ++i) {
-        guids.push_back(tracker.Submit(std::make_unique<SelectStmt>(true, std::vector<SelectItem>{}, TableRef{"users"})));
+        guids.push_back(tracker.Submit(std::make_unique<SelectStmt>(true, std::vector<SelectItem>{}, TableRef{"users"}))
+        );
     }
 
     ASSERT_EQ(guids.size(), 5);

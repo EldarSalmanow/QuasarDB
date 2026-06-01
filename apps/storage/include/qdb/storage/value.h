@@ -23,17 +23,11 @@ auto operator||(SqlBool first, SqlBool second) -> SqlBool;
 auto operator!(SqlBool first) -> SqlBool;
 
 struct StringId {
-    bool operator==(const StringId& other) const {
-        return value == other.value;
-    }
+    bool operator==(const StringId& other) const { return value == other.value; }
 
-    bool operator<(const StringId& other) const {
-        return value < other.value;
-    }
+    bool operator<(const StringId& other) const { return value < other.value; }
 
-    friend std::ostream& operator<<(std::ostream& ostream, const StringId& id) {
-        return ostream << id.value;
-    }
+    friend std::ostream& operator<<(std::ostream& ostream, const StringId& id) { return ostream << id.value; }
 
     uint32_t value = 0;
 };

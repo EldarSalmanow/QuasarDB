@@ -3,8 +3,8 @@
 
 #include <qdb/core/request.h>
 
-#include <chrono>
 #include <cctype>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -200,8 +200,8 @@ auto Application::BuildRequest(const std::string& command) -> qdb::core::Request
     }
 
     if (action == "LOGIN") {
-            std::string username;
-            std::string password;
+        std::string username;
+        std::string password;
         input >> username >> password;
         if (!password.empty() && password.back() == ';') {
             password.pop_back();

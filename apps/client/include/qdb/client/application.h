@@ -12,7 +12,6 @@
 #include <optional>
 #include <string>
 
-
 namespace qdb::client {
 
 class Application {

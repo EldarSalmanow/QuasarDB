@@ -34,7 +34,7 @@ public:
 public:
     auto operator==(const Schema& other) const -> bool;
 
-    auto operator[](const std::size_t &index) const -> const Column&;
+    auto operator[](const std::size_t& index) const -> const Column&;
 
 private:
     static constexpr std::string_view HEADER = "SCHEMA";

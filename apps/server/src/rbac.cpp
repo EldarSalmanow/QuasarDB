@@ -7,12 +7,8 @@
 namespace qdb::server {
 
 void to_json(nlohmann::json& j, const AccessRule& r) {
-    j = nlohmann::json{
-        {"user_id", r.user_id},
-        {"database", r.database},
-        {"table", r.table},
-        {"permissions", r.permissions}
-    };
+    j = nlohmann::
+        json{{"user_id", r.user_id}, {"database", r.database}, {"table", r.table}, {"permissions", r.permissions}};
 }
 
 void from_json(const nlohmann::json& j, AccessRule& r) {
@@ -22,12 +18,11 @@ void from_json(const nlohmann::json& j, AccessRule& r) {
     j.at("permissions").get_to(r.permissions);
 }
 
-RBACManager::RBACManager(std::string storage_path) : storage_path_(std::move(storage_path)) {
-    Load();
-}
+RBACManager::RBACManager(std::string storage_path) : storage_path_(std::move(storage_path)) { Load(); }
 
-auto RBACManager::CheckPermission(const std::string& username, const std::string& database,
-                                  const std::string& table, Permission perm) const -> bool {
+auto RBACManager::
+    CheckPermission(const std::string& username, const std::string& database, const std::string& table, Permission perm)
+        const -> bool {
     auto matches = [&](const AccessRule& rule) -> bool {
         if (rule.user_id != username && rule.user_id != "*") return false;
         if (rule.database != database && rule.database != "*") return false;
@@ -39,8 +34,9 @@ auto RBACManager::CheckPermission(const std::string& username, const std::string
     return it != rules_.end();
 }
 
-auto RBACManager::GrantPermission(const std::string& username, const std::string& database,
-                                  const std::string& table, Permission perm) -> void {
+auto RBACManager::
+    GrantPermission(const std::string& username, const std::string& database, const std::string& table, Permission perm)
+        -> void {
     if (perm == Permission::INVALID) return;
     auto it = std::find_if(rules_.begin(), rules_.end(), [&](const AccessRule& r) {
         return r.user_id == username && r.database == database && r.table == table;
@@ -61,8 +57,12 @@ auto RBACManager::GrantPermission(const std::string& username, const std::string
     }
 }
 
-auto RBACManager::RevokePermission(const std::string& username, const std::string& database,
-                                   const std::string& table, Permission perm) -> void {
+auto RBACManager::RevokePermission(
+    const std::string& username,
+    const std::string& database,
+    const std::string& table,
+    Permission perm
+) -> void {
     auto it = std::find_if(rules_.begin(), rules_.end(), [&](const AccessRule& r) {
         return r.user_id == username && r.database == database && r.table == table;
     });
@@ -105,9 +105,7 @@ auto RBACManager::GetUserPermissions(const std::string& username) const -> std::
     return result;
 }
 
-auto RBACManager::GetAllRules() const -> const std::vector<AccessRule>& {
-    return rules_;
-}
+auto RBACManager::GetAllRules() const -> const std::vector<AccessRule>& { return rules_; }
 
 void RBACManager::Load() {
     try {
@@ -116,8 +114,6 @@ void RBACManager::Load() {
     }
 }
 
-auto RBACManager::Save() const -> bool {
-    return qdb::core::JsonFile(storage_path_).Save(rules_);
-}
+auto RBACManager::Save() const -> bool { return qdb::core::JsonFile(storage_path_).Save(rules_); }
 
 }  // namespace qdb::server

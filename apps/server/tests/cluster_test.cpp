@@ -1,5 +1,5 @@
-#include <qdb/server/lexer.h>
 #include <qdb/server/catalog.h>
+#include <qdb/server/lexer.h>
 #include <qdb/server/monitor.h>
 #include <qdb/server/parser.h>
 #include <qdb/server/router.h>

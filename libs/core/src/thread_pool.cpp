@@ -12,9 +12,7 @@ ThreadPool::ThreadPool(std::size_t workers) {
     }
 }
 
-ThreadPool::~ThreadPool() {
-    Stop();
-}
+ThreadPool::~ThreadPool() { Stop(); }
 
 auto ThreadPool::Submit(std::function<void()> task) -> bool {
     {

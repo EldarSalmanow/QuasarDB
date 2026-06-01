@@ -28,11 +28,11 @@ public:
 
     auto DeleteStorage() -> void;
 
-    auto View(const StringId &id) -> std::string_view;
+    auto View(const StringId& id) -> std::string_view;
 
     auto Intern(std::string_view str_view) -> Value;
 
-    auto Get(const StringId &id) -> Value;
+    auto Get(const StringId& id) -> Value;
 
 public:
     auto operator=(const Interner& other) -> Interner& = delete;
@@ -42,9 +42,9 @@ public:
 private:
     auto LoadStorage() -> void;
 
-    auto AddLoadedString(const StringId &id, std::string value) -> std::string_view;
+    auto AddLoadedString(const StringId& id, std::string value) -> std::string_view;
 
-    auto AppendToDisk(const StringId &id, std::string_view string) -> void;
+    auto AppendToDisk(const StringId& id, std::string_view string) -> void;
 
 private:
     std::deque<std::string> string_storage_;

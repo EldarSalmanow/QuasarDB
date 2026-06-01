@@ -4,13 +4,9 @@
 
 namespace qdb::server {
 
-auto TableName(const TableRef& table) -> const std::string& {
-    return table.Table;
-}
+auto TableName(const TableRef& table) -> const std::string& { return table.Table; }
 
-Catalog::Catalog(std::filesystem::path path) : path_(std::move(path)) {
-    Load();
-}
+Catalog::Catalog(std::filesystem::path path) : path_(std::move(path)) { Load(); }
 
 auto Catalog::CreateDatabase(const std::string& name) -> bool {
     auto& databases = data_["databases"];
@@ -70,9 +66,7 @@ auto Catalog::DropTable(const TableRef& table) -> bool {
     return true;
 }
 
-auto Catalog::HasTable(const TableRef& table) const -> bool {
-    return ResolveTable(table).has_value();
-}
+auto Catalog::HasTable(const TableRef& table) const -> bool { return ResolveTable(table).has_value(); }
 
 auto Catalog::ResolveTable(const TableRef& table) const -> std::optional<TableRef> {
     const auto db = DatabaseName(table);
@@ -85,9 +79,7 @@ auto Catalog::ResolveTable(const TableRef& table) const -> std::optional<TableRe
     return TableRef(db, table.Table);
 }
 
-auto Catalog::DatabaseName(const TableRef& table) -> std::string {
-    return table.Database;
-}
+auto Catalog::DatabaseName(const TableRef& table) -> std::string { return table.Database; }
 
 auto Catalog::Load() -> void {
     data_ = qdb::core::JsonFile(path_).Load({{"databases", nlohmann::json::object()}});
@@ -96,8 +88,6 @@ auto Catalog::Load() -> void {
     }
 }
 
-auto Catalog::Save() const -> void {
-    qdb::core::JsonFile(path_).Save(data_);
-}
+auto Catalog::Save() const -> void { qdb::core::JsonFile(path_).Save(data_); }
 
 }  // namespace qdb::server

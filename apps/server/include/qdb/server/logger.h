@@ -26,9 +26,13 @@ public:
     explicit Logger(std::string log_dir, std::uint64_t max_file_size = 100 * 1024 * 1024);
     ~Logger();
 
-    void LogQuery(const std::string& client_id, const std::string& handler_id,
-                  const std::string& query, std::uint64_t duration_ms,
-                  const std::string& status);
+    void LogQuery(
+        const std::string& client_id,
+        const std::string& handler_id,
+        const std::string& query,
+        std::uint64_t duration_ms,
+        const std::string& status
+    );
 
     void Flush();
 
