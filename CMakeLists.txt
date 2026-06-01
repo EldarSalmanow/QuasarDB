@@ -32,13 +32,13 @@ if(ENABLE_UBSAN)
 	message(STATUS "UndefinedBehaviorSanitizer enabled")
 endif()
 
-if(ENABLE_CLANG_TIDY)
-	find_program(CLANG_TIDY_EXE NAMES clang-tidy REQUIRED)
-
-	set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
-
-	message(STATUS "clang-tidy enabled: ${CLANG_TIDY_EXE}")
-endif()
+#if(ENABLE_CLANG_TIDY)
+#	find_program(CLANG_TIDY_EXE NAMES clang-tidy REQUIRED)
+#
+#	set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
+#
+#	message(STATUS "clang-tidy enabled: ${CLANG_TIDY_EXE}")
+#endif()
 
 include(CTest)
 include(GNUInstallDirs)
